@@ -383,6 +383,11 @@ class BillDetailActivity : AppCompatActivity() {
     }
 
     private fun loadBillData() {
+        // 显示加载进度条
+        binding.progressBar.visibility = View.VISIBLE
+        binding.contentContainer.alpha = 0f
+        binding.bottomButtons.alpha = 0f
+
         lifecycleScope.launch {
             try {
                 val bill = viewModel.repository.getBillById(billId)
@@ -432,11 +437,33 @@ class BillDetailActivity : AppCompatActivity() {
 
                 // 初始化编辑状态 - 确保所有字段在非编辑模式下锁定
                 disableAllFieldsEdit()
+
+                // 隐藏进度条并显示内容（带淡入动画）
+                binding.progressBar.visibility = View.GONE
+                animateContentShow()
+
             } catch (e: Exception) {
+                binding.progressBar.visibility = View.GONE
                 Toast.makeText(this@BillDetailActivity, "加载账单失败：${e.message}", Toast.LENGTH_SHORT).show()
                 finish()
             }
         }
+    }
+
+    private fun animateContentShow() {
+        // 内容区域淡入动画
+        binding.contentContainer.animate()
+            .alpha(1f)
+            .setDuration(300)
+            .setStartDelay(50)
+            .start()
+
+        // 底部按钮淡入动画
+        binding.bottomButtons.animate()
+            .alpha(1f)
+            .setDuration(300)
+            .setStartDelay(150)
+            .start()
     }
 
     private fun markAsChanged() {

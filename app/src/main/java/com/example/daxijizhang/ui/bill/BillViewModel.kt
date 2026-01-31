@@ -6,6 +6,7 @@ import com.example.daxijizhang.data.model.BillItem
 import com.example.daxijizhang.data.model.BillWithItems
 import com.example.daxijizhang.data.model.PaymentRecord
 import com.example.daxijizhang.data.repository.BillRepository
+import com.example.daxijizhang.util.PinyinUtil
 import kotlinx.coroutines.launch
 import java.util.Date
 
@@ -14,7 +15,14 @@ class BillViewModel(val repository: BillRepository) : ViewModel() {
     private val _sortType = MutableLiveData<SortType>(SortType.START_DATE_DESC)
     val sortType: LiveData<SortType> = _sortType
 
-    private val _dateRangeFilter = MutableLiveData<Pair<Date, Date>?>(null)
+    // 筛选条件
+    private val _startDateRangeFilter = MutableLiveData<Pair<Date, Date>?>(null)
+    private val _endDateRangeFilter = MutableLiveData<Pair<Date, Date>?>(null)
+    private val _paymentStatusFilter = MutableLiveData<PaymentStatusFilter>(PaymentStatusFilter.ALL)
+
+    // 筛选状态
+    private val _isFilterActive = MutableLiveData<Boolean>(false)
+    val isFilterActive: LiveData<Boolean> = _isFilterActive
 
     private val _bills = MediatorLiveData<List<Bill>>()
     val bills: LiveData<List<Bill>> = _bills
@@ -23,46 +31,168 @@ class BillViewModel(val repository: BillRepository) : ViewModel() {
 
     init {
         // 初始化时设置默认数据源
-        updateBillsSource(SortType.START_DATE_DESC, null)
+        updateBillsSource()
     }
 
-    private fun updateBillsSource(sort: SortType, range: Pair<Date, Date>?) {
-        val source = if (range != null) {
-            repository.getBillsByDateRange(range.first, range.second)
+    private fun updateBillsSource() {
+        val sortType = _sortType.value ?: SortType.START_DATE_DESC
+
+        // 对于小区名排序，使用默认数据源然后在应用层排序
+        val source = if (sortType == SortType.COMMUNITY_ASC) {
+            repository.getBillsSortedByStartDateDesc()
         } else {
-            when (sort) {
+            when (sortType) {
                 SortType.START_DATE_ASC -> repository.getBillsSortedByStartDateAsc()
                 SortType.START_DATE_DESC -> repository.getBillsSortedByStartDateDesc()
                 SortType.END_DATE_ASC -> repository.getBillsSortedByEndDateAsc()
                 SortType.END_DATE_DESC -> repository.getBillsSortedByEndDateDesc()
-                SortType.COMMUNITY_ASC -> repository.getBillsSortedByCommunityAsc()
                 SortType.AMOUNT_ASC -> repository.getBillsSortedByAmountAsc()
                 SortType.AMOUNT_DESC -> repository.getBillsSortedByAmountDesc()
+                else -> repository.getBillsSortedByStartDateDesc()
             }
         }
 
         _bills.addSource(source) { bills ->
-            _bills.value = bills
+            val filteredBills = applyFilters(bills)
+            val sortedBills = applySorting(filteredBills)
+            _bills.value = sortedBills
+        }
+    }
+
+    private fun applyFilters(bills: List<Bill>): List<Bill> {
+        var result = bills
+
+        // 应用开始日期筛选
+        _startDateRangeFilter.value?.let { (start, end) ->
+            result = result.filter { bill ->
+                bill.startDate in start..end
+            }
+        }
+
+        // 应用结束日期筛选
+        _endDateRangeFilter.value?.let { (start, end) ->
+            result = result.filter { bill ->
+                bill.endDate in start..end
+            }
+        }
+
+        // 应用结清状态筛选
+        when (_paymentStatusFilter.value) {
+            PaymentStatusFilter.PAID -> {
+                result = result.filter { bill ->
+                    (bill.paidAmount + bill.waivedAmount) >= bill.totalAmount - 0.01
+                }
+            }
+            PaymentStatusFilter.UNPAID -> {
+                result = result.filter { bill ->
+                    (bill.paidAmount + bill.waivedAmount) < bill.totalAmount - 0.01
+                }
+            }
+            else -> { /* ALL - 不过滤 */ }
+        }
+
+        return result
+    }
+
+    private fun applySorting(bills: List<Bill>): List<Bill> {
+        val primarySortComparator = when (_sortType.value) {
+            SortType.COMMUNITY_ASC -> {
+                // 使用拼音工具进行小区名排序
+                compareBy<Bill> { bill ->
+                    PinyinUtil.compareForSort(bill.communityName, "")
+                }
+            }
+            SortType.AMOUNT_ASC -> compareBy { it.totalAmount }
+            SortType.AMOUNT_DESC -> compareByDescending { it.totalAmount }
+            SortType.START_DATE_ASC -> compareBy { it.startDate }
+            SortType.START_DATE_DESC -> compareByDescending { it.startDate }
+            SortType.END_DATE_ASC -> compareBy { it.endDate }
+            SortType.END_DATE_DESC -> compareByDescending { it.endDate }
+            else -> null
+        }
+
+        return if (primarySortComparator != null) {
+            // 二级排序：当主排序条件相同时，按开始时间降序排序
+            val secondarySortComparator = compareByDescending<Bill> { it.startDate }
+            bills.sortedWith(primarySortComparator.then(secondarySortComparator))
+        } else {
+            bills
         }
     }
 
     fun setSortType(type: SortType) {
         _sortType.value = type
-        updateBillsSource(type, _dateRangeFilter.value)
+        updateBillsSource()
     }
 
-    fun setDateRangeFilter(startDate: Date?, endDate: Date?) {
-        _dateRangeFilter.value = if (startDate != null && endDate != null) {
+    // 设置开始日期范围筛选
+    fun setStartDateRangeFilter(startDate: Date?, endDate: Date?) {
+        _startDateRangeFilter.value = if (startDate != null && endDate != null) {
             Pair(startDate, endDate)
         } else {
             null
         }
-        updateBillsSource(_sortType.value ?: SortType.START_DATE_DESC, _dateRangeFilter.value)
+        updateFilterStatus()
+        updateBillsSource()
     }
 
-    fun clearDateRangeFilter() {
-        _dateRangeFilter.value = null
-        updateBillsSource(_sortType.value ?: SortType.START_DATE_DESC, null)
+    // 设置结束日期范围筛选
+    fun setEndDateRangeFilter(startDate: Date?, endDate: Date?) {
+        _endDateRangeFilter.value = if (startDate != null && endDate != null) {
+            Pair(startDate, endDate)
+        } else {
+            null
+        }
+        updateFilterStatus()
+        updateBillsSource()
+    }
+
+    // 设置结清状态筛选
+    fun setPaymentStatusFilter(status: PaymentStatusFilter) {
+        _paymentStatusFilter.value = status
+        updateFilterStatus()
+        updateBillsSource()
+    }
+
+    // 清除所有筛选
+    fun clearAllFilters() {
+        _startDateRangeFilter.value = null
+        _endDateRangeFilter.value = null
+        _paymentStatusFilter.value = PaymentStatusFilter.ALL
+        _isFilterActive.value = false
+        updateBillsSource()
+    }
+
+    private fun updateFilterStatus() {
+        _isFilterActive.value = _startDateRangeFilter.value != null ||
+                _endDateRangeFilter.value != null ||
+                _paymentStatusFilter.value != PaymentStatusFilter.ALL
+    }
+
+    // 获取当前筛选条件描述
+    fun getCurrentFilterDescription(): String {
+        val filters = mutableListOf<String>()
+
+        _startDateRangeFilter.value?.let { (start, end) ->
+            filters.add("开始日期: ${formatDate(start)}-${formatDate(end)}")
+        }
+
+        _endDateRangeFilter.value?.let { (start, end) ->
+            filters.add("结束日期: ${formatDate(start)}-${formatDate(end)}")
+        }
+
+        when (_paymentStatusFilter.value) {
+            PaymentStatusFilter.PAID -> filters.add("已结清")
+            PaymentStatusFilter.UNPAID -> filters.add("未结清")
+            else -> {}
+        }
+
+        return if (filters.isEmpty()) "无筛选条件" else filters.joinToString("\n")
+    }
+
+    private fun formatDate(date: Date): String {
+        val sdf = java.text.SimpleDateFormat("MM-dd", java.util.Locale.getDefault())
+        return sdf.format(date)
     }
 
     suspend fun saveBillWithItems(bill: Bill, items: List<BillItem>): Long {
@@ -110,6 +240,12 @@ class BillViewModel(val repository: BillRepository) : ViewModel() {
         COMMUNITY_ASC,
         AMOUNT_ASC,
         AMOUNT_DESC
+    }
+
+    enum class PaymentStatusFilter {
+        ALL,
+        PAID,
+        UNPAID
     }
 
     class Factory(private val repository: BillRepository) : ViewModelProvider.Factory {

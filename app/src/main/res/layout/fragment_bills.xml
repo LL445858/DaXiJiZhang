@@ -21,19 +21,39 @@
             android:orientation="horizontal"
             android:padding="8dp">
 
+            <!-- 排序按钮 -->
             <ImageButton
-                android:id="@+id/btn_sort_filter"
+                android:id="@+id/btn_sort"
                 android:layout_width="48dp"
                 android:layout_height="48dp"
                 android:background="?attr/selectableItemBackgroundBorderless"
-                android:contentDescription="@string/sort_filter"
+                android:contentDescription="@string/sort"
                 android:src="@drawable/ic_sort" />
+
+            <!-- 筛选按钮 -->
+            <ImageButton
+                android:id="@+id/btn_filter"
+                android:layout_width="48dp"
+                android:layout_height="48dp"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:contentDescription="@string/filter"
+                android:src="@drawable/ic_filter" />
+
+            <!-- 查找按钮 -->
+            <ImageButton
+                android:id="@+id/btn_search"
+                android:layout_width="48dp"
+                android:layout_height="48dp"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:contentDescription="@string/search"
+                android:src="@drawable/ic_search" />
 
             <View
                 android:layout_width="0dp"
                 android:layout_height="0dp"
                 android:layout_weight="1" />
 
+            <!-- 当前排序方式显示 -->
             <TextView
                 android:id="@+id/tv_sort_info"
                 android:layout_width="wrap_content"

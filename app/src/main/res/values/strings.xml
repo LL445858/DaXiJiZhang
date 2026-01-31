@@ -7,6 +7,9 @@
     <!-- 账单页面 -->
     <string name="add_bill">添加账单</string>
     <string name="sort_filter">排序与筛选</string>
+    <string name="sort">排序</string>
+    <string name="filter">筛选</string>
+    <string name="search">查找</string>
     <string name="no_bills">暂无账单</string>
     <string name="date_range">%1$s 至 %2$s</string>
     <string name="amount_format">¥%.2f</string>

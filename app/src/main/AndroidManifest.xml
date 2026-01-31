@@ -46,6 +46,12 @@
             android:label="@string/bill_detail_title"
             android:parentActivityName=".MainActivity"
             android:theme="@style/Theme.Daxijizhang" />
+
+        <activity
+            android:name=".ui.bill.SearchActivity"
+            android:label="查找账单"
+            android:parentActivityName=".MainActivity"
+            android:theme="@style/Theme.Daxijizhang" />
     </application>
 
 </manifest>

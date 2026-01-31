@@ -18,6 +18,14 @@
         app:title="@string/bill_detail_title"
         app:titleTextColor="@android:color/white" />
 
+    <!-- 加载进度条 -->
+    <ProgressBar
+        android:id="@+id/progress_bar"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center"
+        android:visibility="gone" />
+
     <androidx.core.widget.NestedScrollView
         android:id="@+id/scroll_view"
         android:layout_width="match_parent"
@@ -26,10 +34,12 @@
         android:fillViewport="true">
 
         <LinearLayout
+            android:id="@+id/content_container"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="vertical"
-            android:padding="16dp">
+            android:padding="16dp"
+            android:alpha="0">
 
             <!-- 基本信息卡片 -->
             <androidx.cardview.widget.CardView
@@ -82,41 +92,52 @@
                         android:layout_height="wrap_content"
                         android:orientation="vertical">
 
-                        <!-- 开始日期 -->
-                        <com.google.android.material.textfield.TextInputLayout
-                            android:id="@+id/til_start_date"
-                            style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
+                        <!-- 日期选择区域 - 开始日期和结束日期在同一行 -->
+                        <LinearLayout
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
                             android:layout_marginTop="16dp"
-                            android:hint="@string/start_date">
+                            android:orientation="horizontal">
 
-                            <com.google.android.material.textfield.TextInputEditText
-                                android:id="@+id/et_start_date"
-                                android:layout_width="match_parent"
+                            <!-- 开始日期 -->
+                            <com.google.android.material.textfield.TextInputLayout
+                                android:id="@+id/til_start_date"
+                                style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
+                                android:layout_width="0dp"
                                 android:layout_height="wrap_content"
-                                android:focusable="false"
-                                android:inputType="none" />
+                                android:layout_marginEnd="8dp"
+                                android:layout_weight="1"
+                                android:hint="@string/start_date">
 
-                        </com.google.android.material.textfield.TextInputLayout>
+                                <com.google.android.material.textfield.TextInputEditText
+                                    android:id="@+id/et_start_date"
+                                    android:layout_width="match_parent"
+                                    android:layout_height="wrap_content"
+                                    android:focusable="false"
+                                    android:inputType="none" />
 
-                        <!-- 结束日期 -->
-                        <com.google.android.material.textfield.TextInputLayout
-                            android:id="@+id/til_end_date"
-                            style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:layout_marginTop="8dp"
-                            android:hint="@string/end_date">
+                            </com.google.android.material.textfield.TextInputLayout>
 
-                            <com.google.android.material.textfield.TextInputEditText
-                                android:id="@+id/et_end_date"
-                                android:layout_width="match_parent"
+                            <!-- 结束日期 -->
+                            <com.google.android.material.textfield.TextInputLayout
+                                android:id="@+id/til_end_date"
+                                style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
+                                android:layout_width="0dp"
                                 android:layout_height="wrap_content"
-                                android:focusable="false"
-                                android:inputType="none" />
+                                android:layout_marginStart="8dp"
+                                android:layout_weight="1"
+                                android:hint="@string/end_date">
 
-                        </com.google.android.material.textfield.TextInputLayout>
+                                <com.google.android.material.textfield.TextInputEditText
+                                    android:id="@+id/et_end_date"
+                                    android:layout_width="match_parent"
+                                    android:layout_height="wrap_content"
+                                    android:focusable="false"
+                                    android:inputType="none" />
+
+                            </com.google.android.material.textfield.TextInputLayout>
+
+                        </LinearLayout>
 
                         <!-- 小区名 -->
                         <com.google.android.material.textfield.TextInputLayout
@@ -157,7 +178,8 @@
                                     android:layout_width="match_parent"
                                     android:layout_height="wrap_content"
                                     android:focusable="false"
-                                    android:inputType="none" />
+                                    android:inputType="text"
+                                    android:digits="0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ-#_" />
 
                             </com.google.android.material.textfield.TextInputLayout>
 
@@ -175,7 +197,8 @@
                                     android:layout_width="match_parent"
                                     android:layout_height="wrap_content"
                                     android:focusable="false"
-                                    android:inputType="none" />
+                                    android:inputType="text"
+                                    android:digits="0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ-#_" />
 
                             </com.google.android.material.textfield.TextInputLayout>
 
@@ -193,7 +216,8 @@
                                     android:layout_width="match_parent"
                                     android:layout_height="wrap_content"
                                     android:focusable="false"
-                                    android:inputType="none" />
+                                    android:inputType="text"
+                                    android:digits="0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ-#_" />
 
                             </com.google.android.material.textfield.TextInputLayout>
 
@@ -418,12 +442,14 @@
 
     <!-- 底部按钮 -->
     <LinearLayout
+        android:id="@+id/bottom_buttons"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:background="@color/surface"
         android:elevation="8dp"
         android:orientation="horizontal"
-        android:padding="16dp">
+        android:padding="16dp"
+        android:alpha="0">
 
         <com.google.android.material.button.MaterialButton
             android:id="@+id/btn_settle_bill"
