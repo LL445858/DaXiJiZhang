@@ -398,22 +398,19 @@
                 android:layout_marginTop="24dp"
                 android:text="@string/export_bill"
                 android:textColor="@color/primary"
-                app:icon="@drawable/ic_export"
-                app:iconGravity="textStart"
-                app:iconTint="@color/primary"
                 app:strokeColor="@color/primary" />
 
             <!-- 删除账单按钮 -->
             <com.google.android.material.button.MaterialButton
                 android:id="@+id/btn_delete_bill"
-                style="@style/Widget.MaterialComponents.Button.TextButton"
+                style="@style/Widget.MaterialComponents.Button.OutlinedButton"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="8dp"
                 android:layout_marginBottom="16dp"
                 android:text="@string/delete_bill"
                 android:textColor="@android:color/holo_red_dark"
-                app:rippleColor="@android:color/holo_red_light" />
+                app:strokeColor="@android:color/holo_red_dark" />
 
         </LinearLayout>
 

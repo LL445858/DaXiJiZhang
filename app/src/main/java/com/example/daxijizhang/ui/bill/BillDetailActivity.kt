@@ -424,6 +424,9 @@ class BillDetailActivity : AppCompatActivity() {
                 updateBasicInfoExpandState()
                 updateProjectsExpandState()
                 updatePaymentExpandState()
+
+                // 初始化编辑状态 - 确保所有字段在非编辑模式下锁定
+                disableAllFieldsEdit()
             } catch (e: Exception) {
                 Toast.makeText(this@BillDetailActivity, "加载账单失败：${e.message}", Toast.LENGTH_SHORT).show()
                 finish()
