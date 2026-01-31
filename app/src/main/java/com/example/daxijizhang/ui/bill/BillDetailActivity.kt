@@ -1,0 +1,1061 @@
+package com.example.daxijizhang.ui.bill
+
+import android.app.DatePickerDialog
+import android.os.Bundle
+import android.text.Editable
+import android.text.TextWatcher
+import android.view.LayoutInflater
+import android.view.View
+import android.view.inputmethod.InputMethodManager
+import android.widget.Toast
+import androidx.appcompat.app.AlertDialog
+import androidx.appcompat.app.AppCompatActivity
+import androidx.core.content.ContextCompat
+import androidx.lifecycle.lifecycleScope
+import androidx.recyclerview.widget.ItemTouchHelper
+import androidx.recyclerview.widget.LinearLayoutManager
+import androidx.recyclerview.widget.RecyclerView
+import com.example.daxijizhang.R
+import com.example.daxijizhang.data.database.AppDatabase
+import com.example.daxijizhang.data.model.Bill
+import com.example.daxijizhang.data.model.BillItem
+import com.example.daxijizhang.data.model.PaymentRecord
+import com.example.daxijizhang.data.repository.BillRepository
+import com.example.daxijizhang.databinding.ActivityBillDetailBinding
+import com.example.daxijizhang.databinding.DialogAddPaymentBinding
+import com.example.daxijizhang.databinding.DialogAddProjectBinding
+import com.example.daxijizhang.databinding.DialogExportBillBinding
+import com.example.daxijizhang.util.BillExportUtil
+import kotlinx.coroutines.launch
+import java.text.SimpleDateFormat
+import java.util.Calendar
+import java.util.Collections
+import java.util.Date
+import java.util.Locale
+
+class BillDetailActivity : AppCompatActivity() {
+
+    private lateinit var binding: ActivityBillDetailBinding
+    private lateinit var billItemAdapter: BillItemAdapter
+    private lateinit var paymentRecordAdapter: PaymentRecordAdapter
+
+    private val items = mutableListOf<BillItem>()
+    private val paymentRecords = mutableListOf<PaymentRecord>()
+    private val dateFormat = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
+
+    private var billStartDate: Date? = null
+    private var billEndDate: Date? = null
+    private var waivedAmount: Double = 0.0
+
+    private var billId: Long = 0
+    private var originalBill: Bill? = null
+    private var hasUnsavedChanges = false
+
+    // 编辑状态标记
+    private var isEditingBasicInfo = false
+
+    // 折叠状态标记
+    private var isBasicInfoExpanded = true
+    private var isProjectsExpanded = true
+    private var isPaymentExpanded = true
+
+    private lateinit var viewModel: BillViewModel
+
+    companion object {
+        const val EXTRA_BILL_ID = "extra_bill_id"
+    }
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        binding = ActivityBillDetailBinding.inflate(layoutInflater)
+        setContentView(binding.root)
+
+        billId = intent.getLongExtra(EXTRA_BILL_ID, 0)
+        if (billId == 0L) {
+            Toast.makeText(this, "账单ID无效", Toast.LENGTH_SHORT).show()
+            finish()
+            return
+        }
+
+        val database = AppDatabase.getDatabase(this)
+        val repository = BillRepository(database.billDao(), database.billItemDao(), database.paymentRecordDao())
+        viewModel = BillViewModel(repository)
+
+        setupToolbar()
+        setupRecyclerViews()
+        setupListeners()
+        setupExpandCollapse()
+        loadBillData()
+    }
+
+    private fun setupToolbar() {
+        binding.toolbar.setNavigationOnClickListener {
+            handleBackPressed()
+        }
+    }
+
+    private fun setupRecyclerViews() {
+        // 装修项目列表
+        billItemAdapter = BillItemAdapter(
+            onItemClick = { /* 点击项目 */ },
+            onDeleteClick = { item ->
+                showDeleteConfirmDialog(
+                    onConfirm = {
+                        handleDeleteBillItem(item)
+                        markAsChanged()
+                    }
+                )
+            }
+        )
+        binding.recyclerItems.apply {
+            layoutManager = LinearLayoutManager(this@BillDetailActivity)
+            adapter = billItemAdapter
+        }
+        billItemAdapter.submitList(items.toList())
+
+        // 设置拖动排序
+        val itemTouchHelper = ItemTouchHelper(object : ItemTouchHelper.Callback() {
+            override fun getMovementFlags(recyclerView: RecyclerView, viewHolder: RecyclerView.ViewHolder): Int {
+                val dragFlags = ItemTouchHelper.UP or ItemTouchHelper.DOWN
+                return makeMovementFlags(dragFlags, 0)
+            }
+
+            override fun onMove(recyclerView: RecyclerView, viewHolder: RecyclerView.ViewHolder, target: RecyclerView.ViewHolder): Boolean {
+                val fromPosition = viewHolder.adapterPosition
+                val toPosition = target.adapterPosition
+
+                if (fromPosition < 0 || toPosition < 0 || fromPosition >= items.size || toPosition >= items.size) {
+                    return false
+                }
+
+                Collections.swap(items, fromPosition, toPosition)
+                billItemAdapter.notifyItemMoved(fromPosition, toPosition)
+                markAsChanged()
+                return true
+            }
+
+            override fun onSwiped(viewHolder: RecyclerView.ViewHolder, direction: Int) {}
+
+            override fun isLongPressDragEnabled(): Boolean {
+                return true
+            }
+
+            override fun isItemViewSwipeEnabled(): Boolean {
+                return false
+            }
+
+            override fun onSelectedChanged(viewHolder: RecyclerView.ViewHolder?, actionState: Int) {
+                super.onSelectedChanged(viewHolder, actionState)
+                if (actionState == ItemTouchHelper.ACTION_STATE_DRAG) {
+                    viewHolder?.itemView?.alpha = 0.8f
+                    viewHolder?.itemView?.scaleX = 1.05f
+                    viewHolder?.itemView?.scaleY = 1.05f
+                }
+            }
+
+            override fun clearView(recyclerView: RecyclerView, viewHolder: RecyclerView.ViewHolder) {
+                super.clearView(recyclerView, viewHolder)
+                viewHolder.itemView.alpha = 1.0f
+                viewHolder.itemView.scaleX = 1.0f
+                viewHolder.itemView.scaleY = 1.0f
+            }
+        })
+        itemTouchHelper.attachToRecyclerView(binding.recyclerItems)
+
+        // 结付记录列表
+        paymentRecordAdapter = PaymentRecordAdapter(
+            onItemClick = { /* 点击结付记录 */ },
+            onDeleteClick = { record ->
+                showDeleteConfirmDialog(
+                    onConfirm = {
+                        handleDeletePaymentRecord(record)
+                        markAsChanged()
+                    }
+                )
+            }
+        )
+        binding.recyclerPaymentRecords.apply {
+            layoutManager = LinearLayoutManager(this@BillDetailActivity)
+            adapter = paymentRecordAdapter
+        }
+        sortPaymentRecords()
+        paymentRecordAdapter.submitList(paymentRecords.toList())
+    }
+
+    private fun setupListeners() {
+        // 日期选择
+        binding.etStartDate.setOnClickListener {
+            if (isFieldEditable(binding.etStartDate)) {
+                showDatePicker { date ->
+                    billStartDate = date
+                    binding.etStartDate.setText(dateFormat.format(date))
+                    markAsChanged()
+                }
+            }
+        }
+
+        binding.etEndDate.setOnClickListener {
+            if (isFieldEditable(binding.etEndDate)) {
+                showDatePicker { date ->
+                    billEndDate = date
+                    binding.etEndDate.setText(dateFormat.format(date))
+                    markAsChanged()
+                }
+            }
+        }
+
+        // 添加项目
+        binding.btnAddProject.setOnClickListener {
+            showAddProjectDialog()
+        }
+
+        // 添加结付记录
+        binding.btnAddPayment.setOnClickListener {
+            showAddPaymentDialog()
+        }
+
+        // 账单结清按钮
+        binding.btnSettleBill.setOnClickListener {
+            handleSettleBill()
+        }
+
+        // 保存账单
+        binding.btnSaveBill.setOnClickListener {
+            saveBill()
+        }
+
+        // 删除账单按钮
+        binding.btnDeleteBill.setOnClickListener {
+            showDeleteBillConfirmDialog()
+        }
+
+        // 导出账单按钮
+        binding.btnExportBill.setOnClickListener {
+            checkUnsavedChangesBeforeExport()
+        }
+
+        // 编辑按钮
+        binding.ivEditBasicInfo.setOnClickListener {
+            toggleBasicInfoEditMode()
+        }
+    }
+
+    private fun setupExpandCollapse() {
+        // 基本信息折叠
+        binding.ivExpandBasicInfo.setOnClickListener {
+            isBasicInfoExpanded = !isBasicInfoExpanded
+            updateBasicInfoExpandState()
+        }
+
+        // 装修项目折叠
+        binding.ivExpandProjects.setOnClickListener {
+            isProjectsExpanded = !isProjectsExpanded
+            updateProjectsExpandState()
+        }
+
+        // 结付记录折叠
+        binding.ivExpandPayment.setOnClickListener {
+            isPaymentExpanded = !isPaymentExpanded
+            updatePaymentExpandState()
+        }
+    }
+
+    private fun updateBasicInfoExpandState() {
+        if (isBasicInfoExpanded) {
+            binding.ivExpandBasicInfo.setImageResource(R.drawable.ic_expand_more)
+            binding.layoutBasicInfoContent.visibility = View.VISIBLE
+            binding.ivEditBasicInfo.visibility = View.VISIBLE
+        } else {
+            binding.ivExpandBasicInfo.setImageResource(R.drawable.ic_expand_less)
+            binding.layoutBasicInfoContent.visibility = View.GONE
+            binding.ivEditBasicInfo.visibility = View.GONE
+        }
+    }
+
+    private fun updateProjectsExpandState() {
+        if (isProjectsExpanded) {
+            binding.ivExpandProjects.setImageResource(R.drawable.ic_expand_more)
+            binding.layoutProjectsContent.visibility = View.VISIBLE
+        } else {
+            binding.ivExpandProjects.setImageResource(R.drawable.ic_expand_less)
+            binding.layoutProjectsContent.visibility = View.GONE
+        }
+    }
+
+    private fun updatePaymentExpandState() {
+        if (isPaymentExpanded) {
+            binding.ivExpandPayment.setImageResource(R.drawable.ic_expand_more)
+            binding.layoutPaymentContent.visibility = View.VISIBLE
+        } else {
+            binding.ivExpandPayment.setImageResource(R.drawable.ic_expand_less)
+            binding.layoutPaymentContent.visibility = View.GONE
+        }
+    }
+
+    private fun toggleBasicInfoEditMode() {
+        isEditingBasicInfo = !isEditingBasicInfo
+
+        if (isEditingBasicInfo) {
+            // 进入编辑模式
+            binding.ivEditBasicInfo.setImageResource(R.drawable.ic_save)
+            enableAllFieldsEdit()
+        } else {
+            // 保存并退出编辑模式
+            binding.ivEditBasicInfo.setImageResource(R.drawable.ic_edit)
+            disableAllFieldsEdit()
+            hideKeyboard()
+            markAsChanged()
+        }
+    }
+
+    private fun enableAllFieldsEdit() {
+        enableFieldEdit(binding.etCommunity)
+        enableFieldEdit(binding.etPhase)
+        enableFieldEdit(binding.etBuilding)
+        enableFieldEdit(binding.etRoom)
+        enableFieldEdit(binding.etRemark)
+        // 日期字段启用编辑 - 设置为可点击并启用焦点
+        enableDateFieldEdit(binding.etStartDate)
+        enableDateFieldEdit(binding.etEndDate)
+    }
+
+    private fun enableDateFieldEdit(field: android.widget.EditText) {
+        field.isFocusable = false
+        field.isFocusableInTouchMode = false
+        field.isClickable = true
+        field.isEnabled = true
+    }
+
+    private fun disableAllFieldsEdit() {
+        disableFieldEdit(binding.etCommunity)
+        disableFieldEdit(binding.etPhase)
+        disableFieldEdit(binding.etBuilding)
+        disableFieldEdit(binding.etRoom)
+        disableFieldEdit(binding.etRemark)
+        // 禁用日期字段
+        disableDateFieldEdit(binding.etStartDate)
+        disableDateFieldEdit(binding.etEndDate)
+    }
+
+    private fun disableDateFieldEdit(field: android.widget.EditText) {
+        field.isFocusable = false
+        field.isFocusableInTouchMode = false
+        field.isClickable = false
+        field.isEnabled = false
+    }
+
+    private fun enableFieldEdit(field: android.widget.EditText) {
+        field.isFocusableInTouchMode = true
+        field.isFocusable = true
+        field.isClickable = true
+
+        // 添加文本变化监听
+        field.addTextChangedListener(object : TextWatcher {
+            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
+            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
+            override fun afterTextChanged(s: Editable?) {
+                markAsChanged()
+            }
+        })
+    }
+
+    private fun disableFieldEdit(field: android.widget.EditText) {
+        field.isFocusableInTouchMode = false
+        field.isFocusable = false
+        field.isClickable = false
+    }
+
+    private fun isFieldEditable(field: android.widget.EditText): Boolean {
+        // 日期字段通过isEnabled判断是否可编辑，其他字段通过isFocusableInTouchMode判断
+        return field.isEnabled || field.isFocusableInTouchMode
+    }
+
+    private fun hideKeyboard() {
+        val imm = getSystemService(INPUT_METHOD_SERVICE) as InputMethodManager
+        currentFocus?.let {
+            imm.hideSoftInputFromWindow(it.windowToken, 0)
+        }
+    }
+
+    private fun loadBillData() {
+        lifecycleScope.launch {
+            try {
+                val bill = viewModel.repository.getBillById(billId)
+                if (bill == null) {
+                    Toast.makeText(this@BillDetailActivity, "账单不存在", Toast.LENGTH_SHORT).show()
+                    finish()
+                    return@launch
+                }
+
+                originalBill = bill
+
+                // 加载基本信息
+                billStartDate = bill.startDate
+                billEndDate = bill.endDate
+                binding.etStartDate.setText(dateFormat.format(bill.startDate))
+                binding.etEndDate.setText(dateFormat.format(bill.endDate))
+                binding.etCommunity.setText(bill.communityName)
+                binding.etPhase.setText(bill.phase ?: "")
+                binding.etBuilding.setText(bill.buildingNumber ?: "")
+                binding.etRoom.setText(bill.roomNumber ?: "")
+                binding.etRemark.setText(bill.remark ?: "")
+
+                // 加载装修项目
+                val billItems = viewModel.repository.getBillWithItems(billId)?.items ?: emptyList()
+                items.clear()
+                items.addAll(billItems)
+                billItemAdapter.submitList(items.toList())
+
+                // 加载结付记录
+                val records = viewModel.repository.getPaymentRecordsByBillIdList(billId)
+                paymentRecords.clear()
+                paymentRecords.addAll(records)
+                sortPaymentRecords()
+                paymentRecordAdapter.submitList(paymentRecords.toList())
+
+                // 从数据库加载抹零金额
+                waivedAmount = bill.waivedAmount
+
+                updateTotalAmount()
+                updatePaymentStatus()
+                hasUnsavedChanges = false
+
+                // 初始化折叠状态
+                updateBasicInfoExpandState()
+                updateProjectsExpandState()
+                updatePaymentExpandState()
+            } catch (e: Exception) {
+                Toast.makeText(this@BillDetailActivity, "加载账单失败：${e.message}", Toast.LENGTH_SHORT).show()
+                finish()
+            }
+        }
+    }
+
+    private fun markAsChanged() {
+        hasUnsavedChanges = true
+    }
+
+    private fun showDatePicker(onDateSelected: (Date) -> Unit) {
+        val calendar = Calendar.getInstance()
+        DatePickerDialog(
+            this,
+            { _, year, month, dayOfMonth ->
+                val date = Calendar.getInstance().apply {
+                    set(year, month, dayOfMonth)
+                }.time
+                onDateSelected(date)
+            },
+            calendar.get(Calendar.YEAR),
+            calendar.get(Calendar.MONTH),
+            calendar.get(Calendar.DAY_OF_MONTH)
+        ).show()
+    }
+
+    private fun showAddProjectDialog() {
+        val dialogBinding = DialogAddProjectBinding.inflate(LayoutInflater.from(this))
+
+        val textWatcher = object : TextWatcher {
+            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
+            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
+            override fun afterTextChanged(s: Editable?) {
+                calculateTotal(dialogBinding)
+            }
+        }
+
+        dialogBinding.etUnitPrice.addTextChangedListener(textWatcher)
+        dialogBinding.etQuantity.addTextChangedListener(textWatcher)
+
+        val dialog = AlertDialog.Builder(this)
+            .setView(dialogBinding.root)
+            .create()
+
+        dialogBinding.btnCancel.setOnClickListener {
+            dialog.dismiss()
+        }
+
+        dialogBinding.btnSave.setOnClickListener {
+            if (validateProjectInput(dialogBinding)) {
+                val item = BillItem(
+                    billId = billId,
+                    projectName = dialogBinding.etProjectName.text.toString().trim(),
+                    unitPrice = dialogBinding.etUnitPrice.text.toString().toDouble(),
+                    quantity = dialogBinding.etQuantity.text.toString().toDouble()
+                )
+                handleAddBillItem(item)
+                markAsChanged()
+                dialog.dismiss()
+            }
+        }
+
+        dialog.show()
+    }
+
+    private fun showAddPaymentDialog() {
+        val dialogBinding = DialogAddPaymentBinding.inflate(LayoutInflater.from(this))
+
+        var paymentDate: Date? = null
+
+        dialogBinding.etPaymentDate.setOnClickListener {
+            showDatePicker { date ->
+                paymentDate = date
+                dialogBinding.etPaymentDate.setText(dateFormat.format(date))
+            }
+        }
+
+        val dialog = AlertDialog.Builder(this)
+            .setView(dialogBinding.root)
+            .create()
+
+        dialogBinding.btnCancel.setOnClickListener {
+            dialog.dismiss()
+        }
+
+        dialogBinding.btnSave.setOnClickListener {
+            if (validatePaymentInput(dialogBinding, paymentDate)) {
+                val amount = dialogBinding.etPaymentAmount.text.toString().toDouble()
+                val record = PaymentRecord(
+                    billId = billId,
+                    paymentDate = paymentDate!!,
+                    amount = amount
+                )
+                handleAddPaymentRecord(record)
+                markAsChanged()
+                dialog.dismiss()
+            }
+        }
+
+        dialog.show()
+    }
+
+    private fun calculateTotal(dialogBinding: DialogAddProjectBinding) {
+        val unitPrice = dialogBinding.etUnitPrice.text.toString().toDoubleOrNull() ?: 0.0
+        val quantity = dialogBinding.etQuantity.text.toString().toDoubleOrNull() ?: 0.0
+        val total = unitPrice * quantity
+        dialogBinding.etTotalPrice.setText(String.format("¥%.2f", total))
+    }
+
+    private fun validateProjectInput(binding: DialogAddProjectBinding): Boolean {
+        var isValid = true
+
+        if (binding.etProjectName.text.isNullOrBlank()) {
+            binding.tilProjectName.error = getString(R.string.error_project_name_required)
+            isValid = false
+        } else {
+            binding.tilProjectName.error = null
+        }
+
+        if (binding.etUnitPrice.text.isNullOrBlank()) {
+            binding.tilUnitPrice.error = getString(R.string.error_unit_price_required)
+            isValid = false
+        } else {
+            binding.tilUnitPrice.error = null
+        }
+
+        if (binding.etQuantity.text.isNullOrBlank()) {
+            binding.tilQuantity.error = getString(R.string.error_quantity_required)
+            isValid = false
+        } else {
+            binding.tilQuantity.error = null
+        }
+
+        return isValid
+    }
+
+    private fun validatePaymentInput(binding: DialogAddPaymentBinding, paymentDate: Date?): Boolean {
+        var isValid = true
+
+        if (paymentDate == null) {
+            binding.tilPaymentDate.error = getString(R.string.error_start_date_required)
+            isValid = false
+        } else {
+            binding.tilPaymentDate.error = null
+        }
+
+        if (binding.etPaymentAmount.text.isNullOrBlank()) {
+            binding.tilPaymentAmount.error = getString(R.string.error_unit_price_required)
+            isValid = false
+        } else {
+            binding.tilPaymentAmount.error = null
+        }
+
+        return isValid
+    }
+
+    private fun sortPaymentRecords() {
+        paymentRecords.sortByDescending { it.paymentDate }
+    }
+
+    // ==================== 状态计算核心方法 ====================
+
+    private fun calculatePaymentStatus(): Triple<String, Int, Boolean> {
+        val totalProjectAmount = items.sumOf { it.totalPrice }
+        val totalPaid = paymentRecords.sumOf { it.amount }
+        val actualPaid = totalPaid + waivedAmount
+        val remaining = totalProjectAmount - actualPaid
+
+        return when {
+            waivedAmount > 0.01 -> {
+                Triple(
+                    getString(R.string.payment_status_waived, waivedAmount),
+                    ContextCompat.getColor(this, android.R.color.holo_green_dark),
+                    true
+                )
+            }
+            remaining > 0.01 -> {
+                Triple(
+                    getString(R.string.payment_status_pending, remaining),
+                    ContextCompat.getColor(this, android.R.color.holo_red_dark),
+                    false
+                )
+            }
+            remaining in -0.01..0.01 -> {
+                Triple(
+                    getString(R.string.payment_status_paid),
+                    ContextCompat.getColor(this, android.R.color.holo_green_dark),
+                    true
+                )
+            }
+            else -> {
+                Triple(
+                    getString(R.string.payment_status_overpaid, kotlin.math.abs(remaining)),
+                    ContextCompat.getColor(this, android.R.color.holo_green_dark),
+                    true
+                )
+            }
+        }
+    }
+
+    private fun updatePaymentStatus() {
+        val (statusText, color, _) = calculatePaymentStatus()
+        binding.tvPaymentStatus.text = statusText
+        binding.tvPaymentStatus.setTextColor(color)
+        binding.btnSettleBill.isEnabled = true
+    }
+
+    private fun isPaidStatus(): Boolean {
+        val (_, _, isPaid) = calculatePaymentStatus()
+        return isPaid
+    }
+
+    private fun getRemainingAmount(): Double {
+        val totalProjectAmount = items.sumOf { it.totalPrice }
+        val totalPaid = paymentRecords.sumOf { it.amount }
+        val actualPaid = totalPaid + waivedAmount
+        return totalProjectAmount - actualPaid
+    }
+
+    // ==================== 添加/删除操作处理 ====================
+
+    private fun handleAddBillItem(item: BillItem) {
+        val itemAmount = item.totalPrice
+
+        when {
+            waivedAmount > 0.01 -> {
+                if (itemAmount < waivedAmount - 0.01) {
+                    waivedAmount -= itemAmount
+                } else {
+                    waivedAmount = 0.0
+                }
+            }
+        }
+
+        items.add(item)
+        billItemAdapter.submitList(items.toList())
+        updateTotalAmount()
+        updatePaymentStatus()
+    }
+
+    private fun handleDeleteBillItem(item: BillItem) {
+        val itemAmount = item.totalPrice
+
+        when {
+            waivedAmount > 0.01 -> {
+                waivedAmount += itemAmount
+            }
+        }
+
+        items.remove(item)
+        billItemAdapter.submitList(items.toList())
+        updateTotalAmount()
+        updatePaymentStatus()
+    }
+
+    private fun handleAddPaymentRecord(record: PaymentRecord) {
+        val amount = record.amount
+
+        when {
+            waivedAmount > 0.01 -> {
+                if (amount < waivedAmount - 0.01) {
+                    waivedAmount -= amount
+                } else {
+                    waivedAmount = 0.0
+                }
+            }
+        }
+
+        paymentRecords.add(record)
+        sortPaymentRecords()
+        paymentRecordAdapter.submitList(paymentRecords.toList())
+        updatePaymentStatus()
+    }
+
+    private fun handleDeletePaymentRecord(record: PaymentRecord) {
+        val amount = record.amount
+
+        when {
+            waivedAmount > 0.01 -> {
+                waivedAmount += amount
+            }
+        }
+
+        paymentRecords.remove(record)
+        sortPaymentRecords()
+        paymentRecordAdapter.submitList(paymentRecords.toList())
+        updatePaymentStatus()
+    }
+
+    // ==================== 账单结清按钮处理 ====================
+
+    private fun handleSettleBill() {
+        val remaining = getRemainingAmount()
+
+        when {
+            waivedAmount > 0.01 -> {
+                val oldWaivedAmount = waivedAmount
+                waivedAmount = 0.0
+                binding.tvPaymentStatus.text = getString(R.string.payment_status_pending, oldWaivedAmount)
+                binding.tvPaymentStatus.setTextColor(ContextCompat.getColor(this, android.R.color.holo_red_dark))
+                markAsChanged()
+            }
+            remaining > 0.01 -> {
+                waivedAmount = remaining
+                updatePaymentStatus()
+                markAsChanged()
+            }
+            else -> {
+                AlertDialog.Builder(this)
+                    .setTitle(R.string.already_paid_title)
+                    .setMessage(R.string.already_paid_message)
+                    .setPositiveButton(R.string.confirm) { dialog, _ ->
+                        dialog.dismiss()
+                    }
+                    .show()
+            }
+        }
+    }
+
+    // ==================== 其他方法 ====================
+
+    private fun updateTotalAmount() {
+        val totalProjectAmount = items.sumOf { it.totalPrice }
+        binding.tvTotalAmount.text = "合计：${String.format("¥%.2f", totalProjectAmount)}"
+    }
+
+    private fun showDeleteConfirmDialog(onConfirm: () -> Unit) {
+        AlertDialog.Builder(this)
+            .setTitle(R.string.delete_confirm_title)
+            .setMessage(R.string.delete_confirm_message)
+            .setPositiveButton(R.string.confirm) { dialog, _ ->
+                onConfirm()
+                dialog.dismiss()
+            }
+            .setNegativeButton(R.string.back) { dialog, _ ->
+                dialog.dismiss()
+            }
+            .show()
+    }
+
+    private fun showDeleteBillConfirmDialog() {
+        // 第一次确认
+        AlertDialog.Builder(this)
+            .setTitle(R.string.delete_bill_confirm_title)
+            .setMessage(R.string.delete_bill_confirm_message)
+            .setPositiveButton(R.string.confirm) { _, _ ->
+                // 第二次确认
+                AlertDialog.Builder(this)
+                    .setTitle(R.string.delete_bill_final_confirm)
+                    .setMessage(R.string.delete_bill_confirm_message)
+                    .setPositiveButton(R.string.confirm) { _, _ ->
+                        deleteBill()
+                    }
+                    .setNegativeButton(R.string.cancel) { dialog, _ ->
+                        dialog.dismiss()
+                    }
+                    .show()
+            }
+            .setNegativeButton(R.string.cancel) { dialog, _ ->
+                dialog.dismiss()
+            }
+            .show()
+    }
+
+    private fun checkUnsavedChangesBeforeExport() {
+        if (hasUnsavedChanges) {
+            AlertDialog.Builder(this)
+                .setTitle(R.string.unsaved_changes_title)
+                .setMessage(R.string.unsaved_changes_export_message)
+                .setPositiveButton(R.string.save) { _, _ ->
+                    // 保存后显示导出对话框
+                    saveBillThenExport()
+                }
+                .setNegativeButton(R.string.cancel) { dialog, _ ->
+                    dialog.dismiss()
+                }
+                .show()
+        } else {
+            showExportBillDialog()
+        }
+    }
+
+    private fun saveBillThenExport() {
+        if (!validateBillInput()) {
+            return
+        }
+
+        if (items.isEmpty()) {
+            Toast.makeText(this, R.string.error_add_at_least_one_item, Toast.LENGTH_SHORT).show()
+            return
+        }
+
+        val bill = Bill(
+            id = billId,
+            startDate = billStartDate!!,
+            endDate = billEndDate!!,
+            communityName = binding.etCommunity.text.toString().trim(),
+            phase = binding.etPhase.text.toString().trim().takeIf { it.isNotBlank() },
+            buildingNumber = binding.etBuilding.text.toString().trim().takeIf { it.isNotBlank() },
+            roomNumber = binding.etRoom.text.toString().trim().takeIf { it.isNotBlank() },
+            remark = binding.etRemark.text.toString().trim().takeIf { it.isNotBlank() },
+            totalAmount = items.sumOf { it.totalPrice },
+            paidAmount = paymentRecords.sumOf { it.amount },
+            waivedAmount = waivedAmount
+        )
+
+        lifecycleScope.launch {
+            try {
+                // 更新账单
+                viewModel.repository.updateBill(bill)
+
+                // 删除旧的项目和记录
+                viewModel.repository.deleteBillItemsByBillId(billId)
+                viewModel.repository.deletePaymentRecordsByBillId(billId)
+
+                // 插入新的项目
+                val itemsWithBillId = items.map { it.copy(billId = billId) }
+                viewModel.repository.insertBillItems(itemsWithBillId)
+
+                // 插入新的结付记录
+                if (paymentRecords.isNotEmpty()) {
+                    val recordsWithBillId = paymentRecords.map { it.copy(billId = billId) }
+                    recordsWithBillId.forEach { viewModel.repository.insertPaymentRecord(it) }
+                }
+
+                // 更新原始账单引用
+                originalBill = bill
+                hasUnsavedChanges = false
+
+                Toast.makeText(this@BillDetailActivity, "账单保存成功", Toast.LENGTH_SHORT).show()
+
+                // 保存成功后显示导出对话框
+                showExportBillDialog()
+            } catch (e: Exception) {
+                Toast.makeText(this@BillDetailActivity, "保存失败：${e.message}", Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
+
+    private fun showExportBillDialog() {
+        val dialogBinding = DialogExportBillBinding.inflate(LayoutInflater.from(this))
+
+        val dialog = AlertDialog.Builder(this)
+            .setView(dialogBinding.root)
+            .create()
+
+        var selectedFormat: BillExportUtil.ExportFormat? = null
+        var selectedMethod: BillExportUtil.ExportMethod? = null
+
+        // 格式选择监听
+        dialogBinding.rgExportFormat.setOnCheckedChangeListener { _, checkedId ->
+            selectedFormat = when (checkedId) {
+                R.id.rb_format_image -> BillExportUtil.ExportFormat.IMAGE
+                R.id.rb_format_pdf -> BillExportUtil.ExportFormat.PDF
+                R.id.rb_format_csv -> BillExportUtil.ExportFormat.CSV
+                else -> null
+            }
+            updateExportButtonState(dialogBinding, selectedFormat, selectedMethod)
+        }
+
+        // 方式选择监听
+        dialogBinding.rgExportMethod.setOnCheckedChangeListener { _, checkedId ->
+            selectedMethod = when (checkedId) {
+                R.id.rb_method_save -> BillExportUtil.ExportMethod.SAVE_LOCAL
+                R.id.rb_method_share -> BillExportUtil.ExportMethod.SHARE_APP
+                else -> null
+            }
+            updateExportButtonState(dialogBinding, selectedFormat, selectedMethod)
+        }
+
+        // 取消按钮
+        dialogBinding.btnCancel.setOnClickListener {
+            dialog.dismiss()
+        }
+
+        // 导出按钮
+        dialogBinding.btnExport.setOnClickListener {
+            if (selectedFormat != null && selectedMethod != null) {
+                dialog.dismiss()
+                performExport(selectedFormat!!, selectedMethod!!)
+            }
+        }
+
+        dialog.show()
+    }
+
+    private fun updateExportButtonState(
+        dialogBinding: DialogExportBillBinding,
+        format: BillExportUtil.ExportFormat?,
+        method: BillExportUtil.ExportMethod?
+    ) {
+        dialogBinding.btnExport.isEnabled = format != null && method != null
+    }
+
+    private fun performExport(format: BillExportUtil.ExportFormat, method: BillExportUtil.ExportMethod) {
+        val exportData = BillExportUtil.ExportData(
+            bill = originalBill ?: return,
+            items = items.toList()
+        )
+
+        BillExportUtil.exportBill(
+            context = this,
+            data = exportData,
+            format = format,
+            method = method,
+            onSuccess = {
+                Toast.makeText(this, R.string.export_success, Toast.LENGTH_SHORT).show()
+            },
+            onError = { errorMessage ->
+                Toast.makeText(this, errorMessage, Toast.LENGTH_LONG).show()
+            }
+        )
+    }
+
+    private fun deleteBill() {
+        lifecycleScope.launch {
+            try {
+                originalBill?.let { bill ->
+                    viewModel.repository.deleteBill(bill)
+                    Toast.makeText(this@BillDetailActivity, "账单已删除", Toast.LENGTH_SHORT).show()
+                    finish()
+                }
+            } catch (e: Exception) {
+                Toast.makeText(this@BillDetailActivity, "删除失败：${e.message}", Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
+
+    private fun saveBill() {
+        if (!validateBillInput()) {
+            return
+        }
+
+        if (items.isEmpty()) {
+            Toast.makeText(this, R.string.error_add_at_least_one_item, Toast.LENGTH_SHORT).show()
+            return
+        }
+
+        val bill = Bill(
+            id = billId,
+            startDate = billStartDate!!,
+            endDate = billEndDate!!,
+            communityName = binding.etCommunity.text.toString().trim(),
+            phase = binding.etPhase.text.toString().trim().takeIf { it.isNotBlank() },
+            buildingNumber = binding.etBuilding.text.toString().trim().takeIf { it.isNotBlank() },
+            roomNumber = binding.etRoom.text.toString().trim().takeIf { it.isNotBlank() },
+            remark = binding.etRemark.text.toString().trim().takeIf { it.isNotBlank() },
+            totalAmount = items.sumOf { it.totalPrice },
+            paidAmount = paymentRecords.sumOf { it.amount },
+            waivedAmount = waivedAmount
+        )
+
+        lifecycleScope.launch {
+            try {
+                // 更新账单
+                viewModel.repository.updateBill(bill)
+
+                // 删除旧的项目和记录
+                viewModel.repository.deleteBillItemsByBillId(billId)
+                viewModel.repository.deletePaymentRecordsByBillId(billId)
+
+                // 插入新的项目
+                val itemsWithBillId = items.map { it.copy(billId = billId) }
+                viewModel.repository.insertBillItems(itemsWithBillId)
+
+                // 插入新的结付记录
+                if (paymentRecords.isNotEmpty()) {
+                    val recordsWithBillId = paymentRecords.map { it.copy(billId = billId) }
+                    recordsWithBillId.forEach { viewModel.repository.insertPaymentRecord(it) }
+                }
+
+                Toast.makeText(this@BillDetailActivity, "账单保存成功", Toast.LENGTH_SHORT).show()
+                hasUnsavedChanges = false
+                finish()
+            } catch (e: Exception) {
+                Toast.makeText(this@BillDetailActivity, "保存失败：${e.message}", Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
+
+    private fun validateBillInput(): Boolean {
+        var isValid = true
+
+        if (billStartDate == null) {
+            binding.tilStartDate.error = getString(R.string.error_start_date_required)
+            isValid = false
+        } else {
+            binding.tilStartDate.error = null
+        }
+
+        if (billEndDate == null) {
+            binding.tilEndDate.error = getString(R.string.error_end_date_required)
+            isValid = false
+        } else {
+            binding.tilEndDate.error = null
+        }
+
+        if (billEndDate != null && billStartDate != null && billEndDate!!.before(billStartDate)) {
+            binding.tilEndDate.error = getString(R.string.error_date_range)
+            isValid = false
+        }
+
+        if (binding.etCommunity.text.isNullOrBlank()) {
+            binding.tilCommunity.error = getString(R.string.error_community_required)
+            isValid = false
+        } else {
+            binding.tilCommunity.error = null
+        }
+
+        return isValid
+    }
+
+    private fun handleBackPressed() {
+        if (hasUnsavedChanges) {
+            AlertDialog.Builder(this)
+                .setTitle(R.string.unsaved_changes_title)
+                .setMessage(R.string.unsaved_changes_message)
+                .setPositiveButton(R.string.yes) { _, _ ->
+                    finish()
+                }
+                .setNegativeButton(R.string.no) { dialog, _ ->
+                    dialog.dismiss()
+                }
+                .show()
+        } else {
+            finish()
+        }
+    }
+
+    @Deprecated("Deprecated in Java")
+    override fun onBackPressed() {
+        handleBackPressed()
+    }
+}

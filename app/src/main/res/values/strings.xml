@@ -1,0 +1,122 @@
+<resources>
+    <string name="app_name">大喜记账</string>
+    <string name="title_bills">账单</string>
+    <string name="title_statistics">统计</string>
+    <string name="title_user">用户</string>
+
+    <!-- 账单页面 -->
+    <string name="add_bill">添加账单</string>
+    <string name="sort_filter">排序与筛选</string>
+    <string name="no_bills">暂无账单</string>
+    <string name="date_range">%1$s 至 %2$s</string>
+    <string name="amount_format">¥%.2f</string>
+    <string name="paid">已结清</string>
+    <string name="unpaid_format">剩余¥%.2f未结清</string>
+
+    <!-- 排序选项 -->
+    <string name="sort_start_date_asc">开始日期（升序）</string>
+    <string name="sort_start_date_desc">开始日期（降序）</string>
+    <string name="sort_end_date_asc">结束日期（升序）</string>
+    <string name="sort_end_date_desc">结束日期（降序）</string>
+    <string name="sort_community">小区名（字母排序）</string>
+    <string name="sort_amount_asc">金额（升序）</string>
+    <string name="sort_amount_desc">金额（降序）</string>
+    <string name="filter_date_range">日期区间筛选</string>
+
+    <!-- 添加账单页面 -->
+    <string name="add_bill_title">添加账单</string>
+    <string name="basic_info">基本信息</string>
+    <string name="start_date">开始日期</string>
+    <string name="end_date">结束日期</string>
+    <string name="community_name">小区名</string>
+    <string name="phase">期数</string>
+    <string name="building_number">楼栋号</string>
+    <string name="room_number">门牌号</string>
+    <string name="remark">备注</string>
+    <string name="remark_hint">请输入备注信息（选填）</string>
+
+    <!-- 装修项目 -->
+    <string name="decoration_projects">装修项目</string>
+    <string name="add_project">添加装修项目</string>
+    <string name="project_name">项目名称</string>
+    <string name="project_name_hint">如：地砖、墙面漆</string>
+    <string name="unit_price">单价</string>
+    <string name="quantity">数量</string>
+    <string name="total_price">总价</string>
+    <string name="save_project">保存</string>
+    <string name="continue_add">继续添加</string>
+    <string name="save_bill">保存账单</string>
+
+    <!-- 验证提示 -->
+    <string name="error_start_date_required">请选择开始日期</string>
+    <string name="error_end_date_required">请选择结束日期</string>
+    <string name="error_community_required">请输入小区名</string>
+    <string name="error_project_name_required">请输入项目名称</string>
+    <string name="error_unit_price_required">请输入单价</string>
+    <string name="error_quantity_required">请输入数量</string>
+    <string name="error_date_range">结束日期不能早于开始日期</string>
+    <string name="error_add_at_least_one_item">请至少添加一个项目</string>
+
+    <!-- 结付情况 -->
+    <string name="payment_status">结付记录</string>
+    <string name="add_payment_record">添加结付记录</string>
+    <string name="payment_date">支付日期</string>
+    <string name="payment_amount">支付金额</string>
+    <string name="save_payment">保存</string>
+    <string name="payment_status_pending">待结清，剩余¥%.2f</string>
+    <string name="payment_status_paid">已结清</string>
+    <string name="payment_status_overpaid">已结清，多收¥%.2f</string>
+    <string name="payment_status_waived">已结清，抹零¥%.2f</string>
+    <string name="settle_bill">账单结清</string>
+    <string name="already_paid_title">已结清</string>
+    <string name="already_paid_message">该账单已结清</string>
+
+    <!-- 删除确认 -->
+    <string name="delete_confirm_title">删除确认</string>
+    <string name="delete_confirm_message">是否删除该记录？</string>
+    <string name="confirm">确认</string>
+    <string name="back">返回</string>
+    <string name="cancel">取消</string>
+
+    <!-- 对话框 -->
+    <string name="select_date">选择日期</string>
+    <string name="select_start_date">选择开始日期</string>
+    <string name="select_end_date">选择结束日期</string>
+
+    <!-- 账单详情页面 -->
+    <string name="bill_detail_title">账单详情</string>
+    <string name="delete_bill">删除账单</string>
+    <string name="delete_bill_confirm_title">删除确认</string>
+    <string name="delete_bill_confirm_message">确定要删除该账单吗？此操作不可恢复。</string>
+    <string name="delete_bill_final_confirm">再次确认删除</string>
+    <string name="unsaved_changes_title">未保存的更改</string>
+    <string name="unsaved_changes_message">账单更改未保存，是否退出？</string>
+    <string name="yes">是</string>
+    <string name="no">否</string>
+
+    <!-- 折叠/展开 -->
+    <string name="expand">展开</string>
+    <string name="collapse">折叠</string>
+    <string name="edit">编辑</string>
+
+    <!-- 导出账单 -->
+    <string name="export_bill">导出账单</string>
+    <string name="select_export_format">选择导出格式</string>
+    <string name="select_export_method">选择导出方式</string>
+    <string name="format_image">图片</string>
+    <string name="format_pdf">PDF</string>
+    <string name="format_csv">电子表格</string>
+    <string name="method_save_local">保存到本地</string>
+    <string name="method_share_app">分享到应用</string>
+    <string name="export">导出</string>
+    <string name="exporting">正在导出...</string>
+    <string name="export_success">导出成功</string>
+    <string name="export_failed">导出失败</string>
+    <string name="export_cancelled">导出已取消</string>
+    <string name="please_select_format_and_method">请选择导出格式和方式</string>
+    <string name="share_failed">分享失败</string>
+    <string name="no_app_to_share">没有可用的分享应用</string>
+    <string name="share_to_app">分享到</string>
+    <string name="unsaved_changes_export_message">存在已修改但未保存的内容，是否先保存？</string>
+    <string name="save">保存</string>
+</resources>

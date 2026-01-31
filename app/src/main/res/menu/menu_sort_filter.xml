@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <group android:title="排序方式">
+        <item
+            android:id="@+id/sort_start_date_desc"
+            android:title="@string/sort_start_date_desc" />
+        <item
+            android:id="@+id/sort_start_date_asc"
+            android:title="@string/sort_start_date_asc" />
+        <item
+            android:id="@+id/sort_end_date_desc"
+            android:title="@string/sort_end_date_desc" />
+        <item
+            android:id="@+id/sort_end_date_asc"
+            android:title="@string/sort_end_date_asc" />
+        <item
+            android:id="@+id/sort_community"
+            android:title="@string/sort_community" />
+        <item
+            android:id="@+id/sort_amount_desc"
+            android:title="@string/sort_amount_desc" />
+        <item
+            android:id="@+id/sort_amount_asc"
+            android:title="@string/sort_amount_asc" />
+    </group>
+
+    <group android:title="筛选">
+        <item
+            android:id="@+id/filter_date_range"
+            android:title="@string/filter_date_range" />
+        <item
+            android:id="@+id/clear_filter"
+            android:title="清除筛选" />
+    </group>
+
+</menu>

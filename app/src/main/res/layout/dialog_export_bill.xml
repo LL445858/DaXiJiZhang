@@ -1,0 +1,159 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:padding="20dp">
+
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="@string/export_bill"
+        android:textColor="@color/primary"
+        android:textSize="18sp"
+        android:textStyle="bold" />
+
+    <!-- 导出格式选择 -->
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="16dp"
+        android:text="@string/select_export_format"
+        android:textColor="@color/text_primary"
+        android:textSize="14sp"
+        android:textStyle="bold" />
+
+    <RadioGroup
+        android:id="@+id/rg_export_format"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:orientation="horizontal">
+
+        <RadioButton
+            android:id="@+id/rb_format_image"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:button="@null"
+            android:background="@drawable/selector_export_option"
+            android:gravity="center"
+            android:padding="12dp"
+            android:text="@string/format_image"
+            android:textColor="@color/selector_export_text"
+            android:textSize="12sp"
+            android:drawableTop="@drawable/ic_image"
+            android:drawablePadding="4dp" />
+
+        <RadioButton
+            android:id="@+id/rb_format_pdf"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:layout_marginStart="8dp"
+            android:button="@null"
+            android:background="@drawable/selector_export_option"
+            android:gravity="center"
+            android:padding="12dp"
+            android:text="@string/format_pdf"
+            android:textColor="@color/selector_export_text"
+            android:textSize="12sp"
+            android:drawableTop="@drawable/ic_pdf"
+            android:drawablePadding="4dp" />
+
+        <RadioButton
+            android:id="@+id/rb_format_csv"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:layout_marginStart="8dp"
+            android:button="@null"
+            android:background="@drawable/selector_export_option"
+            android:gravity="center"
+            android:padding="12dp"
+            android:text="@string/format_csv"
+            android:textColor="@color/selector_export_text"
+            android:textSize="12sp"
+            android:drawableTop="@drawable/ic_excel"
+            android:drawablePadding="4dp" />
+
+    </RadioGroup>
+
+    <!-- 导出方式选择 -->
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="16dp"
+        android:text="@string/select_export_method"
+        android:textColor="@color/text_primary"
+        android:textSize="14sp"
+        android:textStyle="bold" />
+
+    <RadioGroup
+        android:id="@+id/rg_export_method"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:orientation="horizontal">
+
+        <RadioButton
+            android:id="@+id/rb_method_save"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:button="@null"
+            android:background="@drawable/selector_export_option"
+            android:gravity="center"
+            android:padding="12dp"
+            android:text="@string/method_save_local"
+            android:textColor="@color/selector_export_text"
+            android:textSize="12sp"
+            android:drawableTop="@drawable/ic_save_local"
+            android:drawablePadding="4dp" />
+
+        <RadioButton
+            android:id="@+id/rb_method_share"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:layout_marginStart="8dp"
+            android:button="@null"
+            android:background="@drawable/selector_export_option"
+            android:gravity="center"
+            android:padding="12dp"
+            android:text="@string/method_share_app"
+            android:textColor="@color/selector_export_text"
+            android:textSize="12sp"
+            android:drawableTop="@drawable/ic_share"
+            android:drawablePadding="4dp" />
+
+    </RadioGroup>
+
+    <!-- 按钮区域 -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="24dp"
+        android:orientation="horizontal">
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btn_cancel"
+            style="@style/Widget.MaterialComponents.Button.TextButton"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="@string/cancel" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btn_export"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="8dp"
+            android:layout_weight="1"
+            android:enabled="false"
+            android:text="@string/export" />
+
+    </LinearLayout>
+
+</LinearLayout>

@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<navigation xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/mobile_navigation"
+    app:startDestination="@+id/navigation_bills">
+
+    <fragment
+        android:id="@+id/navigation_bills"
+        android:name="com.example.daxijizhang.ui.bill.BillsFragment"
+        android:label="@string/title_bills"
+        tools:layout="@layout/fragment_bills" />
+
+    <fragment
+        android:id="@+id/navigation_statistics"
+        android:name="com.example.daxijizhang.ui.statistics.StatisticsFragment"
+        android:label="@string/title_statistics"
+        tools:layout="@layout/fragment_statistics" />
+
+    <fragment
+        android:id="@+id/navigation_user"
+        android:name="com.example.daxijizhang.ui.user.UserFragment"
+        android:label="@string/title_user"
+        tools:layout="@layout/fragment_user" />
+
+    <activity
+        android:id="@+id/navigation_add_bill"
+        android:name="com.example.daxijizhang.ui.bill.AddBillActivity"
+        android:label="@string/add_bill_title" />
+
+</navigation>

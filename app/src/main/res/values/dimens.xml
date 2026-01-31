@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- 默认尺寸定义 -->
+    <dimen name="card_margin">8dp</dimen>
+    <dimen name="card_padding">16dp</dimen>
+    <dimen name="text_size_title">16sp</dimen>
+    <dimen name="text_size_content">14sp</dimen>
+    <dimen name="fab_margin">16dp</dimen>
+    <dimen name="max_content_width">0dp</dimen>
+</resources>
