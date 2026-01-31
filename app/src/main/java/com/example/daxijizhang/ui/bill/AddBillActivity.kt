@@ -50,6 +50,10 @@ class AddBillActivity : AppCompatActivity() {
 
     private lateinit var viewModel: BillViewModel
 
+    // 对话框标记，防止重复弹出
+    private var isAddProjectDialogShowing = false
+    private var isAddPaymentDialogShowing = false
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         binding = ActivityAddBillBinding.inflate(layoutInflater)
@@ -319,6 +323,10 @@ class AddBillActivity : AppCompatActivity() {
     }
 
     private fun showAddProjectDialog() {
+        // 防止重复弹出
+        if (isAddProjectDialogShowing) return
+        isAddProjectDialogShowing = true
+
         val dialogBinding = DialogAddProjectBinding.inflate(LayoutInflater.from(this))
 
         // 实时计算总价
@@ -336,6 +344,11 @@ class AddBillActivity : AppCompatActivity() {
         val dialog = AlertDialog.Builder(this)
             .setView(dialogBinding.root)
             .create()
+
+        // 对话框关闭时重置标记
+        dialog.setOnDismissListener {
+            isAddProjectDialogShowing = false
+        }
 
         dialogBinding.btnCancel.setOnClickListener {
             dialog.dismiss()
@@ -358,6 +371,10 @@ class AddBillActivity : AppCompatActivity() {
     }
 
     private fun showAddPaymentDialog() {
+        // 防止重复弹出
+        if (isAddPaymentDialogShowing) return
+        isAddPaymentDialogShowing = true
+
         val dialogBinding = DialogAddPaymentBinding.inflate(LayoutInflater.from(this))
 
         var paymentDate: Date? = null
@@ -373,6 +390,11 @@ class AddBillActivity : AppCompatActivity() {
         val dialog = AlertDialog.Builder(this)
             .setView(dialogBinding.root)
             .create()
+
+        // 对话框关闭时重置标记
+        dialog.setOnDismissListener {
+            isAddPaymentDialogShowing = false
+        }
 
         dialogBinding.btnCancel.setOnClickListener {
             dialog.dismiss()
@@ -532,40 +554,28 @@ class AddBillActivity : AppCompatActivity() {
 
     /**
      * 处理添加装修项目
+     * 核心逻辑：状态通过 calculatePaymentStatus() 实时计算，基于以下公式：
+     * remaining = totalProjectAmount - totalPaid - waivedAmount
+     *
+     * 3.1.1 待结清+Y：remaining自动增加Y，状态保持待结清，剩余金额=X+Y
+     * 3.1.2 抹零+Y：waivedAmount增加Y，保持抹零状态，抹零金额=X+Y
+     * 3.1.3 已结清+Y：remaining=Y，转为待结清，剩余金额=Y
+     * 3.1.4 多收+Y：remaining=X-Y（原remaining为负），多收减少或转为待结清
      */
     private fun handleAddBillItem(item: BillItem) {
         val itemAmount = item.totalPrice
 
-        // 根据当前状态处理
         when {
             waivedAmount > 0.01 -> {
-                // 当前是抹零状态
-                if (itemAmount < waivedAmount - 0.01) {
-                    // 增加的金额小于抹零金额，减少抹零金额
-                    waivedAmount -= itemAmount
-                } else {
-                    // 增加的金额大于等于抹零金额，转为待结清
-                    waivedAmount = 0.0
-                }
+                // 3.1.2 抹零状态：增加抹零金额以保持结清
+                // 例：项目¥1000，已付¥950，抹零¥50。添加¥100项目后，
+                // 项目¥1100，已付¥950，抹零需增加到¥150才能保持结清
+                waivedAmount += itemAmount
             }
-            isPaidStatus() -> {
-                // 当前是已结清或多收状态
-                val remaining = getRemainingAmount()
-                if (itemAmount <= kotlin.math.abs(remaining) + 0.01) {
-                    // 增加的金额小于等于多收金额，保持已结清状态（多收金额减少）
-                    // 不需要修改任何值，calculatePaymentStatus会自动计算
-                } else {
-                    // 增加的金额大于多收金额，转为待结清
-                    // 不需要修改任何值，calculatePaymentStatus会自动计算
-                }
-            }
-            else -> {
-                // 当前是待结清状态，只需更新显示
-                // 不需要修改任何值，calculatePaymentStatus会自动计算
-            }
+            // 其他状态（已结清、多收、待结清）不需要修改waivedAmount
+            // 因为remaining会根据新的totalProjectAmount自动重新计算
         }
 
-        // 添加项目并更新UI
         items.add(item)
         billItemAdapter.submitList(items.toList())
         updateTotalAmount()
@@ -574,34 +584,33 @@ class AddBillActivity : AppCompatActivity() {
 
     /**
      * 处理删除装修项目
+     * 核心逻辑：状态通过 calculatePaymentStatus() 实时计算
+     *
+     * 3.1.5 多收-删Y：remaining=X+Y（更负），多收金额增加
+     * 3.1.6 抹零-删Y：waivedAmount减少Y，若Y>=X则转多收
+     * 3.1.7 已结清-删Y：remaining=-Y，转为多收Y
+     * 3.1.8 待结清-删Y：remaining=X-Y，若Y>=X则转已结清或多收
      */
     private fun handleDeleteBillItem(item: BillItem) {
         val itemAmount = item.totalPrice
 
-        // 根据当前状态处理
         when {
             waivedAmount > 0.01 -> {
-                // 当前是抹零状态，增加抹零金额
-                waivedAmount += itemAmount
-            }
-            isPaidStatus() -> {
-                // 当前是已结清或多收状态
-                val remaining = getRemainingAmount()
-                if (remaining >= -0.01) {
-                    // 刚好结清或多收不多，删除后转为待结清
-                    // 不需要修改任何值，calculatePaymentStatus会自动计算
+                // 3.1.6 抹零状态：减少抹零金额
+                // 例：项目¥1100，已付¥950，抹零¥150。删除¥100项目后，
+                // 若抹零足够：抹零变为¥50；若抹零不足：转为多收
+                if (waivedAmount > itemAmount + 0.01) {
+                    waivedAmount -= itemAmount
                 } else {
-                    // 多收较多，删除后可能还是多收或转为待结清
-                    // 不需要修改任何值，calculatePaymentStatus会自动计算
+                    // 抹零金额不足，清除抹零，转为多收状态
+                    // 多收金额 = 项目金额 - 原抹零金额，由calculatePaymentStatus自动计算
+                    waivedAmount = 0.0
                 }
             }
-            else -> {
-                // 当前是待结清状态，剩余金额增加
-                // 不需要修改任何值，calculatePaymentStatus会自动计算
-            }
+            // 其他状态（已结清、多收、待结清）不需要修改waivedAmount
+            // remaining会根据新的totalProjectAmount自动重新计算
         }
 
-        // 删除项目并更新UI
         items.remove(item)
         billItemAdapter.submitList(items.toList())
         updateTotalAmount()
@@ -610,37 +619,31 @@ class AddBillActivity : AppCompatActivity() {
 
     /**
      * 处理添加结付记录
+     * 核心逻辑：状态通过 calculatePaymentStatus() 实时计算
+     *
+     * 3.2.1 多收+记录Y：remaining=X+Y（更负），多收金额增加
+     * 3.2.2 抹零+记录Y：waivedAmount减少Y，若Y>=X则清除抹零
+     * 3.2.3 已结清+记录Y：remaining=-Y，转为多收Y
+     * 3.2.4 待结清+记录Y：remaining=X-Y，若Y>=X则转已结清或多收
      */
     private fun handleAddPaymentRecord(record: PaymentRecord) {
         val amount = record.amount
 
-        // 根据当前状态处理
         when {
             waivedAmount > 0.01 -> {
-                // 当前是抹零状态
+                // 3.2.2 抹零状态：减少抹零金额
+                // 例：项目¥1000，已付¥950，抹零¥50。添加¥30记录后，
+                // 抹零变为¥20；若添加¥60记录，清除抹零，转为多收
                 if (amount < waivedAmount - 0.01) {
-                    // 支付金额小于抹零金额，减少抹零金额
                     waivedAmount -= amount
                 } else {
-                    // 支付金额大于等于抹零金额，清除抹零
                     waivedAmount = 0.0
                 }
             }
-            isPaidStatus() -> {
-                // 当前是已结清或多收状态，保持多收状态
-                // 不需要修改任何值，calculatePaymentStatus会自动计算
-            }
-            else -> {
-                // 当前是待结清状态
-                val remaining = getRemainingAmount()
-                if (amount >= remaining - 0.01) {
-                    // 支付完成，转为已结清或多收
-                    // 不需要修改任何值，calculatePaymentStatus会自动计算
-                }
-            }
+            // 其他状态（已结清、多收、待结清）不需要修改waivedAmount
+            // remaining会根据新的totalPaid自动重新计算
         }
 
-        // 添加记录并更新UI
         paymentRecords.add(record)
         sortPaymentRecords()
         paymentRecordAdapter.submitList(paymentRecords.toList())
@@ -649,41 +652,27 @@ class AddBillActivity : AppCompatActivity() {
 
     /**
      * 处理删除结付记录
+     * 核心逻辑：状态通过 calculatePaymentStatus() 实时计算
+     *
+     * 3.2.5 待结清-删Y：remaining=X+Y，剩余金额增加
+     * 3.2.6 抹零-删Y：waivedAmount增加Y，抹零金额增加
+     * 3.2.7 已结清-删Y：remaining=Y，转为待结清
+     * 3.2.8 多收-删Y：remaining=X+Y（负值减少），若Y>X则转为待结清
      */
     private fun handleDeletePaymentRecord(record: PaymentRecord) {
         val amount = record.amount
 
-        // 根据当前状态处理
         when {
             waivedAmount > 0.01 -> {
-                // 当前是抹零状态，增加抹零金额
+                // 3.2.6 抹零状态：增加抹零金额
+                // 例：项目¥1000，已付¥950，抹零¥50。删除¥30记录后，
+                // 已付变为¥920，抹零需增加到¥80才能保持结清
                 waivedAmount += amount
             }
-            isPaidStatus() -> {
-                // 当前是已结清或多收状态
-                val remaining = getRemainingAmount()
-                if (remaining >= -0.01) {
-                    // 刚好结清或多收不多，删除后转为待结清
-                    // 不需要修改任何值，calculatePaymentStatus会自动计算
-                } else {
-                    // 多收较多，删除后可能还是多收或转为待结清
-                    val overpaidAmount = kotlin.math.abs(remaining)
-                    if (amount <= overpaidAmount + 0.01) {
-                        // 删除金额小于等于多收金额，保持已结清状态
-                        // 不需要修改任何值，calculatePaymentStatus会自动计算
-                    } else {
-                        // 删除金额大于多收金额，转为待结清
-                        // 不需要修改任何值，calculatePaymentStatus会自动计算
-                    }
-                }
-            }
-            else -> {
-                // 当前是待结清状态，剩余金额增加
-                // 不需要修改任何值，calculatePaymentStatus会自动计算
-            }
+            // 其他状态（已结清、多收、待结清）不需要修改waivedAmount
+            // remaining会根据新的totalPaid自动重新计算
         }
 
-        // 删除记录并更新UI
         paymentRecords.remove(record)
         sortPaymentRecords()
         paymentRecordAdapter.submitList(paymentRecords.toList())
@@ -692,24 +681,30 @@ class AddBillActivity : AppCompatActivity() {
 
     // ==================== 账单结清按钮处理 ====================
 
+    /**
+     * 处理账单结清按钮点击
+     * 3.3.1 待结清状态下点击，状态变为抹零状态
+     * 3.3.2 抹零状态下点击，状态变为待结清
+     * 3.3.3 已结清或多收状态下点击，提示"该账单已结清"
+     */
     private fun handleSettleBill() {
         val remaining = getRemainingAmount()
 
         when {
             waivedAmount > 0.01 -> {
-                // 当前是抹零状态，恢复为待结清
+                // 3.3.2 当前是抹零状态，恢复为待结清
                 val oldWaivedAmount = waivedAmount
                 waivedAmount = 0.0
                 binding.tvPaymentStatus.text = getString(R.string.payment_status_pending, oldWaivedAmount)
                 binding.tvPaymentStatus.setTextColor(ContextCompat.getColor(this, android.R.color.holo_red_dark))
             }
             remaining > 0.01 -> {
-                // 待结清状态，记录抹零金额
+                // 3.3.1 待结清状态，记录抹零金额
                 waivedAmount = remaining
                 updatePaymentStatus()
             }
             else -> {
-                // 已结清或多收状态，显示提示
+                // 3.3.3 已结清或多收状态，显示提示
                 AlertDialog.Builder(this)
                     .setTitle(R.string.already_paid_title)
                     .setMessage(R.string.already_paid_message)
