@@ -178,7 +178,7 @@
                                     android:layout_width="match_parent"
                                     android:layout_height="wrap_content"
                                     android:focusable="false"
-                                    android:inputType="text"
+                                    android:inputType="textVisiblePassword|number"
                                     android:digits="0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ-#_" />
 
                             </com.google.android.material.textfield.TextInputLayout>
@@ -197,7 +197,7 @@
                                     android:layout_width="match_parent"
                                     android:layout_height="wrap_content"
                                     android:focusable="false"
-                                    android:inputType="text"
+                                    android:inputType="textVisiblePassword|number"
                                     android:digits="0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ-#_" />
 
                             </com.google.android.material.textfield.TextInputLayout>
@@ -216,7 +216,7 @@
                                     android:layout_width="match_parent"
                                     android:layout_height="wrap_content"
                                     android:focusable="false"
-                                    android:inputType="text"
+                                    android:inputType="textVisiblePassword|number"
                                     android:digits="0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ-#_" />
 
                             </com.google.android.material.textfield.TextInputLayout>
