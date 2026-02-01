@@ -335,6 +335,28 @@ object ViewUtil {
     }
 
     /**
+     * 应用点击动画并执行操作
+     * 用于Activity中设置点击监听器
+     */
+    fun applyClickAnimation(view: View, action: () -> Unit) {
+        view.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
+        view.animate()
+            .scaleX(CLICK_SCALE)
+            .scaleY(CLICK_SCALE)
+            .setDuration(50)
+            .withEndAction {
+                view.animate()
+                    .scaleX(1f)
+                    .scaleY(1f)
+                    .setDuration(100)
+                    .setInterpolator(DecelerateInterpolator())
+                    .withEndAction { action() }
+                    .start()
+            }
+            .start()
+    }
+
+    /**
      * 延迟执行操作（用于优化UI响应）
      */
     fun postDelayed(delayMillis: Long, action: () -> Unit): Job {

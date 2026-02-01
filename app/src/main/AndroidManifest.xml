@@ -2,8 +2,13 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
 
+    <!-- 存储权限 - Android 13以下使用 -->
+    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"
+        android:maxSdkVersion="32" />
     <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE"
         android:maxSdkVersion="28" />
+    <!-- 媒体权限 - Android 13+使用 -->
+    <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
 
     <application
         android:allowBackup="true"
@@ -52,6 +57,35 @@
             android:label="查找账单"
             android:parentActivityName=".MainActivity"
             android:theme="@style/Theme.Daxijizhang" />
+
+        <!-- 信息设置页面 - 父Activity改为MainActivity -->
+        <activity
+            android:name=".ui.settings.InfoSettingsActivity"
+            android:label="@string/info_settings"
+            android:parentActivityName=".MainActivity"
+            android:theme="@style/Theme.Daxijizhang" />
+
+        <!-- 显示设置页面 - 父Activity改为MainActivity -->
+        <activity
+            android:name=".ui.settings.DisplaySettingsActivity"
+            android:label="@string/display_settings"
+            android:parentActivityName=".MainActivity"
+            android:theme="@style/Theme.Daxijizhang" />
+
+        <!-- 数据迁移页面 - 父Activity改为MainActivity -->
+        <activity
+            android:name=".ui.settings.DataMigrationActivity"
+            android:label="@string/data_migration"
+            android:parentActivityName=".MainActivity"
+            android:theme="@style/Theme.Daxijizhang" />
+
+        <!-- 远程同步页面 - 父Activity改为MainActivity -->
+        <activity
+            android:name=".ui.settings.RemoteSyncActivity"
+            android:label="@string/remote_sync"
+            android:parentActivityName=".MainActivity"
+            android:theme="@style/Theme.Daxijizhang" />
+
     </application>
 
 </manifest>

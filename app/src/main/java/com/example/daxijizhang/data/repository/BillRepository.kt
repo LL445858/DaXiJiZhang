@@ -38,6 +38,10 @@ class BillRepository(
         return billDao.getBillWithItems(billId)
     }
 
+    suspend fun getAllBillsWithItemsList(): List<BillWithItems> {
+        return billDao.getAllBillsWithItemsList()
+    }
+
     suspend fun insertBillItem(item: BillItem): Long {
         return billItemDao.insert(item)
     }

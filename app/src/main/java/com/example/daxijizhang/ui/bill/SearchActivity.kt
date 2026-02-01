@@ -7,14 +7,15 @@ import android.text.TextWatcher
 import android.view.View
 import android.view.inputmethod.InputMethodManager
 import android.widget.EditText
-import android.widget.ImageButton
-import androidx.appcompat.app.AppCompatActivity
+import androidx.activity.OnBackPressedCallback
+import androidx.core.app.ActivityOptionsCompat
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.example.daxijizhang.R
 import com.example.daxijizhang.data.database.AppDatabase
 import com.example.daxijizhang.data.model.Bill
 import com.example.daxijizhang.databinding.ActivitySearchBinding
+import com.example.daxijizhang.ui.base.BaseActivity
 import com.example.daxijizhang.util.ViewUtil.setOnOptimizedClickListener
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -24,7 +25,7 @@ import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
 
 @OptIn(FlowPreview::class)
-class SearchActivity : AppCompatActivity() {
+class SearchActivity : BaseActivity() {
 
     private lateinit var binding: ActivitySearchBinding
     private lateinit var billAdapter: BillAdapter
@@ -56,9 +57,12 @@ class SearchActivity : AppCompatActivity() {
             val intent = Intent(this, BillDetailActivity::class.java).apply {
                 putExtra(BillDetailActivity.EXTRA_BILL_ID, bill.id)
             }
-            startActivity(intent)
-            // 添加Activity切换动画
-            overridePendingTransition(R.anim.slide_in_right, R.anim.slide_out_left)
+            val options = ActivityOptionsCompat.makeCustomAnimation(
+                this,
+                R.anim.slide_in_right,
+                R.anim.slide_out_left
+            )
+            startActivity(intent, options.toBundle())
         }
         binding.recyclerSearchResults.apply {
             layoutManager = LinearLayoutManager(this@SearchActivity)
@@ -78,9 +82,7 @@ class SearchActivity : AppCompatActivity() {
     private fun setupListeners() {
         // 返回按钮 - 使用优化点击监听器
         binding.btnBack.setOnOptimizedClickListener(debounceTime = 200) {
-            finish()
-            // 添加返回动画
-            overridePendingTransition(R.anim.slide_in_left, R.anim.slide_out_right)
+            onBackPressedDispatcher.onBackPressed()
         }
 
         // 清除按钮点击事件 - 使用优化点击监听器

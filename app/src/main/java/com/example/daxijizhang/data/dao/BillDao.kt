@@ -34,6 +34,10 @@ interface BillDao {
     @Query("SELECT * FROM bills ORDER BY startDate DESC")
     fun getAllBillsWithItems(): LiveData<List<BillWithItems>>
 
+    @Transaction
+    @Query("SELECT * FROM bills ORDER BY startDate DESC")
+    suspend fun getAllBillsWithItemsList(): List<BillWithItems>
+
     // 排序查询
     @Query("SELECT * FROM bills ORDER BY startDate ASC")
     fun getAllSortedByStartDateAsc(): LiveData<List<Bill>>

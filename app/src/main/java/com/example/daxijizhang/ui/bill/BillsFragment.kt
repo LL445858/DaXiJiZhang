@@ -11,6 +11,7 @@ import android.widget.ArrayAdapter
 import android.widget.PopupMenu
 import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
+import androidx.core.app.ActivityOptionsCompat
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.viewModels
@@ -80,9 +81,13 @@ class BillsFragment : Fragment() {
             val intent = Intent(requireContext(), BillDetailActivity::class.java).apply {
                 putExtra(BillDetailActivity.EXTRA_BILL_ID, bill.id)
             }
-            startActivity(intent)
-            // 添加Activity切换动画
-            activity?.overridePendingTransition(R.anim.slide_in_right, R.anim.slide_out_left)
+            // 使用AndroidX ActivityOptions添加切换动画
+            val options = ActivityOptionsCompat.makeCustomAnimation(
+                requireContext(),
+                R.anim.slide_in_right,
+                R.anim.slide_out_left
+            )
+            startActivity(intent, options.toBundle())
         }
         binding.recyclerBills.apply {
             layoutManager = LinearLayoutManager(requireContext())
@@ -135,16 +140,24 @@ class BillsFragment : Fragment() {
 
         // 查找按钮 - 使用优化点击监听器
         binding.btnSearch.setOnOptimizedClickListener(debounceTime = 200) {
-            startActivity(Intent(requireContext(), SearchActivity::class.java))
-            // 添加Activity切换动画
-            activity?.overridePendingTransition(R.anim.slide_in_right, R.anim.slide_out_left)
+            val intent = Intent(requireContext(), SearchActivity::class.java)
+            val options = ActivityOptionsCompat.makeCustomAnimation(
+                requireContext(),
+                R.anim.slide_in_right,
+                R.anim.slide_out_left
+            )
+            startActivity(intent, options.toBundle())
         }
 
         // 添加账单按钮 - 使用优化点击监听器
         binding.fabAddBill.setOnOptimizedClickListener(debounceTime = 300) {
-            startActivity(Intent(requireContext(), AddBillActivity::class.java))
-            // 添加Activity切换动画
-            activity?.overridePendingTransition(R.anim.slide_in_right, R.anim.slide_out_left)
+            val intent = Intent(requireContext(), AddBillActivity::class.java)
+            val options = ActivityOptionsCompat.makeCustomAnimation(
+                requireContext(),
+                R.anim.slide_in_right,
+                R.anim.slide_out_left
+            )
+            startActivity(intent, options.toBundle())
         }
     }
 
