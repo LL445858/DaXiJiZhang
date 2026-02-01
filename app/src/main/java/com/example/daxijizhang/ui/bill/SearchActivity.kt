@@ -11,9 +11,11 @@ import android.widget.ImageButton
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
+import com.example.daxijizhang.R
 import com.example.daxijizhang.data.database.AppDatabase
 import com.example.daxijizhang.data.model.Bill
 import com.example.daxijizhang.databinding.ActivitySearchBinding
+import com.example.daxijizhang.util.ViewUtil.setOnOptimizedClickListener
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.debounce
@@ -55,20 +57,34 @@ class SearchActivity : AppCompatActivity() {
                 putExtra(BillDetailActivity.EXTRA_BILL_ID, bill.id)
             }
             startActivity(intent)
+            // 添加Activity切换动画
+            overridePendingTransition(R.anim.slide_in_right, R.anim.slide_out_left)
         }
         binding.recyclerSearchResults.apply {
             layoutManager = LinearLayoutManager(this@SearchActivity)
             adapter = billAdapter
+            // 设置固定高度优化性能
+            setHasFixedSize(true)
+            // 设置默认动画
+            itemAnimator = androidx.recyclerview.widget.DefaultItemAnimator().apply {
+                addDuration = 200
+                removeDuration = 200
+                moveDuration = 200
+                changeDuration = 200
+            }
         }
     }
 
     private fun setupListeners() {
-        binding.btnBack.setOnClickListener {
+        // 返回按钮 - 使用优化点击监听器
+        binding.btnBack.setOnOptimizedClickListener(debounceTime = 200) {
             finish()
+            // 添加返回动画
+            overridePendingTransition(R.anim.slide_in_left, R.anim.slide_out_right)
         }
 
-        // 清除按钮点击事件
-        binding.btnClear.setOnClickListener {
+        // 清除按钮点击事件 - 使用优化点击监听器
+        binding.btnClear.setOnOptimizedClickListener(debounceTime = 200) {
             binding.etSearch.text?.clear()
             searchQuery.value = ""
             // 清除后重新聚焦并打开输入法

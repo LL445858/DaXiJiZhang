@@ -24,6 +24,7 @@ import com.example.daxijizhang.data.repository.BillRepository
 import com.example.daxijizhang.databinding.ActivityAddBillBinding
 import com.example.daxijizhang.databinding.DialogAddPaymentBinding
 import com.example.daxijizhang.databinding.DialogAddProjectBinding
+import com.example.daxijizhang.util.ViewUtil.setOnOptimizedClickListener
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Calendar
@@ -245,38 +246,43 @@ class AddBillActivity : AppCompatActivity() {
     }
 
     private fun setupListeners() {
-        // 日期选择
-        binding.etStartDate.setOnClickListener {
+        // 日期选择 - 使用优化点击监听器
+        binding.etStartDate.setOnOptimizedClickListener(debounceTime = 200) {
             showDatePicker { date ->
                 billStartDate = date
                 binding.etStartDate.setText(dateFormat.format(date))
             }
         }
 
-        binding.etEndDate.setOnClickListener {
+        binding.etEndDate.setOnOptimizedClickListener(debounceTime = 200) {
             showDatePicker { date ->
                 billEndDate = date
                 binding.etEndDate.setText(dateFormat.format(date))
             }
         }
 
-        // 添加项目
-        binding.btnAddProject.setOnClickListener {
+        // 添加项目 - 使用优化点击监听器
+        binding.btnAddProject.setOnOptimizedClickListener(debounceTime = 300) {
             showAddProjectDialog()
         }
 
-        // 添加结付记录
-        binding.btnAddPayment.setOnClickListener {
+        // 添加结付记录 - 使用优化点击监听器
+        binding.btnAddPayment.setOnOptimizedClickListener(debounceTime = 300) {
             showAddPaymentDialog()
         }
 
-        // 账单结清按钮
-        binding.btnSettleBill.setOnClickListener {
+        // 账单结清按钮 - 使用优化点击监听器
+        binding.btnSettleBill.setOnOptimizedClickListener(debounceTime = 200) {
             handleSettleBill()
         }
 
-        // 保存账单
-        binding.btnSaveBill.setOnClickListener {
+        // 清空内容按钮 - 使用优化点击监听器
+        binding.btnClearContent.setOnOptimizedClickListener(debounceTime = 300) {
+            showClearContentConfirmDialog()
+        }
+
+        // 保存账单 - 使用优化点击监听器
+        binding.btnSaveBill.setOnOptimizedClickListener(debounceTime = 500) {
             saveBill()
         }
     }
@@ -735,6 +741,56 @@ class AddBillActivity : AppCompatActivity() {
                 dialog.dismiss()
             }
             .show()
+    }
+
+    private fun showClearContentConfirmDialog() {
+        AlertDialog.Builder(this)
+            .setTitle(R.string.clear_content_confirm_title)
+            .setMessage(R.string.clear_content_confirm_message)
+            .setPositiveButton(R.string.confirm) { dialog, _ ->
+                clearAllContent()
+                dialog.dismiss()
+            }
+            .setNegativeButton(R.string.cancel) { dialog, _ ->
+                dialog.dismiss()
+            }
+            .show()
+    }
+
+    private fun clearAllContent() {
+        // 清空所有输入字段
+        binding.etCommunity.text?.clear()
+        binding.etPhase.text?.clear()
+        binding.etBuilding.text?.clear()
+        binding.etRoom.text?.clear()
+        binding.etRemark.text?.clear()
+        binding.etStartDate.text?.clear()
+        binding.etEndDate.text?.clear()
+
+        // 清空日期
+        billStartDate = null
+        billEndDate = null
+
+        // 清空装修项目列表
+        items.clear()
+        billItemAdapter.submitList(items.toList())
+
+        // 清空结付记录列表
+        paymentRecords.clear()
+        sortPaymentRecords()
+        paymentRecordAdapter.submitList(paymentRecords.toList())
+
+        // 重置抹零金额
+        waivedAmount = 0.0
+
+        // 更新总金额和支付状态
+        updateTotalAmount()
+        updatePaymentStatus()
+
+        // 清除草稿
+        draftManager.clearDraft()
+
+        Toast.makeText(this, R.string.clear_content_success, Toast.LENGTH_SHORT).show()
     }
 
     private fun saveBill() {

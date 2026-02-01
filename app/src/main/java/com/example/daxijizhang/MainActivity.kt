@@ -6,6 +6,7 @@ import androidx.appcompat.app.AppCompatDelegate
 import androidx.navigation.fragment.NavHostFragment
 import androidx.navigation.ui.setupWithNavController
 import com.example.daxijizhang.databinding.ActivityMainBinding
+import com.example.daxijizhang.util.ViewUtil.fadeIn
 
 class MainActivity : AppCompatActivity() {
 
@@ -19,6 +20,9 @@ class MainActivity : AppCompatActivity() {
         setContentView(binding.root)
 
         setupNavigation()
+        
+        // 页面加载动画
+        playEntranceAnimation()
     }
 
     private fun setupNavigation() {
@@ -30,6 +34,9 @@ class MainActivity : AppCompatActivity() {
 
         // 设置底部导航监听，用于处理导航事件
         binding.bottomNav.setOnItemSelectedListener { item ->
+            // 添加触觉反馈
+            binding.bottomNav.performHapticFeedback(android.view.HapticFeedbackConstants.VIRTUAL_KEY)
+            
             when (item.itemId) {
                 R.id.navigation_bills -> {
                     navController.navigate(R.id.navigation_bills)
@@ -46,5 +53,21 @@ class MainActivity : AppCompatActivity() {
                 else -> false
             }
         }
+    }
+    
+    /**
+     * 播放页面进入动画
+     */
+    private fun playEntranceAnimation() {
+        // 底部导航栏从底部滑入
+        binding.bottomNav.translationY = 200f
+        binding.bottomNav.alpha = 0f
+        binding.bottomNav.animate()
+            .translationY(0f)
+            .alpha(1f)
+            .setDuration(400)
+            .setStartDelay(100)
+            .setInterpolator(android.view.animation.DecelerateInterpolator())
+            .start()
     }
 }

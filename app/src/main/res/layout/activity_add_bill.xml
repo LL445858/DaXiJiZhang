@@ -318,16 +318,36 @@
                         app:layoutManager="androidx.recyclerview.widget.LinearLayoutManager"
                         tools:listitem="@layout/item_payment_record" />
 
-                    <!-- 添加结付记录按钮 -->
-                    <com.google.android.material.button.MaterialButton
-                        android:id="@+id/btn_add_payment"
-                        style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+                    <!-- 添加记录和账单结清按钮水平并排 -->
+                    <LinearLayout
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:layout_marginTop="8dp"
-                        android:text="@string/add_payment_record"
-                        app:icon="@drawable/ic_add"
-                        app:iconGravity="textStart" />
+                        android:orientation="horizontal">
+
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/btn_add_payment"
+                            style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_marginEnd="6dp"
+                            android:layout_weight="1"
+                            android:text="@string/add_payment_record"
+                            app:icon="@drawable/ic_add"
+                            app:iconGravity="textStart" />
+
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/btn_settle_bill"
+                            style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_marginStart="6dp"
+                            android:layout_weight="1"
+                            android:text="@string/settle_bill"
+                            app:icon="@drawable/ic_check"
+                            app:iconGravity="textStart" />
+
+                    </LinearLayout>
 
                 </LinearLayout>
 
@@ -347,13 +367,15 @@
         android:padding="16dp">
 
         <com.google.android.material.button.MaterialButton
-            android:id="@+id/btn_settle_bill"
+            android:id="@+id/btn_clear_content"
             style="@style/Widget.MaterialComponents.Button.OutlinedButton"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_marginEnd="8dp"
             android:layout_weight="1"
-            android:text="@string/settle_bill" />
+            android:text="@string/clear_content"
+            android:textColor="@android:color/holo_red_dark"
+            app:strokeColor="@android:color/holo_red_dark" />
 
         <com.google.android.material.button.MaterialButton
             android:id="@+id/btn_save_bill"

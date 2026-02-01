@@ -26,6 +26,7 @@ import com.example.daxijizhang.databinding.DialogAddPaymentBinding
 import com.example.daxijizhang.databinding.DialogAddProjectBinding
 import com.example.daxijizhang.databinding.DialogExportBillBinding
 import com.example.daxijizhang.util.BillExportUtil
+import com.example.daxijizhang.util.ViewUtil.setOnOptimizedClickListener
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Calendar
@@ -188,8 +189,8 @@ class BillDetailActivity : AppCompatActivity() {
     }
 
     private fun setupListeners() {
-        // 日期选择
-        binding.etStartDate.setOnClickListener {
+        // 日期选择 - 使用优化点击监听器
+        binding.etStartDate.setOnOptimizedClickListener(debounceTime = 200) {
             if (isFieldEditable(binding.etStartDate)) {
                 showDatePicker { date ->
                     billStartDate = date
@@ -199,7 +200,7 @@ class BillDetailActivity : AppCompatActivity() {
             }
         }
 
-        binding.etEndDate.setOnClickListener {
+        binding.etEndDate.setOnOptimizedClickListener(debounceTime = 200) {
             if (isFieldEditable(binding.etEndDate)) {
                 showDatePicker { date ->
                     billEndDate = date
@@ -209,57 +210,57 @@ class BillDetailActivity : AppCompatActivity() {
             }
         }
 
-        // 添加项目
-        binding.btnAddProject.setOnClickListener {
+        // 添加项目 - 使用优化点击监听器
+        binding.btnAddProject.setOnOptimizedClickListener(debounceTime = 300) {
             showAddProjectDialog()
         }
 
-        // 添加结付记录
-        binding.btnAddPayment.setOnClickListener {
+        // 添加结付记录 - 使用优化点击监听器
+        binding.btnAddPayment.setOnOptimizedClickListener(debounceTime = 300) {
             showAddPaymentDialog()
         }
 
-        // 账单结清按钮
-        binding.btnSettleBill.setOnClickListener {
+        // 账单结清按钮 - 使用优化点击监听器
+        binding.btnSettleBill.setOnOptimizedClickListener(debounceTime = 200) {
             handleSettleBill()
         }
 
-        // 保存账单
-        binding.btnSaveBill.setOnClickListener {
+        // 保存账单 - 使用优化点击监听器
+        binding.btnSaveBill.setOnOptimizedClickListener(debounceTime = 500) {
             saveBill()
         }
 
-        // 删除账单按钮
-        binding.btnDeleteBill.setOnClickListener {
+        // 删除账单图标 - 使用优化点击监听器
+        binding.ivDeleteBill.setOnOptimizedClickListener(debounceTime = 300) {
             showDeleteBillConfirmDialog()
         }
 
-        // 导出账单按钮
-        binding.btnExportBill.setOnClickListener {
+        // 导出账单按钮 - 使用优化点击监听器
+        binding.btnExportBill.setOnOptimizedClickListener(debounceTime = 300) {
             checkUnsavedChangesBeforeExport()
         }
 
-        // 编辑按钮
-        binding.ivEditBasicInfo.setOnClickListener {
+        // 编辑按钮 - 使用优化点击监听器
+        binding.ivEditBasicInfo.setOnOptimizedClickListener(debounceTime = 200) {
             toggleBasicInfoEditMode()
         }
     }
 
     private fun setupExpandCollapse() {
-        // 基本信息折叠
-        binding.ivExpandBasicInfo.setOnClickListener {
+        // 基本信息折叠 - 使用优化点击监听器
+        binding.ivExpandBasicInfo.setOnOptimizedClickListener(debounceTime = 200) {
             isBasicInfoExpanded = !isBasicInfoExpanded
             updateBasicInfoExpandState()
         }
 
-        // 装修项目折叠
-        binding.ivExpandProjects.setOnClickListener {
+        // 装修项目折叠 - 使用优化点击监听器
+        binding.ivExpandProjects.setOnOptimizedClickListener(debounceTime = 200) {
             isProjectsExpanded = !isProjectsExpanded
             updateProjectsExpandState()
         }
 
-        // 结付记录折叠
-        binding.ivExpandPayment.setOnClickListener {
+        // 结付记录折叠 - 使用优化点击监听器
+        binding.ivExpandPayment.setOnOptimizedClickListener(debounceTime = 200) {
             isPaymentExpanded = !isPaymentExpanded
             updatePaymentExpandState()
         }
@@ -404,6 +405,9 @@ class BillDetailActivity : AppCompatActivity() {
                 billEndDate = bill.endDate
                 binding.etStartDate.setText(dateFormat.format(bill.startDate))
                 binding.etEndDate.setText(dateFormat.format(bill.endDate))
+                // 设置日期字段文本颜色为黑色，确保禁用状态下也显示黑色
+                binding.etStartDate.setTextColor(ContextCompat.getColor(this@BillDetailActivity, android.R.color.black))
+                binding.etEndDate.setTextColor(ContextCompat.getColor(this@BillDetailActivity, android.R.color.black))
                 binding.etCommunity.setText(bill.communityName)
                 binding.etPhase.setText(bill.phase ?: "")
                 binding.etBuilding.setText(bill.buildingNumber ?: "")

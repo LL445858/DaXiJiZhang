@@ -40,7 +40,7 @@
 
     <!-- 装修项目 -->
     <string name="decoration_projects">装修项目</string>
-    <string name="add_project">添加装修项目</string>
+    <string name="add_project">添加项目</string>
     <string name="project_name">项目名称</string>
     <string name="project_name_hint">如：地砖、墙面漆</string>
     <string name="unit_price">单价</string>
@@ -62,7 +62,7 @@
 
     <!-- 结付情况 -->
     <string name="payment_status">结付记录</string>
-    <string name="add_payment_record">添加结付记录</string>
+    <string name="add_payment_record">添加记录</string>
     <string name="payment_date">支付日期</string>
     <string name="payment_amount">支付金额</string>
     <string name="save_payment">保存</string>
@@ -122,4 +122,10 @@
     <string name="share_to_app">分享到</string>
     <string name="unsaved_changes_export_message">存在已修改但未保存的内容，是否先保存？</string>
     <string name="save">保存</string>
+
+    <!-- 清空内容 -->
+    <string name="clear_content">清空内容</string>
+    <string name="clear_content_confirm_title">清空确认</string>
+    <string name="clear_content_confirm_message">确定要清空当前页面的所有内容吗？此操作不可恢复。</string>
+    <string name="clear_content_success">内容已清空</string>
 </resources>

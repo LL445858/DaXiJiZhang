@@ -21,6 +21,8 @@ import com.example.daxijizhang.data.model.Bill
 import com.example.daxijizhang.data.repository.BillRepository
 import com.example.daxijizhang.databinding.DialogFilterBinding
 import com.example.daxijizhang.databinding.FragmentBillsBinding
+import com.example.daxijizhang.util.ViewUtil.fadeIn
+import com.example.daxijizhang.util.ViewUtil.setOnOptimizedClickListener
 import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Date
@@ -79,10 +81,21 @@ class BillsFragment : Fragment() {
                 putExtra(BillDetailActivity.EXTRA_BILL_ID, bill.id)
             }
             startActivity(intent)
+            // 添加Activity切换动画
+            activity?.overridePendingTransition(R.anim.slide_in_right, R.anim.slide_out_left)
         }
         binding.recyclerBills.apply {
             layoutManager = LinearLayoutManager(requireContext())
             adapter = billAdapter
+            // 设置固定高度优化性能
+            setHasFixedSize(true)
+            // 设置默认动画
+            itemAnimator = androidx.recyclerview.widget.DefaultItemAnimator().apply {
+                addDuration = 200
+                removeDuration = 200
+                moveDuration = 200
+                changeDuration = 200
+            }
         }
     }
 
@@ -104,13 +117,13 @@ class BillsFragment : Fragment() {
     }
 
     private fun setupListeners() {
-        // 排序按钮
-        binding.btnSort.setOnClickListener {
+        // 排序按钮 - 使用优化点击监听器
+        binding.btnSort.setOnOptimizedClickListener(debounceTime = 200) {
             showSortMenu()
         }
 
-        // 筛选按钮
-        binding.btnFilter.setOnClickListener {
+        // 筛选按钮 - 使用优化点击监听器
+        binding.btnFilter.setOnOptimizedClickListener(debounceTime = 200) {
             // 如果筛选面板已打开且有筛选条件，直接关闭
             if (filterDialog?.isShowing == true && viewModel.isFilterActive.value == true) {
                 filterDialog?.dismiss()
@@ -120,13 +133,18 @@ class BillsFragment : Fragment() {
             }
         }
 
-        // 查找按钮
-        binding.btnSearch.setOnClickListener {
+        // 查找按钮 - 使用优化点击监听器
+        binding.btnSearch.setOnOptimizedClickListener(debounceTime = 200) {
             startActivity(Intent(requireContext(), SearchActivity::class.java))
+            // 添加Activity切换动画
+            activity?.overridePendingTransition(R.anim.slide_in_right, R.anim.slide_out_left)
         }
 
-        binding.fabAddBill.setOnClickListener {
+        // 添加账单按钮 - 使用优化点击监听器
+        binding.fabAddBill.setOnOptimizedClickListener(debounceTime = 300) {
             startActivity(Intent(requireContext(), AddBillActivity::class.java))
+            // 添加Activity切换动画
+            activity?.overridePendingTransition(R.anim.slide_in_right, R.anim.slide_out_left)
         }
     }
 
