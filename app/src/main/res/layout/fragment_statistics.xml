@@ -4,9 +4,17 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="@color/background"
+    android:fitsSystemWindows="true"
     android:gravity="center"
     android:orientation="vertical"
     tools:context=".ui.statistics.StatisticsFragment">
+
+    <!-- 状态栏占位 -->
+    <View
+        android:id="@+id/status_bar_placeholder"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:background="@color/background" />
 
     <ImageView
         android:layout_width="120dp"

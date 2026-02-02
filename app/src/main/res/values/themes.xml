@@ -21,4 +21,14 @@
     <style name="Theme.Daxijizhang.NoActionBar" parent="Theme.Daxijizhang">
         <item name="android:forceDarkAllowed" tools:targetApi="29">false</item>
     </style>
+
+    <!-- Theme for secondary activities with white status bar -->
+    <style name="Theme.Daxijizhang.Secondary" parent="Theme.Daxijizhang">
+        <!-- White status bar -->
+        <item name="android:statusBarColor">@color/white</item>
+        <!-- Dark text on status bar for better contrast -->
+        <item name="android:windowLightStatusBar">true</item>
+        <!-- Disable force dark mode -->
+        <item name="android:forceDarkAllowed" tools:targetApi="29">false</item>
+    </style>
 </resources>

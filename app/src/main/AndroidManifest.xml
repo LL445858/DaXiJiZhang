@@ -2,6 +2,10 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
 
+    <!-- 网络权限 -->
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+
     <!-- 存储权限 - Android 13以下使用 -->
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"
         android:maxSdkVersion="32" />
@@ -44,47 +48,47 @@
             android:name=".ui.bill.AddBillActivity"
             android:label="@string/add_bill_title"
             android:parentActivityName=".MainActivity"
-            android:theme="@style/Theme.Daxijizhang" />
+            android:theme="@style/Theme.Daxijizhang.Secondary" />
 
         <activity
             android:name=".ui.bill.BillDetailActivity"
             android:label="@string/bill_detail_title"
             android:parentActivityName=".MainActivity"
-            android:theme="@style/Theme.Daxijizhang" />
+            android:theme="@style/Theme.Daxijizhang.Secondary" />
 
         <activity
             android:name=".ui.bill.SearchActivity"
             android:label="查找账单"
             android:parentActivityName=".MainActivity"
-            android:theme="@style/Theme.Daxijizhang" />
+            android:theme="@style/Theme.Daxijizhang.Secondary" />
 
         <!-- 信息设置页面 - 父Activity改为MainActivity -->
         <activity
             android:name=".ui.settings.InfoSettingsActivity"
             android:label="@string/info_settings"
             android:parentActivityName=".MainActivity"
-            android:theme="@style/Theme.Daxijizhang" />
+            android:theme="@style/Theme.Daxijizhang.Secondary" />
 
         <!-- 显示设置页面 - 父Activity改为MainActivity -->
         <activity
             android:name=".ui.settings.DisplaySettingsActivity"
             android:label="@string/display_settings"
             android:parentActivityName=".MainActivity"
-            android:theme="@style/Theme.Daxijizhang" />
+            android:theme="@style/Theme.Daxijizhang.Secondary" />
 
         <!-- 数据迁移页面 - 父Activity改为MainActivity -->
         <activity
             android:name=".ui.settings.DataMigrationActivity"
             android:label="@string/data_migration"
             android:parentActivityName=".MainActivity"
-            android:theme="@style/Theme.Daxijizhang" />
+            android:theme="@style/Theme.Daxijizhang.Secondary" />
 
         <!-- 远程同步页面 - 父Activity改为MainActivity -->
         <activity
             android:name=".ui.settings.RemoteSyncActivity"
             android:label="@string/remote_sync"
             android:parentActivityName=".MainActivity"
-            android:theme="@style/Theme.Daxijizhang" />
+            android:theme="@style/Theme.Daxijizhang.Secondary" />
 
     </application>
 

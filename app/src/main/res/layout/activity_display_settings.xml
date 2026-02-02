@@ -12,11 +12,12 @@
         android:id="@+id/toolbar"
         android:layout_width="match_parent"
         android:layout_height="?attr/actionBarSize"
-        android:background="@color/primary"
+        android:background="@color/white"
+        android:elevation="0dp"
         app:navigationIcon="@drawable/ic_back"
-        app:navigationIconTint="@color/white"
+        app:navigationIconTint="@color/black"
         app:title="@string/display_settings"
-        app:titleTextColor="@color/white" />
+        app:titleTextColor="@color/black" />
 
     <!-- 内容区域 -->
     <androidx.core.widget.NestedScrollView
@@ -35,7 +36,7 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 app:cardCornerRadius="12dp"
-                app:cardElevation="2dp"
+                app:cardElevation="0dp"
                 app:cardBackgroundColor="@color/surface">
 
                 <LinearLayout
@@ -220,7 +221,7 @@
                 android:layout_height="wrap_content"
                 android:layout_marginTop="16dp"
                 app:cardCornerRadius="12dp"
-                app:cardElevation="2dp"
+                app:cardElevation="0dp"
                 app:cardBackgroundColor="@color/surface">
 
                 <LinearLayout
@@ -299,12 +300,16 @@
                     <!-- 应用按钮 -->
                     <com.google.android.material.button.MaterialButton
                         android:id="@+id/btn_apply_font_size"
+                        style="@style/Widget.MaterialComponents.Button.OutlinedButton"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:layout_marginTop="16dp"
                         android:text="@string/apply"
+                        android:textColor="@color/primary"
                         android:textSize="16sp"
-                        app:cornerRadius="8dp" />
+                        app:cornerRadius="8dp"
+                        app:strokeColor="@color/primary"
+                        app:strokeWidth="1dp" />
 
                 </LinearLayout>
 

@@ -13,6 +13,9 @@ import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
 import androidx.core.app.ActivityOptionsCompat
 import androidx.core.content.ContextCompat
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.updateLayoutParams
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.viewModels
 import androidx.recyclerview.widget.LinearLayoutManager
@@ -70,9 +73,20 @@ class BillsFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
+        setupStatusBarPadding()
         setupRecyclerView()
         setupObservers()
         setupListeners()
+    }
+
+    private fun setupStatusBarPadding() {
+        ViewCompat.setOnApplyWindowInsetsListener(binding.root) { _, windowInsets ->
+            val insets = windowInsets.getInsets(WindowInsetsCompat.Type.statusBars())
+            binding.statusBarPlaceholder.updateLayoutParams {
+                height = insets.top
+            }
+            windowInsets
+        }
     }
 
     private fun setupRecyclerView() {
@@ -109,6 +123,7 @@ class BillsFragment : Fragment() {
             bills?.let {
                 billAdapter.submitList(it)
                 updateEmptyView(it.isEmpty())
+                updateBillCount(it.size)
             }
         }
 
@@ -336,7 +351,7 @@ class BillsFragment : Fragment() {
 
     private fun updateFilterButtonState(isActive: Boolean) {
         val color = if (isActive) {
-            ContextCompat.getColor(requireContext(), R.color.accent)
+            ContextCompat.getColor(requireContext(), R.color.primary)
         } else {
             Color.BLACK
         }
@@ -346,6 +361,11 @@ class BillsFragment : Fragment() {
     private fun updateEmptyView(isEmpty: Boolean) {
         binding.emptyView.visibility = if (isEmpty) View.VISIBLE else View.GONE
         binding.recyclerBills.visibility = if (isEmpty) View.GONE else View.VISIBLE
+        binding.tvBillCount.visibility = if (isEmpty) View.GONE else View.VISIBLE
+    }
+
+    private fun updateBillCount(count: Int) {
+        binding.tvBillCount.text = getString(R.string.bill_count_format, count)
     }
 
     override fun onDestroyView() {

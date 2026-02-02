@@ -5,6 +5,7 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="@color/background"
+    android:fitsSystemWindows="true"
     tools:context=".ui.bill.BillsFragment">
 
     <LinearLayout
@@ -12,12 +13,32 @@
         android:layout_height="match_parent"
         android:orientation="vertical">
 
+        <!-- 状态栏占位 -->
+        <View
+            android:id="@+id/status_bar_placeholder"
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:background="@color/surface" />
+
+        <!-- 账单数量提示 -->
+        <TextView
+            android:id="@+id/tv_bill_count"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:background="@color/surface"
+            android:paddingHorizontal="16dp"
+            android:paddingTop="8dp"
+            android:paddingBottom="4dp"
+            android:textColor="#000000"
+            android:textSize="14sp"
+            tools:text="共10条账单" />
+
         <!-- 顶部操作栏 -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:background="@color/surface"
-            android:elevation="2dp"
+            android:elevation="0dp"
             android:orientation="horizontal"
             android:padding="8dp">
 
@@ -112,6 +133,8 @@
         android:layout_margin="16dp"
         android:contentDescription="@string/add_bill"
         android:src="@drawable/ic_add"
-        app:backgroundTint="@color/accent" />
+        app:backgroundTint="@color/primary"
+        app:elevation="0dp"
+        app:tint="@color/white" />
 
 </androidx.coordinatorlayout.widget.CoordinatorLayout>

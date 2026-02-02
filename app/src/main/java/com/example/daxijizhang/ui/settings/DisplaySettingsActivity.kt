@@ -1,9 +1,11 @@
 package com.example.daxijizhang.ui.settings
 
 import android.content.SharedPreferences
+import android.graphics.Color
 import android.os.Bundle
 import android.view.View
 import android.widget.Toast
+import androidx.core.content.ContextCompat
 import com.example.daxijizhang.R
 import com.example.daxijizhang.databinding.ActivityDisplaySettingsBinding
 import com.example.daxijizhang.ui.base.BaseActivity
@@ -83,8 +85,10 @@ class DisplaySettingsActivity : BaseActivity() {
         binding.sliderFontSize.value = currentFontSize
         updateFontSizeDisplay(currentFontSize)
         
-        // 应用当前主题颜色到工具栏
-        ThemeManager.applyThemeColorToToolbar(binding.toolbar)
+        // 显示设置页面的标题栏始终保持白色，不跟随主题色变化
+        binding.toolbar.setBackgroundColor(Color.WHITE)
+        binding.toolbar.setTitleTextColor(Color.BLACK)
+        binding.toolbar.navigationIcon?.setTint(Color.BLACK)
     }
 
     private fun selectColor(colorKey: String) {
@@ -114,8 +118,10 @@ class DisplaySettingsActivity : BaseActivity() {
     private fun saveThemeColor(colorKey: String) {
         prefs.edit().putString("theme_color", colorKey).apply()
 
-        // 应用主题色到工具栏
-        ThemeManager.applyThemeColorToToolbar(binding.toolbar)
+        // 显示设置页面的标题栏始终保持白色
+        binding.toolbar.setBackgroundColor(Color.WHITE)
+        binding.toolbar.setTitleTextColor(Color.BLACK)
+        binding.toolbar.navigationIcon?.setTint(Color.BLACK)
 
         Toast.makeText(this, R.string.theme_color_applied, Toast.LENGTH_SHORT).show()
     }

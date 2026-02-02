@@ -65,6 +65,14 @@ class BillDetailActivity : AppCompatActivity() {
     private var isAddPaymentDialogShowing = false
     private var isExportDialogShowing = false
 
+    // 原始值记录（用于变化检测）
+    private var originalValues = mutableMapOf<String, String>()
+    private var originalStartDate: Date? = null
+    private var originalEndDate: Date? = null
+    private var originalItems = mutableListOf<BillItem>()
+    private var originalPaymentRecords = mutableListOf<PaymentRecord>()
+    private var originalWaivedAmount: Double = 0.0
+
     private lateinit var viewModel: BillViewModel
 
     companion object {
@@ -108,7 +116,6 @@ class BillDetailActivity : AppCompatActivity() {
                 showDeleteConfirmDialog(
                     onConfirm = {
                         handleDeleteBillItem(item)
-                        markAsChanged()
                     }
                 )
             }
@@ -136,7 +143,7 @@ class BillDetailActivity : AppCompatActivity() {
 
                 Collections.swap(items, fromPosition, toPosition)
                 billItemAdapter.notifyItemMoved(fromPosition, toPosition)
-                markAsChanged()
+                checkForChanges()
                 return true
             }
 
@@ -175,7 +182,6 @@ class BillDetailActivity : AppCompatActivity() {
                 showDeleteConfirmDialog(
                     onConfirm = {
                         handleDeletePaymentRecord(record)
-                        markAsChanged()
                     }
                 )
             }
@@ -195,7 +201,7 @@ class BillDetailActivity : AppCompatActivity() {
                 showDatePicker { date ->
                     billStartDate = date
                     binding.etStartDate.setText(dateFormat.format(date))
-                    markAsChanged()
+                    checkForChanges()
                 }
             }
         }
@@ -205,7 +211,7 @@ class BillDetailActivity : AppCompatActivity() {
                 showDatePicker { date ->
                     billEndDate = date
                     binding.etEndDate.setText(dateFormat.format(date))
-                    markAsChanged()
+                    checkForChanges()
                 }
             }
         }
@@ -310,7 +316,8 @@ class BillDetailActivity : AppCompatActivity() {
             binding.ivEditBasicInfo.setImageResource(R.drawable.ic_edit)
             disableAllFieldsEdit()
             hideKeyboard()
-            markAsChanged()
+            // 退出编辑模式时检查是否有实际变化
+            checkForChanges()
         }
     }
 
@@ -360,7 +367,7 @@ class BillDetailActivity : AppCompatActivity() {
             override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
             override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
             override fun afterTextChanged(s: Editable?) {
-                markAsChanged()
+                checkForChanges()
             }
         })
     }
@@ -432,6 +439,9 @@ class BillDetailActivity : AppCompatActivity() {
 
                 updateTotalAmount()
                 updatePaymentStatus()
+
+                // 保存原始值用于变化检测
+                saveOriginalValues()
                 hasUnsavedChanges = false
 
                 // 初始化折叠状态
@@ -454,6 +464,101 @@ class BillDetailActivity : AppCompatActivity() {
         }
     }
 
+    /**
+     * 保存原始值用于变化检测
+     */
+    private fun saveOriginalValues() {
+        originalValues.clear()
+        originalValues["community"] = binding.etCommunity.text.toString()
+        originalValues["phase"] = binding.etPhase.text.toString()
+        originalValues["building"] = binding.etBuilding.text.toString()
+        originalValues["room"] = binding.etRoom.text.toString()
+        originalValues["remark"] = binding.etRemark.text.toString()
+        
+        originalStartDate = billStartDate
+        originalEndDate = billEndDate
+        
+        originalItems.clear()
+        originalItems.addAll(items.map { it.copy() })
+        
+        originalPaymentRecords.clear()
+        originalPaymentRecords.addAll(paymentRecords.map { it.copy() })
+        
+        originalWaivedAmount = waivedAmount
+    }
+
+    /**
+     * 检查是否有实际变化
+     */
+    private fun checkForChanges() {
+        // 检查基本字段
+        if (binding.etCommunity.text.toString() != originalValues["community"]) {
+            hasUnsavedChanges = true
+            return
+        }
+        if (binding.etPhase.text.toString() != originalValues["phase"]) {
+            hasUnsavedChanges = true
+            return
+        }
+        if (binding.etBuilding.text.toString() != originalValues["building"]) {
+            hasUnsavedChanges = true
+            return
+        }
+        if (binding.etRoom.text.toString() != originalValues["room"]) {
+            hasUnsavedChanges = true
+            return
+        }
+        if (binding.etRemark.text.toString() != originalValues["remark"]) {
+            hasUnsavedChanges = true
+            return
+        }
+        
+        // 检查日期
+        if (billStartDate != originalStartDate) {
+            hasUnsavedChanges = true
+            return
+        }
+        if (billEndDate != originalEndDate) {
+            hasUnsavedChanges = true
+            return
+        }
+        
+        // 检查装修项目
+        if (items.size != originalItems.size) {
+            hasUnsavedChanges = true
+            return
+        }
+        for (i in items.indices) {
+            if (items[i].projectName != originalItems[i].projectName ||
+                items[i].unitPrice != originalItems[i].unitPrice ||
+                items[i].quantity != originalItems[i].quantity) {
+                hasUnsavedChanges = true
+                return
+            }
+        }
+        
+        // 检查结付记录
+        if (paymentRecords.size != originalPaymentRecords.size) {
+            hasUnsavedChanges = true
+            return
+        }
+        for (i in paymentRecords.indices) {
+            if (paymentRecords[i].amount != originalPaymentRecords[i].amount ||
+                paymentRecords[i].paymentDate != originalPaymentRecords[i].paymentDate) {
+                hasUnsavedChanges = true
+                return
+            }
+        }
+        
+        // 检查抹零金额
+        if (waivedAmount != originalWaivedAmount) {
+            hasUnsavedChanges = true
+            return
+        }
+        
+        hasUnsavedChanges = false
+    }
+
     private fun animateContentShow() {
         // 内容区域淡入动画
         binding.contentContainer.animate()
@@ -468,10 +573,6 @@ class BillDetailActivity : AppCompatActivity() {
             .setDuration(300)
             .setStartDelay(150)
             .start()
-    }
-
-    private fun markAsChanged() {
-        hasUnsavedChanges = true
     }
 
     private fun showDatePicker(onDateSelected: (Date) -> Unit) {
@@ -530,7 +631,6 @@ class BillDetailActivity : AppCompatActivity() {
                     quantity = dialogBinding.etQuantity.text.toString().toDouble()
                 )
                 handleAddBillItem(item)
-                markAsChanged()
                 dialog.dismiss()
             }
         }
@@ -576,7 +676,6 @@ class BillDetailActivity : AppCompatActivity() {
                     amount = amount
                 )
                 handleAddPaymentRecord(record)
-                markAsChanged()
                 dialog.dismiss()
             }
         }
@@ -727,6 +826,7 @@ class BillDetailActivity : AppCompatActivity() {
         billItemAdapter.submitList(items.toList())
         updateTotalAmount()
         updatePaymentStatus()
+        checkForChanges()
     }
 
     /**
@@ -758,6 +858,7 @@ class BillDetailActivity : AppCompatActivity() {
         billItemAdapter.submitList(items.toList())
         updateTotalAmount()
         updatePaymentStatus()
+        checkForChanges()
     }
 
     /**
@@ -788,6 +889,7 @@ class BillDetailActivity : AppCompatActivity() {
         sortPaymentRecords()
         paymentRecordAdapter.submitList(paymentRecords.toList())
         updatePaymentStatus()
+        checkForChanges()
     }
 
     /**
@@ -814,6 +916,7 @@ class BillDetailActivity : AppCompatActivity() {
         sortPaymentRecords()
         paymentRecordAdapter.submitList(paymentRecords.toList())
         updatePaymentStatus()
+        checkForChanges()
     }
 
     // ==================== 账单结清按钮处理 ====================
@@ -834,13 +937,13 @@ class BillDetailActivity : AppCompatActivity() {
                 waivedAmount = 0.0
                 binding.tvPaymentStatus.text = getString(R.string.payment_status_pending, oldWaivedAmount)
                 binding.tvPaymentStatus.setTextColor(ContextCompat.getColor(this, android.R.color.holo_red_dark))
-                markAsChanged()
+                checkForChanges()
             }
             remaining > 0.01 -> {
                 // 3.3.1 待结清状态，记录抹零金额
                 waivedAmount = remaining
                 updatePaymentStatus()
-                markAsChanged()
+                checkForChanges()
             }
             else -> {
                 // 3.3.3 已结清或多收状态，显示提示
@@ -961,8 +1064,9 @@ class BillDetailActivity : AppCompatActivity() {
                     recordsWithBillId.forEach { viewModel.repository.insertPaymentRecord(it) }
                 }
 
-                // 更新原始账单引用
+                // 更新原始账单引用和原始值
                 originalBill = bill
+                saveOriginalValues()
                 hasUnsavedChanges = false
 
                 Toast.makeText(this@BillDetailActivity, "账单保存成功", Toast.LENGTH_SHORT).show()
@@ -1116,8 +1220,11 @@ class BillDetailActivity : AppCompatActivity() {
                     recordsWithBillId.forEach { viewModel.repository.insertPaymentRecord(it) }
                 }
 
-                Toast.makeText(this@BillDetailActivity, "账单保存成功", Toast.LENGTH_SHORT).show()
+                // 更新原始值
+                saveOriginalValues()
                 hasUnsavedChanges = false
+
+                Toast.makeText(this@BillDetailActivity, "账单保存成功", Toast.LENGTH_SHORT).show()
                 finish()
             } catch (e: Exception) {
                 Toast.makeText(this@BillDetailActivity, "保存失败：${e.message}", Toast.LENGTH_SHORT).show()

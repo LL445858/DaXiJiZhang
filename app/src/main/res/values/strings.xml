@@ -128,4 +128,120 @@
     <string name="clear_content_confirm_title">清空确认</string>
     <string name="clear_content_confirm_message">确定要清空当前页面的所有内容吗？此操作不可恢复。</string>
     <string name="clear_content_success">内容已清空</string>
+
+    <!-- 背景设置 -->
+    <string name="background_blur">背景图片高斯模糊</string>
+    <string name="background_overlay">背景图片遮罩浓度</string>
+
+    <!-- 应用信息 -->
+    <string name="about_software">关于软件</string>
+    <string name="app_name_label">应用名称</string>
+    <string name="app_name_value">大喜记账</string>
+    <string name="developer_label">开发者</string>
+    <string name="developer_value">大想</string>
+    <string name="version_number">版本号</string>
+    <string name="feedback_suggestion">反馈和建议</string>
+    <string name="feedback_message">直接发微信给大想反馈</string>
+    <string name="donation">致谢和赞赏</string>
+    <string name="donation_message">直接发红包给大想</string>
+    <string name="data_migration">数据备份</string>
+    <string name="bill_count_format">共%d条账单</string>
+
+    <!-- 数据备份 -->
+    <string name="local_backup">本地备份</string>
+    <string name="export_data">导出数据</string>
+    <string name="import_data">导入数据</string>
+    <string name="export_data_description">将账单数据导出到本地存储</string>
+    <string name="import_data_description">从本地文件导入账单数据</string>
+
+    <!-- 云备份 -->
+    <string name="cloud_backup">云备份</string>
+    <string name="webdav_account_setting">WebDAV账户设置</string>
+    <string name="server_url">服务器地址</string>
+    <string name="username">用户名</string>
+    <string name="password_or_key">密码/密钥</string>
+    <string name="verify_connection">验证连接</string>
+    <string name="sync_now">立即同步</string>
+    <string name="sync_path_info">同步路径：/daxijizhang/</string>
+    <string name="push_to_cloud">推送到云端</string>
+    <string name="pull_from_cloud">从云端拉取</string>
+    <string name="syncing">正在同步...</string>
+    <string name="sync_strategy">同步策略</string>
+    <string name="manual_sync_only">仅手动同步</string>
+    <string name="auto_sync">自动同步</string>
+    <string name="auto_sync_description">应用退出时自动推送最新账单数据文件到云端</string>
+    <string name="view_sync_log">查看同步日志</string>
+    <string name="sync_log">同步日志</string>
+
+    <!-- 项目词典 -->
+    <string name="project_dictionary">项目词典</string>
+    <string name="project_dictionary_description">管理常用的装修项目名称</string>
+
+    <!-- 同步相关 -->
+    <string name="verifying">验证中...</string>
+    <string name="connection_success">连接成功</string>
+    <string name="connection_failed">连接失败</string>
+    <string name="server_url_required">请输入服务器地址</string>
+    <string name="please_configure_server_first">请先配置服务器</string>
+    <string name="sync_success">同步成功</string>
+    <string name="sync_failed">同步失败</string>
+    <string name="syncing_with_action">正在%s...</string>
+
+    <!-- 导入导出相关 -->
+    <string name="invalid_import_file">无效的导入文件</string>
+    <string name="import_success_with_count">成功导入 %d 条账单</string>
+    <string name="import_failed">导入失败</string>
+    <string name="import_failed_with_reason">导入失败：%s</string>
+    <string name="export_path">文件路径：%s</string>
+    <string name="import_preview">数据预览</string>
+    <string name="data_security_tip">建议定期备份数据，以防数据丢失</string>
+
+    <!-- 主题设置 -->
+    <string name="theme_color_setting">主题颜色</string>
+    <string name="theme_color_description">选择应用的主题颜色</string>
+    <string name="font_size_setting">字体大小</string>
+    <string name="font_preview">预览</string>
+    <string name="font_preview_text">这是一段预览文本，用于展示字体大小效果。</string>
+    <string name="apply">应用</string>
+
+    <!-- 用户设置页面 -->
+    <string name="user_settings">用户设置</string>
+    <string name="user_background">用户背景</string>
+    <string name="user_avatar">用户头像</string>
+    <string name="default_nickname">用户</string>
+    <string name="app_info">应用信息</string>
+    <string name="app_version">版本</string>
+
+    <!-- 设置功能区 -->
+    <string name="info_settings">个人信息</string>
+    <string name="display_settings">主题外观</string>
+    <string name="remote_sync">更多设置</string>
+
+    <!-- 信息设置页面 -->
+    <string name="avatar_setting">头像设置</string>
+    <string name="background_setting">背景图片设置</string>
+    <string name="nickname_setting">昵称设置</string>
+    <string name="nickname_hint">请输入昵称</string>
+    <string name="nickname_required">请输入昵称</string>
+    <string name="nickname_saved">昵称已保存</string>
+    <string name="avatar_updated">头像已更新</string>
+    <string name="background_updated">背景图片已更新</string>
+    <string name="image_save_failed">图片保存失败</string>
+
+    <!-- 权限相关 -->
+    <string name="permission_request_title">权限申请</string>
+    <string name="permission_request_message">需要存储权限来选择图片文件</string>
+    <string name="permission_denied">权限被拒绝</string>
+
+    <!-- 显示设置页面 -->
+    <string name="theme_color_applied">主题颜色已应用</string>
+    <string name="font_size_applied">字体大小已应用</string>
+
+    <!-- 数据迁移页面 -->
+    <string name="export_data_migration">导出数据</string>
+    <string name="import_data_migration">导入数据</string>
+    <string name="import_success">数据导入成功</string>
+
+    <!-- 远程同步页面 -->
+    <string name="close">关闭</string>
 </resources>

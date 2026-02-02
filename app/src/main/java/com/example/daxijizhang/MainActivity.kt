@@ -1,13 +1,27 @@
 package com.example.daxijizhang
 
+import android.content.SharedPreferences
+import android.graphics.Color
 import android.os.Bundle
+import android.view.View
+import android.view.WindowManager
 import androidx.activity.OnBackPressedCallback
 import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.app.AppCompatDelegate
+import androidx.core.view.WindowCompat
+import androidx.lifecycle.lifecycleScope
 import androidx.navigation.fragment.NavHostFragment
 import androidx.navigation.ui.setupWithNavController
 import com.example.daxijizhang.databinding.ActivityMainBinding
+import com.example.daxijizhang.data.database.AppDatabase
+import com.example.daxijizhang.data.repository.BillRepository
 import com.example.daxijizhang.util.ThemeManager
+import com.example.daxijizhang.util.WebDAVUtil
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import org.json.JSONObject
+import java.text.SimpleDateFormat
+import java.util.*
 
 /**
  * 应用主Activity
@@ -16,22 +30,52 @@ import com.example.daxijizhang.util.ThemeManager
 class MainActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivityMainBinding
+    private lateinit var prefs: SharedPreferences
+    private lateinit var repository: BillRepository
 
     override fun onCreate(savedInstanceState: Bundle?) {
-        // Force light mode
         AppCompatDelegate.setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_NO)
         super.onCreate(savedInstanceState)
+        
+        setupWhiteStatusBar()
+        
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
+        prefs = getSharedPreferences("user_settings", MODE_PRIVATE)
+        
+        initRepository()
         setupNavigation()
         setupBackPressHandler()
         
-        // 页面加载动画
         playEntranceAnimation()
         
-        // 应用主题设置
         ThemeManager.applyTheme(this)
+    }
+
+    private fun initRepository() {
+        val database = AppDatabase.getDatabase(applicationContext)
+        repository = BillRepository(
+            database.billDao(),
+            database.billItemDao(),
+            database.paymentRecordDao()
+        )
+    }
+    
+    /**
+     * 设置白色状态栏，深色图标
+     */
+    private fun setupWhiteStatusBar() {
+        window.apply {
+            // 设置状态栏颜色为白色
+            statusBarColor = Color.WHITE
+            // 设置状态栏图标为深色
+            WindowCompat.getInsetsController(this, decorView).apply {
+                isAppearanceLightStatusBars = true
+            }
+            // 允许内容延伸到状态栏下方
+            WindowCompat.setDecorFitsSystemWindows(this, false)
+        }
     }
 
     /**
@@ -104,7 +148,6 @@ class MainActivity : AppCompatActivity() {
      * 播放页面进入动画
      */
     private fun playEntranceAnimation() {
-        // 底部导航栏从底部滑入
         binding.bottomNav.translationY = 200f
         binding.bottomNav.alpha = 0f
         binding.bottomNav.animate()
@@ -114,5 +157,107 @@ class MainActivity : AppCompatActivity() {
             .setStartDelay(100)
             .setInterpolator(android.view.animation.DecelerateInterpolator())
             .start()
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        performAutoSync()
+    }
+
+    private fun performAutoSync() {
+        val syncStrategy = prefs.getString("sync_strategy", "manual")
+        if (syncStrategy != "auto") {
+            return
+        }
+
+        val serverUrl = prefs.getString("webdav_server_url", "") ?: ""
+        val username = prefs.getString("webdav_username", "") ?: ""
+        val password = prefs.getString("webdav_password", "") ?: ""
+
+        if (serverUrl.isEmpty()) {
+            return
+        }
+
+        val config = WebDAVUtil.WebDAVConfig(serverUrl, username, password)
+
+        lifecycleScope.launch(Dispatchers.IO) {
+            try {
+                val ensureResult = WebDAVUtil.ensureDirectoryExists(config)
+                if (ensureResult.isFailure) {
+                    return@launch
+                }
+
+                val exportData = createExportData()
+                val jsonContent = exportData.toString(2)
+                val fileName = WebDAVUtil.generateAutoPushFileName()
+                val remotePath = "大喜记账/$fileName"
+
+                WebDAVUtil.uploadFile(config, remotePath, jsonContent)
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }
+    }
+
+    private suspend fun createExportData(): JSONObject {
+        val exportData = JSONObject()
+
+        val billsWithItems = repository.getAllBillsWithItemsList()
+        val billsArray = org.json.JSONArray()
+
+        billsWithItems.forEach { billWithItems ->
+            val billJson = createBillJson(billWithItems)
+            billsArray.put(billJson)
+        }
+
+        exportData.put("bills", billsArray)
+        exportData.put("billCount", billsArray.length())
+        exportData.put("exportDate", SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).format(Date()))
+
+        return exportData
+    }
+
+    private suspend fun createBillJson(billWithItems: com.example.daxijizhang.data.model.BillWithItems): JSONObject {
+        val bill = billWithItems.bill
+        return JSONObject().apply {
+            put("communityName", bill.communityName)
+            put("phase", bill.phase ?: "")
+            put("buildingNumber", bill.buildingNumber ?: "")
+            put("roomNumber", bill.roomNumber ?: "")
+            put("startDate", formatDate(bill.startDate))
+            put("endDate", formatDate(bill.endDate))
+            put("totalAmount", bill.totalAmount)
+            put("paidAmount", bill.paidAmount)
+            put("waivedAmount", bill.waivedAmount)
+            put("remark", bill.remark ?: "")
+            put("createdAt", formatDate(bill.createdAt))
+
+            val itemsArray = org.json.JSONArray()
+            billWithItems.items.forEach { item ->
+                val itemJson = JSONObject().apply {
+                    put("projectName", item.projectName)
+                    put("unitPrice", item.unitPrice)
+                    put("quantity", item.quantity)
+                    put("totalPrice", item.totalPrice)
+                }
+                itemsArray.put(itemJson)
+            }
+            put("items", itemsArray)
+
+            val paymentRecords = repository.getPaymentRecordsByBillIdList(bill.id)
+            val recordsArray = org.json.JSONArray()
+            paymentRecords.forEach { record ->
+                val recordJson = JSONObject().apply {
+                    put("paymentDate", formatDate(record.paymentDate))
+                    put("amount", record.amount)
+                }
+                recordsArray.put(recordJson)
+            }
+            put("paymentRecords", recordsArray)
+        }
+    }
+
+    private fun formatDate(date: Date): String {
+        return SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).format(date)
     }
 }

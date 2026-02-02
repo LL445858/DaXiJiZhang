@@ -3,6 +3,7 @@ package com.example.daxijizhang.ui.settings
 import android.app.Activity
 import android.content.ContentValues
 import android.content.Intent
+import android.content.SharedPreferences
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
@@ -15,8 +16,9 @@ import android.widget.Toast
 import androidx.activity.OnBackPressedCallback
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
-import androidx.core.app.ActivityOptionsCompat
 import androidx.lifecycle.lifecycleScope
+import androidx.recyclerview.widget.LinearLayoutManager
+import androidx.recyclerview.widget.RecyclerView
 import com.example.daxijizhang.R
 import com.example.daxijizhang.data.database.AppDatabase
 import com.example.daxijizhang.data.model.Bill
@@ -25,8 +27,11 @@ import com.example.daxijizhang.data.model.BillWithItems
 import com.example.daxijizhang.data.model.PaymentRecord
 import com.example.daxijizhang.data.repository.BillRepository
 import com.example.daxijizhang.databinding.ActivityDataMigrationBinding
+import com.example.daxijizhang.databinding.ItemSyncLogBinding
 import com.example.daxijizhang.util.ViewUtil
+import com.example.daxijizhang.util.WebDAVUtil
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.json.JSONArray
@@ -39,6 +44,8 @@ class DataMigrationActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivityDataMigrationBinding
     private lateinit var repository: BillRepository
+    private lateinit var prefs: SharedPreferences
+    private lateinit var syncLogAdapter: SyncLogAdapter
 
     private val importFileLauncher = registerForActivityResult(
         ActivityResultContracts.StartActivityForResult()
@@ -52,17 +59,30 @@ class DataMigrationActivity : AppCompatActivity() {
 
     private var pendingImportUri: Uri? = null
     private var pendingImportBills: List<ImportBillData>? = null
+    private var pendingActualImportCount: Int = 0
+    private val syncLogs = mutableListOf<SyncLogEntry>()
+
+    data class SyncLogEntry(
+        val timestamp: Long,
+        val action: String,
+        val status: String,
+        val message: String
+    )
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         binding = ActivityDataMigrationBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
+        prefs = getSharedPreferences("user_settings", MODE_PRIVATE)
+
         initRepository()
         initViews()
         setupClickListeners()
         setupBackPressHandler()
         setupForwardTransition()
+        loadSettings()
+        setupSyncLogRecycler()
     }
 
     private fun setupBackPressHandler() {
@@ -129,6 +149,20 @@ class DataMigrationActivity : AppCompatActivity() {
         binding.toolbar.setNavigationOnClickListener {
             finish()
         }
+
+        // 设置同步策略单选按钮监听
+        binding.rgSyncStrategy.setOnCheckedChangeListener { _, checkedId ->
+            when (checkedId) {
+                R.id.rb_manual_sync -> {
+                    prefs.edit().putString("sync_strategy", "manual").apply()
+                    binding.tvAutoSyncDescription.visibility = View.GONE
+                }
+                R.id.rb_auto_sync -> {
+                    prefs.edit().putString("sync_strategy", "auto").apply()
+                    binding.tvAutoSyncDescription.visibility = View.VISIBLE
+                }
+            }
+        }
     }
 
     private fun setupClickListeners() {
@@ -160,6 +194,366 @@ class DataMigrationActivity : AppCompatActivity() {
                     executeImport(uri)
                 }
             }
+        }
+
+        // 验证连接
+        binding.btnVerifyConnection.setOnClickListener {
+            ViewUtil.applyClickAnimation(it) {
+                verifyConnection()
+            }
+        }
+
+        // 推送到云端
+        binding.btnPushToCloud.setOnClickListener {
+            ViewUtil.applyClickAnimation(it) {
+                startSync("push")
+            }
+        }
+
+        // 从云端拉取
+        binding.btnPullFromCloud.setOnClickListener {
+            ViewUtil.applyClickAnimation(it) {
+                startSync("pull")
+            }
+        }
+
+        // 查看同步日志
+        binding.btnViewSyncLog.setOnClickListener {
+            ViewUtil.applyClickAnimation(it) {
+                toggleSyncLogVisibility()
+            }
+        }
+
+        // 关闭日志
+        binding.btnCloseLog.setOnClickListener {
+            binding.cardSyncLog.visibility = View.GONE
+        }
+    }
+
+    private fun loadSettings() {
+        // 加载WebDAV设置
+        val serverUrl = prefs.getString("webdav_server_url", "")
+        val username = prefs.getString("webdav_username", "")
+        val password = prefs.getString("webdav_password", "")
+
+        binding.etServerUrl.setText(serverUrl)
+        binding.etUsername.setText(username)
+        binding.etPassword.setText(password)
+
+        // 加载同步策略
+        val syncStrategy = prefs.getString("sync_strategy", "manual")
+        if (syncStrategy == "auto") {
+            binding.rbAutoSync.isChecked = true
+            binding.tvAutoSyncDescription.visibility = View.VISIBLE
+        } else {
+            binding.rbManualSync.isChecked = true
+            binding.tvAutoSyncDescription.visibility = View.GONE
+        }
+    }
+
+    private fun setupSyncLogRecycler() {
+        syncLogAdapter = SyncLogAdapter(syncLogs)
+        binding.recyclerSyncLog.layoutManager = LinearLayoutManager(this)
+        binding.recyclerSyncLog.adapter = syncLogAdapter
+
+        // 加载历史日志
+        loadSyncLogs()
+    }
+
+    private fun loadSyncLogs() {
+        // 从SharedPreferences加载历史同步日志
+        val logsJson = prefs.getString("sync_logs", "")
+        if (!logsJson.isNullOrEmpty()) {
+            // TODO: 解析并加载历史日志
+        }
+
+        // 如果没有日志，添加一些示例日志
+        if (syncLogs.isEmpty()) {
+            syncLogs.add(SyncLogEntry(
+                System.currentTimeMillis(),
+                "初始化",
+                "成功",
+                "同步功能已就绪"
+            ))
+            syncLogAdapter.notifyDataSetChanged()
+        }
+    }
+
+    private fun verifyConnection() {
+        val serverUrl = binding.etServerUrl.text.toString().trim()
+        val username = binding.etUsername.text.toString().trim()
+        val password = binding.etPassword.text.toString().trim()
+
+        if (serverUrl.isEmpty()) {
+            binding.tilServerUrl.error = getString(R.string.server_url_required)
+            return
+        }
+
+        val config = WebDAVUtil.WebDAVConfig(serverUrl, username, password)
+
+        binding.layoutConnectionStatus.visibility = View.VISIBLE
+        binding.ivConnectionStatus.setImageResource(R.drawable.ic_sync)
+        binding.ivConnectionStatus.setColorFilter(getColor(R.color.info))
+        binding.tvConnectionStatus.text = getString(R.string.verifying)
+        binding.tvConnectionStatus.setTextColor(getColor(R.color.info))
+        binding.btnVerifyConnection.isEnabled = false
+
+        lifecycleScope.launch {
+            val result = WebDAVUtil.verifyConnection(config)
+
+            binding.btnVerifyConnection.isEnabled = true
+
+            result.onSuccess {
+                binding.ivConnectionStatus.setImageResource(R.drawable.ic_check)
+                binding.ivConnectionStatus.setColorFilter(getColor(R.color.success))
+                binding.tvConnectionStatus.text = getString(R.string.connection_success)
+                binding.tvConnectionStatus.setTextColor(getColor(R.color.success))
+                Toast.makeText(this@DataMigrationActivity, R.string.connection_success, Toast.LENGTH_SHORT).show()
+                
+                prefs.edit().apply {
+                    putString("webdav_server_url", serverUrl)
+                    putString("webdav_username", username)
+                    putString("webdav_password", password)
+                    apply()
+                }
+                
+                addSyncLog("验证连接", "成功", "WebDAV连接验证成功")
+            }.onFailure { e ->
+                binding.ivConnectionStatus.setImageResource(R.drawable.ic_close)
+                binding.ivConnectionStatus.setColorFilter(getColor(R.color.error))
+                binding.tvConnectionStatus.text = getString(R.string.connection_failed)
+                binding.tvConnectionStatus.setTextColor(getColor(R.color.error))
+                Toast.makeText(this@DataMigrationActivity, R.string.connection_failed, Toast.LENGTH_SHORT).show()
+                
+                addSyncLog("验证连接", "失败", "WebDAV连接验证失败: ${e.message}")
+            }
+        }
+    }
+
+    private fun startSync(direction: String) {
+        val serverUrl = prefs.getString("webdav_server_url", "") ?: ""
+        val username = prefs.getString("webdav_username", "") ?: ""
+        val password = prefs.getString("webdav_password", "") ?: ""
+
+        if (serverUrl.isEmpty()) {
+            Toast.makeText(this, R.string.please_configure_server_first, Toast.LENGTH_SHORT).show()
+            return
+        }
+
+        val config = WebDAVUtil.WebDAVConfig(serverUrl, username, password)
+
+        binding.layoutSyncProgress.visibility = View.VISIBLE
+        binding.tvSyncResult.visibility = View.GONE
+        binding.btnPushToCloud.isEnabled = false
+        binding.btnPullFromCloud.isEnabled = false
+
+        val actionText = if (direction == "push") "推送到云端" else "从云端拉取"
+        binding.tvSyncStatus.text = getString(R.string.syncing_with_action, actionText)
+
+        lifecycleScope.launch {
+            val result = if (direction == "push") {
+                pushToCloud(config)
+            } else {
+                pullFromCloud(config)
+            }
+
+            binding.layoutSyncProgress.visibility = View.GONE
+            binding.btnPushToCloud.isEnabled = true
+            binding.btnPullFromCloud.isEnabled = true
+
+            result.onSuccess { message ->
+                binding.tvSyncResult.visibility = View.VISIBLE
+                binding.tvSyncResult.text = message
+                binding.tvSyncResult.setTextColor(getColor(R.color.success))
+                addSyncLog(actionText, "成功", message)
+                Toast.makeText(this@DataMigrationActivity, R.string.sync_success, Toast.LENGTH_SHORT).show()
+            }.onFailure { e ->
+                binding.tvSyncResult.visibility = View.VISIBLE
+                binding.tvSyncResult.text = getString(R.string.sync_failed)
+                binding.tvSyncResult.setTextColor(getColor(R.color.error))
+                addSyncLog(actionText, "失败", "同步失败: ${e.message}")
+                Toast.makeText(this@DataMigrationActivity, R.string.sync_failed, Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
+
+    private suspend fun pushToCloud(config: WebDAVUtil.WebDAVConfig): Result<String> {
+        return try {
+            withContext(Dispatchers.IO) {
+                val ensureResult = WebDAVUtil.ensureDirectoryExists(config)
+                if (ensureResult.isFailure) {
+                    throw ensureResult.exceptionOrNull() ?: Exception("创建目录失败")
+                }
+
+                val exportData = createExportData()
+                val jsonContent = exportData.toString(2)
+                val fileName = WebDAVUtil.generateManualPushFileName()
+                val remotePath = "大喜记账/$fileName"
+
+                val uploadResult = WebDAVUtil.uploadFile(config, remotePath, jsonContent)
+                if (uploadResult.isFailure) {
+                    throw uploadResult.exceptionOrNull() ?: Exception("上传失败")
+                }
+
+                val billCount = exportData.optJSONArray("bills")?.length() ?: 0
+                Result.success("成功推送 $billCount 条记录到云端")
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+            Result.failure(e)
+        }
+    }
+
+    private suspend fun pullFromCloud(config: WebDAVUtil.WebDAVConfig): Result<String> {
+        return try {
+            withContext(Dispatchers.IO) {
+                val listResult = WebDAVUtil.listFiles(config)
+                if (listResult.isFailure) {
+                    throw listResult.exceptionOrNull() ?: Exception("获取文件列表失败")
+                }
+
+                val files = listResult.getOrNull() ?: emptyList()
+                if (files.isEmpty()) {
+                    return@withContext Result.success("云端没有备份文件")
+                }
+
+                showCloudFileListDialog(config, files)
+                Result.success("请选择要导入的文件")
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+            Result.failure(e)
+        }
+    }
+
+    private fun showCloudFileListDialog(config: WebDAVUtil.WebDAVConfig, files: List<WebDAVUtil.RemoteFile>) {
+        val listView = android.widget.ListView(this)
+        val adapter = CloudFileAdapter(files) { file ->
+            showCloudFileImportDialog(config, file)
+        }
+        listView.adapter = adapter
+        listView.setOnItemClickListener { _, _, position, _ ->
+            val file = files[position]
+            showCloudFileImportDialog(config, file)
+        }
+
+        val dialog = android.app.AlertDialog.Builder(this)
+            .setTitle("选择云端备份文件")
+            .setNegativeButton("取消", null)
+            .setView(listView)
+            .create()
+        dialog.show()
+    }
+
+    private fun showCloudFileImportDialog(config: WebDAVUtil.WebDAVConfig, file: WebDAVUtil.RemoteFile) {
+        val dialog = android.app.AlertDialog.Builder(this)
+            .setTitle("导入备份文件")
+            .setMessage("确定要导入文件：${file.name}？")
+            .setPositiveButton("导入") { _, _ ->
+                importCloudFile(config, file)
+            }
+            .setNegativeButton("取消", null)
+            .create()
+        dialog.show()
+    }
+
+    private fun importCloudFile(config: WebDAVUtil.WebDAVConfig, file: WebDAVUtil.RemoteFile) {
+        lifecycleScope.launch {
+            binding.layoutSyncProgress.visibility = View.VISIBLE
+            binding.tvSyncStatus.text = "正在导入文件..."
+
+            val result = withContext(Dispatchers.IO) {
+                try {
+                    val downloadResult = WebDAVUtil.downloadFile(config, file.path)
+                    if (downloadResult.isFailure) {
+                        throw downloadResult.exceptionOrNull() ?: Exception("下载文件失败")
+                    }
+
+                    val content = downloadResult.getOrNull() ?: ""
+                    val json = org.json.JSONObject(content)
+                    val billsArray = json.optJSONArray("bills")
+                    val billCount = billsArray?.length() ?: 0
+
+                    if (billCount == 0) {
+                        return@withContext Result.failure(Exception("文件中没有账单数据"))
+                    }
+
+                    val importBills = parseImportBills(billsArray)
+                    val importResult = importBillsToDatabase(importBills)
+
+                    Result.success("成功导入 ${importResult.importedCount} 条账单")
+                } catch (e: Exception) {
+                    e.printStackTrace()
+                    Result.failure(e)
+                }
+            }
+
+            binding.layoutSyncProgress.visibility = View.GONE
+
+            result.onSuccess { message ->
+                binding.tvSyncResult.visibility = View.VISIBLE
+                binding.tvSyncResult.text = message
+                binding.tvSyncResult.setTextColor(getColor(R.color.success))
+                addSyncLog("从云端拉取", "成功", message)
+                Toast.makeText(this@DataMigrationActivity, message, Toast.LENGTH_SHORT).show()
+            }.onFailure { e ->
+                binding.tvSyncResult.visibility = View.VISIBLE
+                binding.tvSyncResult.text = "导入失败: ${e.message}"
+                binding.tvSyncResult.setTextColor(getColor(R.color.error))
+                addSyncLog("从云端拉取", "失败", "导入失败: ${e.message}")
+                Toast.makeText(this@DataMigrationActivity, "导入失败: ${e.message}", Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
+
+    inner class CloudFileAdapter(
+        private val files: List<WebDAVUtil.RemoteFile>,
+        private val onFileClick: (WebDAVUtil.RemoteFile) -> Unit
+    ) : android.widget.ArrayAdapter<WebDAVUtil.RemoteFile>(
+        this@DataMigrationActivity,
+        android.R.layout.simple_list_item_2,
+        files
+    ) {
+        override fun getView(position: Int, convertView: android.view.View?, parent: android.view.ViewGroup): android.view.View {
+            val view = convertView ?: android.view.LayoutInflater.from(context)
+                .inflate(android.R.layout.simple_list_item_2, parent, false)
+
+            val file = files[position]
+            val titleText = view.findViewById<android.widget.TextView>(android.R.id.text1)
+            val subtitleText = view.findViewById<android.widget.TextView>(android.R.id.text2)
+
+            titleText.text = file.name
+            val dateFormat = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault())
+            subtitleText.text = "修改时间: ${dateFormat.format(file.modifiedTime)}"
+
+            return view
+        }
+    }
+
+    private fun addSyncLog(action: String, status: String, message: String) {
+        val entry = SyncLogEntry(System.currentTimeMillis(), action, status, message)
+        syncLogs.add(0, entry)
+        syncLogAdapter.notifyItemInserted(0)
+        binding.recyclerSyncLog.scrollToPosition(0)
+
+        // 保存日志到SharedPreferences
+        saveSyncLogs()
+    }
+
+    private fun saveSyncLogs() {
+        // TODO: 将日志保存到SharedPreferences
+        // 限制日志数量，只保留最近50条
+        while (syncLogs.size > 50) {
+            syncLogs.removeAt(syncLogs.size - 1)
+        }
+    }
+
+    private fun toggleSyncLogVisibility() {
+        if (binding.cardSyncLog.visibility == View.VISIBLE) {
+            binding.cardSyncLog.visibility = View.GONE
+        } else {
+            binding.cardSyncLog.visibility = View.VISIBLE
+            syncLogAdapter.notifyDataSetChanged()
         }
     }
 
@@ -358,11 +752,15 @@ class DataMigrationActivity : AppCompatActivity() {
                             return@withContext null
                         }
 
-                        // 解析账单数据用于后续导入
-                        val importBills = parseImportBills(billsArray)
+                        val existingBills = repository.getAllBillsWithItemsList()
+                        val existingKeys = existingBills.map { generateBillUniqueKey(it.bill) }.toSet()
 
-                        val fileInfo = "账单数量: $billCount\n导出时间: ${json.optString("exportDate", "未知")}"
-                        Pair(fileInfo, importBills)
+                        val importBills = parseImportBills(billsArray)
+                        val duplicateBills = importBills.count { existingKeys.contains(generateBillUniqueKey(it.bill)) }
+                        val actualImportCount = importBills.size - duplicateBills
+
+                        val fileInfo = "总账单数量: $billCount\n实际导入数量: $actualImportCount\n重复账单数量: $duplicateBills\n导出时间: ${json.optString("exportDate", "未知")}"
+                        Triple(fileInfo, importBills, actualImportCount)
                     }
                 } catch (e: Exception) {
                     e.printStackTrace()
@@ -373,6 +771,7 @@ class DataMigrationActivity : AppCompatActivity() {
             if (parseResult != null && parseResult.second.isNotEmpty()) {
                 pendingImportUri = uri
                 pendingImportBills = parseResult.second
+                pendingActualImportCount = parseResult.third
                 binding.tvPreviewInfo.text = parseResult.first
                 binding.cardImportPreview.visibility = View.VISIBLE
                 binding.tvImportResult.visibility = View.GONE
@@ -477,6 +876,7 @@ class DataMigrationActivity : AppCompatActivity() {
         binding.cardImportPreview.visibility = View.GONE
         pendingImportUri = null
         pendingImportBills = null
+        pendingActualImportCount = 0
     }
 
     private fun executeImport(uri: Uri) {
@@ -511,17 +911,50 @@ class DataMigrationActivity : AppCompatActivity() {
     }
 
     /**
-     * 将导入的账单数据写入数据库 - 追加模式
+     * 生成账单的唯一标识符（小区名+期数+楼栋号+门牌号）
+     */
+    private fun generateBillUniqueKey(bill: Bill): String {
+        val sb = StringBuilder()
+        sb.append(bill.communityName)
+        if (!bill.phase.isNullOrBlank()) {
+            sb.append("_").append(bill.phase)
+        } else {
+            sb.append("_")
+        }
+        if (!bill.buildingNumber.isNullOrBlank()) {
+            sb.append("_").append(bill.buildingNumber)
+        } else {
+            sb.append("_")
+        }
+        if (!bill.roomNumber.isNullOrBlank()) {
+            sb.append("_").append(bill.roomNumber)
+        } else {
+            sb.append("_")
+        }
+        return sb.toString()
+    }
+
+    /**
+     * 将导入的账单数据写入数据库 - 追加模式，过滤重复账单
      */
     private suspend fun importBillsToDatabase(importBills: List<ImportBillData>): ImportResult {
         var importedCount = 0
+        var duplicateCount = 0
         var failedCount = 0
 
         try {
+            val existingBills = repository.getAllBillsWithItemsList()
+            val existingKeys = existingBills.map { generateBillUniqueKey(it.bill) }.toMutableSet()
+
             for (importBill in importBills) {
                 try {
-                    // 使用repository的saveBillWithItems方法保存账单及其项目
-                    // id=0确保是新记录，不会覆盖现有数据
+                    val uniqueKey = generateBillUniqueKey(importBill.bill)
+
+                    if (existingKeys.contains(uniqueKey)) {
+                        duplicateCount++
+                        continue
+                    }
+
                     val billId = repository.saveBillWithItems(
                         importBill.bill,
                         importBill.items,
@@ -531,6 +964,7 @@ class DataMigrationActivity : AppCompatActivity() {
 
                     if (billId > 0) {
                         importedCount++
+                        existingKeys.add(uniqueKey)
                     } else {
                         failedCount++
                     }
@@ -541,10 +975,20 @@ class DataMigrationActivity : AppCompatActivity() {
             }
 
             return if (importedCount > 0) {
-                val errorMsg = if (failedCount > 0) "成功导入 $importedCount 条，失败 $failedCount 条" else null
+                val errorMsg = when {
+                    duplicateCount > 0 && failedCount > 0 -> "成功导入 $importedCount 条，重复 $duplicateCount 条，失败 $failedCount 条"
+                    duplicateCount > 0 -> "成功导入 $importedCount 条，重复 $duplicateCount 条"
+                    failedCount > 0 -> "成功导入 $importedCount 条，失败 $failedCount 条"
+                    else -> null
+                }
                 ImportResult(true, importedCount, errorMsg)
             } else {
-                ImportResult(false, 0, "所有账单导入失败")
+                val errorMsg = when {
+                    duplicateCount > 0 -> "所有账单重复，未导入任何数据"
+                    failedCount > 0 -> "所有账单导入失败"
+                    else -> "没有有效的账单数据"
+                }
+                ImportResult(false, 0, errorMsg)
             }
         } catch (e: Exception) {
             e.printStackTrace()
@@ -619,4 +1063,38 @@ class DataMigrationActivity : AppCompatActivity() {
         Toast.makeText(this, failedMessage, Toast.LENGTH_LONG).show()
     }
 
+    // 同步日志适配器
+    inner class SyncLogAdapter(private val logs: List<SyncLogEntry>) :
+        RecyclerView.Adapter<SyncLogAdapter.ViewHolder>() {
+
+        inner class ViewHolder(val binding: ItemSyncLogBinding) :
+            RecyclerView.ViewHolder(binding.root)
+
+        override fun onCreateViewHolder(parent: android.view.ViewGroup, viewType: Int): ViewHolder {
+            val binding = ItemSyncLogBinding.inflate(
+                layoutInflater, parent, false
+            )
+            return ViewHolder(binding)
+        }
+
+        override fun onBindViewHolder(holder: ViewHolder, position: Int) {
+            val log = logs[position]
+            val dateFormat = SimpleDateFormat("MM-dd HH:mm", Locale.getDefault())
+
+            holder.binding.tvLogTime.text = dateFormat.format(Date(log.timestamp))
+            holder.binding.tvLogAction.text = log.action
+            holder.binding.tvLogStatus.text = log.status
+            holder.binding.tvLogMessage.text = log.message
+
+            // 根据状态设置颜色
+            val statusColor = when (log.status) {
+                "成功" -> R.color.success
+                "失败" -> R.color.error
+                else -> R.color.info
+            }
+            holder.binding.tvLogStatus.setTextColor(getColor(statusColor))
+        }
+
+        override fun getItemCount() = logs.size
+    }
 }

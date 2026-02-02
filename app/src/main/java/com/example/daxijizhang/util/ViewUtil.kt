@@ -36,16 +36,17 @@ object ViewUtil {
      * @param debounceTime 防抖时间（毫秒）
      * @param onClick 点击回调
      */
-    fun View.setOnSingleClickListener(
+    fun setOnSingleClickListener(
+        view: View,
         debounceTime: Long = DEFAULT_DEBOUNCE_TIME,
-        onClick: (View) -> Unit
+        onClick: () -> Unit
     ) {
         var lastClickTime = 0L
-        setOnClickListener { view ->
+        view.setOnClickListener { _ ->
             val currentTime = System.currentTimeMillis()
             if (currentTime - lastClickTime >= debounceTime) {
                 lastClickTime = currentTime
-                onClick(view)
+                onClick()
             }
         }
     }
