@@ -231,16 +231,13 @@ class DataMigrationActivity : AppCompatActivity() {
     }
 
     private fun loadSettings() {
-        // 加载WebDAV设置
-        val serverUrl = prefs.getString("webdav_server_url", "")
+        val serverUrl = "https://dav.jianguoyun.com/dav/"
         val username = prefs.getString("webdav_username", "")
         val password = prefs.getString("webdav_password", "")
 
-        binding.etServerUrl.setText(serverUrl)
         binding.etUsername.setText(username)
         binding.etPassword.setText(password)
 
-        // 加载同步策略
         val syncStrategy = prefs.getString("sync_strategy", "manual")
         if (syncStrategy == "auto") {
             binding.rbAutoSync.isChecked = true
@@ -280,12 +277,17 @@ class DataMigrationActivity : AppCompatActivity() {
     }
 
     private fun verifyConnection() {
-        val serverUrl = binding.etServerUrl.text.toString().trim()
+        val serverUrl = "https://dav.jianguoyun.com/dav/"
         val username = binding.etUsername.text.toString().trim()
         val password = binding.etPassword.text.toString().trim()
 
-        if (serverUrl.isEmpty()) {
-            binding.tilServerUrl.error = getString(R.string.server_url_required)
+        if (username.isEmpty()) {
+            binding.tilUsername.error = getString(R.string.username)
+            return
+        }
+
+        if (password.isEmpty()) {
+            binding.tilPassword.error = getString(R.string.password_or_key)
             return
         }
 
@@ -311,13 +313,12 @@ class DataMigrationActivity : AppCompatActivity() {
                 Toast.makeText(this@DataMigrationActivity, R.string.connection_success, Toast.LENGTH_SHORT).show()
                 
                 prefs.edit().apply {
-                    putString("webdav_server_url", serverUrl)
                     putString("webdav_username", username)
                     putString("webdav_password", password)
                     apply()
                 }
                 
-                addSyncLog("验证连接", "成功", "WebDAV连接验证成功")
+                addSyncLog("验证连接", "成功", "坚果云连接验证成功")
             }.onFailure { e ->
                 binding.ivConnectionStatus.setImageResource(R.drawable.ic_close)
                 binding.ivConnectionStatus.setColorFilter(getColor(R.color.error))
@@ -325,17 +326,17 @@ class DataMigrationActivity : AppCompatActivity() {
                 binding.tvConnectionStatus.setTextColor(getColor(R.color.error))
                 Toast.makeText(this@DataMigrationActivity, R.string.connection_failed, Toast.LENGTH_SHORT).show()
                 
-                addSyncLog("验证连接", "失败", "WebDAV连接验证失败: ${e.message}")
+                addSyncLog("验证连接", "失败", "坚果云连接验证失败: ${e.message}")
             }
         }
     }
 
     private fun startSync(direction: String) {
-        val serverUrl = prefs.getString("webdav_server_url", "") ?: ""
+        val serverUrl = "https://dav.jianguoyun.com/dav/"
         val username = prefs.getString("webdav_username", "") ?: ""
         val password = prefs.getString("webdav_password", "") ?: ""
 
-        if (serverUrl.isEmpty()) {
+        if (username.isEmpty() || password.isEmpty()) {
             Toast.makeText(this, R.string.please_configure_server_first, Toast.LENGTH_SHORT).show()
             return
         }
@@ -380,17 +381,38 @@ class DataMigrationActivity : AppCompatActivity() {
     private suspend fun pushToCloud(config: WebDAVUtil.WebDAVConfig): Result<String> {
         return try {
             withContext(Dispatchers.IO) {
+                // 更新状态：检查目录
+                withContext(Dispatchers.Main) {
+                    binding.tvSyncStatus.text = "正在检查云端目录..."
+                }
+                
                 val ensureResult = WebDAVUtil.ensureDirectoryExists(config)
                 if (ensureResult.isFailure) {
                     throw ensureResult.exceptionOrNull() ?: Exception("创建目录失败")
                 }
 
+                // 更新状态：导出数据
+                withContext(Dispatchers.Main) {
+                    binding.tvSyncStatus.text = "正在准备数据..."
+                }
+                
                 val exportData = createExportData()
                 val jsonContent = exportData.toString(2)
                 val fileName = WebDAVUtil.generateManualPushFileName()
-                val remotePath = "大喜记账/$fileName"
+                val remotePath = "daxijizhang/$fileName"
 
-                val uploadResult = WebDAVUtil.uploadFile(config, remotePath, jsonContent)
+                // 更新状态：上传文件
+                withContext(Dispatchers.Main) {
+                    binding.tvSyncStatus.text = "正在上传文件..."
+                }
+                
+                val uploadResult = WebDAVUtil.uploadFile(config, remotePath, jsonContent) { status ->
+                    // 在UI线程更新状态
+                    runOnUiThread {
+                        binding.tvSyncStatus.text = status.message
+                    }
+                }
+                
                 if (uploadResult.isFailure) {
                     throw uploadResult.exceptionOrNull() ?: Exception("上传失败")
                 }
@@ -407,7 +429,18 @@ class DataMigrationActivity : AppCompatActivity() {
     private suspend fun pullFromCloud(config: WebDAVUtil.WebDAVConfig): Result<String> {
         return try {
             withContext(Dispatchers.IO) {
-                val listResult = WebDAVUtil.listFiles(config)
+                // 更新状态：获取文件列表
+                withContext(Dispatchers.Main) {
+                    binding.tvSyncStatus.text = "正在获取云端文件列表..."
+                }
+                
+                val listResult = WebDAVUtil.listFiles(config) { status ->
+                    // 在UI线程更新状态
+                    runOnUiThread {
+                        binding.tvSyncStatus.text = status.message
+                    }
+                }
+                
                 if (listResult.isFailure) {
                     throw listResult.exceptionOrNull() ?: Exception("获取文件列表失败")
                 }
@@ -417,7 +450,11 @@ class DataMigrationActivity : AppCompatActivity() {
                     return@withContext Result.success("云端没有备份文件")
                 }
 
-                showCloudFileListDialog(config, files)
+                // 在UI线程显示对话框
+                withContext(Dispatchers.Main) {
+                    showCloudFileListDialog(config, files)
+                }
+                
                 Result.success("请选择要导入的文件")
             }
         } catch (e: Exception) {

@@ -11,7 +11,7 @@ import com.example.daxijizhang.R
 import com.example.daxijizhang.databinding.ActivityRemoteSyncBinding
 import com.example.daxijizhang.util.ViewUtil
 
-class RemoteSyncActivity : AppCompatActivity() {
+class MoreSettingsActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivityRemoteSyncBinding
 

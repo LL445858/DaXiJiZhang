@@ -22,7 +22,7 @@ import com.example.daxijizhang.databinding.FragmentUserBinding
 import com.example.daxijizhang.ui.settings.DataMigrationActivity
 import com.example.daxijizhang.ui.settings.DisplaySettingsActivity
 import com.example.daxijizhang.ui.settings.InfoSettingsActivity
-import com.example.daxijizhang.ui.settings.RemoteSyncActivity
+import com.example.daxijizhang.ui.settings.MoreSettingsActivity
 import com.example.daxijizhang.util.BlurUtil
 import com.example.daxijizhang.util.ImagePickerUtil
 import com.example.daxijizhang.util.ViewUtil
@@ -110,10 +110,10 @@ class UserFragment : Fragment() {
             }
         }
 
-        // 远程同步
+        // 更多设置
         binding.btnRemoteSync.setOnClickListener {
             ViewUtil.applyClickAnimation(it) {
-                val intent = Intent(requireContext(), RemoteSyncActivity::class.java)
+                val intent = Intent(requireContext(), MoreSettingsActivity::class.java)
                 val options = ActivityOptionsCompat.makeCustomAnimation(
                     requireContext(),
                     R.anim.slide_in_right,

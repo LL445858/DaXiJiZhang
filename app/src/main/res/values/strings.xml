@@ -156,7 +156,7 @@
 
     <!-- 云备份 -->
     <string name="cloud_backup">云备份</string>
-    <string name="webdav_account_setting">WebDAV账户设置</string>
+    <string name="jianguoyun_account_setting">坚果云账户设置</string>
     <string name="server_url">服务器地址</string>
     <string name="username">用户名</string>
     <string name="password_or_key">密码/密钥</string>

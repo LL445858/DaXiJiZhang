@@ -83,9 +83,9 @@
             android:parentActivityName=".MainActivity"
             android:theme="@style/Theme.Daxijizhang.Secondary" />
 
-        <!-- 远程同步页面 - 父Activity改为MainActivity -->
+        <!-- 更多设置页面 - 父Activity改为MainActivity -->
         <activity
-            android:name=".ui.settings.RemoteSyncActivity"
+            android:name=".ui.settings.MoreSettingsActivity"
             android:label="@string/remote_sync"
             android:parentActivityName=".MainActivity"
             android:theme="@style/Theme.Daxijizhang.Secondary" />

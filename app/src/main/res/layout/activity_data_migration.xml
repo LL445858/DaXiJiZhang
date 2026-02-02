@@ -353,33 +353,15 @@
                         android:textSize="16sp"
                         android:textStyle="bold" />
 
-                    <!-- WebDAV账户设置 -->
+                    <!-- 坚果云账户设置 -->
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:layout_marginTop="16dp"
-                        android:text="@string/webdav_account_setting"
+                        android:text="@string/jianguoyun_account_setting"
                         android:textColor="@color/text_primary"
                         android:textSize="14sp"
                         android:textStyle="bold" />
-
-                    <!-- 服务器地址 -->
-                    <com.google.android.material.textfield.TextInputLayout
-                        android:id="@+id/til_server_url"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="12dp"
-                        style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
-                        android:hint="@string/server_url">
-
-                        <com.google.android.material.textfield.TextInputEditText
-                            android:id="@+id/et_server_url"
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:inputType="textUri"
-                            android:textSize="14sp" />
-
-                    </com.google.android.material.textfield.TextInputLayout>
 
                     <!-- 用户名 -->
                     <com.google.android.material.textfield.TextInputLayout

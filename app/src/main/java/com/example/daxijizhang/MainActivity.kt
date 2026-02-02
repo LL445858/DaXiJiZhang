@@ -190,7 +190,7 @@ class MainActivity : AppCompatActivity() {
                 val exportData = createExportData()
                 val jsonContent = exportData.toString(2)
                 val fileName = WebDAVUtil.generateAutoPushFileName()
-                val remotePath = "大喜记账/$fileName"
+                val remotePath = "daxijizhang/$fileName"
 
                 WebDAVUtil.uploadFile(config, remotePath, jsonContent)
             } catch (e: Exception) {

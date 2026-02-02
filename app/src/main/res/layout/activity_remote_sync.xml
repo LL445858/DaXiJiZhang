@@ -5,7 +5,7 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="@color/background"
-    tools:context=".ui.settings.RemoteSyncActivity">
+    tools:context=".ui.settings.MoreSettingsActivity">
 
     <!-- 顶部工具栏 -->
     <com.google.android.material.appbar.MaterialToolbar
