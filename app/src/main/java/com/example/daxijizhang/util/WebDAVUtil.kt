@@ -28,7 +28,7 @@ object WebDAVUtil {
         val modifiedTime: Date
     )
 
-    private fun addAuthHeader(connection: HttpURLConnection, config: WebDAVConfig) {
+    private fun addPreemptiveAuthHeader(connection: HttpURLConnection, config: WebDAVConfig) {
         val auth = android.util.Base64.encodeToString(
             "${config.username}:${config.password}".toByteArray(),
             android.util.Base64.NO_WRAP
@@ -41,14 +41,30 @@ object WebDAVUtil {
         connection.setRequestProperty("Accept", "*/*")
     }
 
+    private fun normalizeServerUrl(serverUrl: String): String {
+        var url = serverUrl.trim()
+        if (!url.startsWith("http://") && !url.startsWith("https://")) {
+            url = "https://$url"
+        }
+        if (!url.endsWith("/")) {
+            url = "$url/"
+        }
+        return url
+    }
+
+    private fun buildPath(basePath: String, relativePath: String): String {
+        val normalizedBase = if (basePath.endsWith("/")) basePath else "$basePath/"
+        val normalizedRelative = relativePath.removePrefix("/")
+        return "$normalizedBase$normalizedRelative"
+    }
+
     suspend fun verifyConnection(config: WebDAVConfig): Result<Boolean> = withContext(Dispatchers.IO) {
         try {
             val serverPath = normalizeServerUrl(config.serverUrl)
             val url = URL(serverPath)
             val connection = url.openConnection() as HttpURLConnection
-            addAuthHeader(connection, config)
-            addWebDAVHeaders(connection)
-            connection.requestMethod = "GET"
+            addPreemptiveAuthHeader(connection, config)
+            connection.requestMethod = "OPTIONS"
             connection.connectTimeout = 10000
             connection.readTimeout = 10000
 
@@ -57,9 +73,8 @@ object WebDAVUtil {
                 statusCode in 200..299 -> Result.success(true)
                 statusCode == HttpURLConnection.HTTP_UNAUTHORIZED -> Result.failure(Exception("认证失败，请检查用户名和密码是否正确"))
                 statusCode == HttpURLConnection.HTTP_FORBIDDEN -> Result.failure(Exception("访问被拒绝，请检查账户权限"))
-                statusCode == HttpURLConnection.HTTP_NOT_FOUND -> Result.success(true)
                 statusCode >= 500 -> Result.failure(Exception("服务器错误，请稍后重试"))
-                else -> Result.failure(Exception("连接失败，请检查服务器地址和网络连接"))
+                else -> Result.failure(Exception("连接失败，状态码: $statusCode，请检查服务器地址和网络连接"))
             }
         } catch (e: java.net.UnknownHostException) {
             e.printStackTrace()
@@ -84,11 +99,10 @@ object WebDAVUtil {
     ): Result<Boolean> = withContext(Dispatchers.IO) {
         try {
             val serverPath = normalizeServerUrl(config.serverUrl)
-            val fullPath = "$serverPath/$remotePath"
+            val fullPath = buildPath(serverPath, remotePath)
             val url = URL(fullPath)
             val connection = url.openConnection() as HttpURLConnection
-            addAuthHeader(connection, config)
-            addWebDAVHeaders(connection)
+            addPreemptiveAuthHeader(connection, config)
             connection.requestMethod = "PUT"
             connection.doOutput = true
             connection.setRequestProperty("Content-Type", contentType)
@@ -129,11 +143,10 @@ object WebDAVUtil {
     ): Result<String> = withContext(Dispatchers.IO) {
         try {
             val serverPath = normalizeServerUrl(config.serverUrl)
-            val fullPath = "$serverPath/$remotePath"
+            val fullPath = buildPath(serverPath, remotePath)
             val url = URL(fullPath)
             val connection = url.openConnection() as HttpURLConnection
-            addAuthHeader(connection, config)
-            addWebDAVHeaders(connection)
+            addPreemptiveAuthHeader(connection, config)
             connection.requestMethod = "GET"
             connection.connectTimeout = 30000
             connection.readTimeout = 30000
@@ -176,11 +189,10 @@ object WebDAVUtil {
     ): Result<Boolean> = withContext(Dispatchers.IO) {
         try {
             val serverPath = normalizeServerUrl(config.serverUrl)
-            val fullPath = "$serverPath/$remotePath"
+            val fullPath = buildPath(serverPath, remotePath)
             val url = URL(fullPath)
             val connection = url.openConnection() as HttpURLConnection
-            addAuthHeader(connection, config)
-            addWebDAVHeaders(connection)
+            addPreemptiveAuthHeader(connection, config)
             connection.requestMethod = "DELETE"
             connection.connectTimeout = 30000
             connection.readTimeout = 30000
@@ -215,10 +227,10 @@ object WebDAVUtil {
     ): Result<List<RemoteFile>> = withContext(Dispatchers.IO) {
         try {
             val serverPath = normalizeServerUrl(config.serverUrl)
-            val fullPath = "$serverPath/$remotePath"
+            val fullPath = buildPath(serverPath, remotePath)
             val url = URL(fullPath)
             val connection = url.openConnection() as HttpURLConnection
-            addAuthHeader(connection, config)
+            addPreemptiveAuthHeader(connection, config)
             addWebDAVHeaders(connection)
             connection.requestMethod = "GET"
             connection.connectTimeout = 30000
@@ -299,12 +311,11 @@ object WebDAVUtil {
     ): Result<Boolean> = withContext(Dispatchers.IO) {
         try {
             val serverPath = normalizeServerUrl(config.serverUrl)
-            val fullPath = "$serverPath/$remotePath"
+            val fullPath = buildPath(serverPath, remotePath)
             val url = URL(fullPath)
             val connection = url.openConnection() as HttpURLConnection
-            addAuthHeader(connection, config)
-            addWebDAVHeaders(connection)
-            connection.requestMethod = "GET"
+            addPreemptiveAuthHeader(connection, config)
+            connection.requestMethod = "OPTIONS"
             connection.connectTimeout = 10000
             connection.readTimeout = 10000
 
@@ -312,8 +323,7 @@ object WebDAVUtil {
             
             if (statusCode == HttpURLConnection.HTTP_NOT_FOUND) {
                 val putConnection = url.openConnection() as HttpURLConnection
-                addAuthHeader(putConnection, config)
-                addWebDAVHeaders(putConnection)
+                addPreemptiveAuthHeader(putConnection, config)
                 putConnection.requestMethod = "PUT"
                 putConnection.doOutput = true
                 putConnection.setRequestProperty("Content-Type", "text/plain")
@@ -367,14 +377,6 @@ object WebDAVUtil {
     fun generateAutoPushFileName(): String {
         val timestamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(Date())
         return "大喜记账_自动_$timestamp.json"
-    }
-
-    private fun normalizeServerUrl(serverUrl: String): String {
-        var url = serverUrl.trim()
-        if (!url.startsWith("http://") && !url.startsWith("https://")) {
-            url = "https://$url"
-        }
-        return url.trimEnd('/')
     }
 
     fun isAutoPushFile(fileName: String): Boolean {
