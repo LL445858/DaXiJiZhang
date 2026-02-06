@@ -342,7 +342,7 @@
                             android:id="@+id/switch_auto_local_backup"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:thumbTint="@color/white"
+                            app:thumbTint="@color/switch_thumb_color"
                             app:trackTint="@color/switch_track_color" />
 
                     </LinearLayout>
@@ -589,7 +589,7 @@
                             android:id="@+id/switch_auto_backup"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:thumbTint="@color/white"
+                            app:thumbTint="@color/switch_thumb_color"
                             app:trackTint="@color/switch_track_color" />
 
                     </LinearLayout>

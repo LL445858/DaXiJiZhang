@@ -12,6 +12,12 @@
     <color name="surface">#1E1E1E</color>
     <color name="divider">#1FFFFFFF</color>
 
+    <!-- 状态栏颜色 - 浅黑色（用于除用户界面外的页面） -->
+    <color name="status_bar">#1E1E1E</color>
+
+    <!-- 搜索框背景色 -->
+    <color name="search_background">#FF2A2A2A</color>
+
     <!-- 开关颜色 -->
     <color name="switch_track_on">#4D2196F3</color>
     <color name="switch_track_off">#1E1E1E</color>

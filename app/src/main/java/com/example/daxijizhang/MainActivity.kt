@@ -8,6 +8,7 @@ import android.view.WindowManager
 import androidx.activity.OnBackPressedCallback
 import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.app.AppCompatDelegate
+import androidx.core.content.ContextCompat
 import androidx.core.view.WindowCompat
 import androidx.lifecycle.lifecycleScope
 import androidx.navigation.fragment.NavHostFragment
@@ -66,23 +67,43 @@ class MainActivity : AppCompatActivity() {
      */
     private fun setupStatusBar() {
         window.apply {
-            val isDarkMode = (resources.configuration.uiMode and android.content.res.Configuration.UI_MODE_NIGHT_MASK) == 
+            val isDarkMode = (resources.configuration.uiMode and android.content.res.Configuration.UI_MODE_NIGHT_MASK) ==
                     android.content.res.Configuration.UI_MODE_NIGHT_YES
-            
+
             // 根据深色模式设置状态栏颜色
             statusBarColor = if (isDarkMode) {
-                Color.BLACK
+                ContextCompat.getColor(this@MainActivity, R.color.status_bar)
             } else {
                 Color.WHITE
             }
-            
+
             // 设置状态栏图标颜色
             WindowCompat.getInsetsController(this, decorView).apply {
                 isAppearanceLightStatusBars = !isDarkMode
             }
-            
+
             // 允许内容延伸到状态栏下方
             WindowCompat.setDecorFitsSystemWindows(this, false)
+        }
+    }
+
+    /**
+     * 根据目标页面更新状态栏颜色
+     * 用户界面使用纯黑色，其他页面使用浅黑色
+     */
+    private fun updateStatusBarForDestination(destinationId: Int) {
+        val isDarkMode = (resources.configuration.uiMode and android.content.res.Configuration.UI_MODE_NIGHT_MASK) ==
+                android.content.res.Configuration.UI_MODE_NIGHT_YES
+
+        window.apply {
+            statusBarColor = when {
+                destinationId == R.id.navigation_user -> {
+                    // 用户界面：深色模式使用纯黑色，浅色模式使用浅灰色（背景色）
+                    if (isDarkMode) Color.BLACK else ContextCompat.getColor(this@MainActivity, R.color.background)
+                }
+                isDarkMode -> ContextCompat.getColor(this@MainActivity, R.color.status_bar) // 其他页面深色模式使用浅黑色
+                else -> Color.WHITE // 其他页面浅色模式使用白色
+            }
         }
     }
 
@@ -103,19 +124,27 @@ class MainActivity : AppCompatActivity() {
             
             when (item.itemId) {
                 R.id.navigation_bills -> {
+                    updateStatusBarForDestination(R.id.navigation_bills)
                     navController.navigate(R.id.navigation_bills)
                     true
                 }
                 R.id.navigation_statistics -> {
+                    updateStatusBarForDestination(R.id.navigation_statistics)
                     navController.navigate(R.id.navigation_statistics)
                     true
                 }
                 R.id.navigation_user -> {
+                    updateStatusBarForDestination(R.id.navigation_user)
                     navController.navigate(R.id.navigation_user)
                     true
                 }
                 else -> false
             }
+        }
+        
+        // 监听导航变化，更新状态栏颜色
+        navController.addOnDestinationChangedListener { _, destination, _ ->
+            updateStatusBarForDestination(destination.id)
         }
     }
     

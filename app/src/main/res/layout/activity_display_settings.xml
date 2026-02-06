@@ -119,12 +119,12 @@
                         <com.google.android.material.textfield.TextInputLayout
                             android:id="@+id/til_dark_mode"
                             android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
+                            android:layout_height="38dp"
                             style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox.ExposedDropdownMenu"
-                            app:boxCornerRadiusTopStart="12dp"
-                            app:boxCornerRadiusTopEnd="12dp"
-                            app:boxCornerRadiusBottomStart="12dp"
-                            app:boxCornerRadiusBottomEnd="12dp"
+                            app:boxCornerRadiusTopStart="8dp"
+                            app:boxCornerRadiusTopEnd="8dp"
+                            app:boxCornerRadiusBottomStart="8dp"
+                            app:boxCornerRadiusBottomEnd="8dp"
                             app:boxStrokeWidth="1dp"
                             app:boxStrokeColor="@color/divider"
                             app:hintEnabled="false"
@@ -133,11 +133,12 @@
                             <AutoCompleteTextView
                                 android:id="@+id/spinner_dark_mode"
                                 android:layout_width="140dp"
-                                android:layout_height="48dp"
+                                android:layout_height="match_parent"
                                 android:inputType="none"
                                 android:textSize="13sp"
                                 android:gravity="center"
                                 android:paddingHorizontal="8dp"
+                                android:paddingVertical="8dp"
                                 android:textColor="@color/text_primary"
                                 android:dropDownHeight="wrap_content"
                                 android:ellipsize="end"
@@ -254,118 +255,5 @@
         </LinearLayout>
 
     </androidx.core.widget.NestedScrollView>
-
-    <!-- 颜色选择器弹窗遮罩层 -->
-    <FrameLayout
-        android:id="@+id/layout_color_picker_overlay"
-        android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:background="#80000000"
-        android:visibility="gone"
-        android:clickable="true"
-        android:focusable="true">
-
-        <!-- 颜色选择器弹窗 -->
-        <com.google.android.material.card.MaterialCardView
-            android:id="@+id/card_color_picker"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_margin="32dp"
-            android:layout_gravity="center"
-            app:cardCornerRadius="12dp"
-            app:cardElevation="4dp"
-            app:cardBackgroundColor="@color/surface">
-
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:orientation="vertical"
-                android:padding="20dp">
-
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="@string/select_theme_color"
-                    android:textColor="@color/text_primary"
-                    android:textSize="18sp"
-                    android:textStyle="bold" />
-
-                <!-- 颜色选择区域 -->
-                <com.google.android.material.slider.Slider
-                    android:id="@+id/slider_hue"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="24dp"
-                    android:valueFrom="0"
-                    android:valueTo="360"
-                    android:stepSize="1"
-                    android:value="210"
-                    app:trackHeight="12dp"
-                    app:trackColorInactive="#E0E0E0"
-                    app:thumbColor="@color/primary" />
-
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="8dp"
-                    android:text="@string/hue"
-                    android:textColor="@color/text_secondary"
-                    android:textSize="12sp" />
-
-                <!-- 饱和度和亮度预览区域 -->
-                <FrameLayout
-                    android:id="@+id/color_preview_container"
-                    android:layout_width="match_parent"
-                    android:layout_height="80dp"
-                    android:layout_marginTop="24dp"
-                    android:background="@drawable/bg_color_gradient">
-
-                    <View
-                        android:id="@+id/view_color_preview"
-                        android:layout_width="match_parent"
-                        android:layout_height="match_parent"
-                        android:background="@color/primary" />
-
-                </FrameLayout>
-
-                <!-- 按钮区域 -->
-                <LinearLayout
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="24dp"
-                    android:orientation="horizontal">
-
-                    <com.google.android.material.button.MaterialButton
-                        android:id="@+id/btn_cancel_color"
-                        android:layout_width="0dp"
-                        android:layout_height="wrap_content"
-                        android:layout_weight="1"
-                        android:layout_marginEnd="8dp"
-                        android:text="@string/cancel"
-                        android:textColor="@color/primary"
-                        android:textSize="14sp"
-                        app:cornerRadius="8dp"
-                        style="@style/Widget.MaterialComponents.Button.OutlinedButton"
-                        app:strokeColor="@color/primary" />
-
-                    <com.google.android.material.button.MaterialButton
-                        android:id="@+id/btn_confirm_color"
-                        android:layout_width="0dp"
-                        android:layout_height="wrap_content"
-                        android:layout_weight="1"
-                        android:layout_marginStart="8dp"
-                        android:text="@string/confirm"
-                        android:textColor="@color/white"
-                        android:textSize="14sp"
-                        app:cornerRadius="8dp"
-                        android:backgroundTint="@color/primary" />
-
-                </LinearLayout>
-
-            </LinearLayout>
-
-        </com.google.android.material.card.MaterialCardView>
-
-    </FrameLayout>
 
 </androidx.coordinatorlayout.widget.CoordinatorLayout>

@@ -8,13 +8,16 @@ import android.view.View
 import android.widget.ArrayAdapter
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatDelegate
+import androidx.core.content.ContextCompat
 import com.example.daxijizhang.R
 import com.example.daxijizhang.databinding.ActivityDisplaySettingsBinding
 import com.example.daxijizhang.ui.base.BaseActivity
 import com.example.daxijizhang.util.ThemeManager
 import com.example.daxijizhang.util.ViewUtil
+import com.jaredrummler.android.colorpicker.ColorPickerDialog
+import com.jaredrummler.android.colorpicker.ColorPickerDialogListener
 
-class DisplaySettingsActivity : BaseActivity() {
+class DisplaySettingsActivity : BaseActivity(), ColorPickerDialogListener {
 
     private lateinit var binding: ActivityDisplaySettingsBinding
     private lateinit var prefs: SharedPreferences
@@ -42,6 +45,7 @@ class DisplaySettingsActivity : BaseActivity() {
         private const val DEFAULT_HUE = 210f
         private const val DEFAULT_FONT_SIZE = 16f
         private const val DEFAULT_COLOR = 0xFF2196F3.toInt()
+        private const val COLOR_PICKER_DIALOG_ID = 0
 
         // 旧版本颜色映射（用于兼容）
         private val legacyColorMap = mapOf(
@@ -92,14 +96,6 @@ class DisplaySettingsActivity : BaseActivity() {
             updateFontSizeDisplay(value)
         }
 
-        // 设置颜色选择器滑动条监听
-        binding.sliderHue.addOnChangeListener { _, value, _ ->
-            currentHue = value
-            tempSelectedColor = hueToColor(value)
-            updateColorPreview(tempSelectedColor)
-            updateConfirmButtonColor(tempSelectedColor)
-        }
-
         // 设置深色模式下拉框
         setupDarkModeSpinner()
     }
@@ -107,21 +103,7 @@ class DisplaySettingsActivity : BaseActivity() {
     private fun setupClickListeners() {
         // 主题颜色条目点击 - 显示颜色选择器
         binding.itemThemeColor.setOnClickListener {
-            showColorPicker()
-        }
-
-        // 取消按钮
-        binding.btnCancelColor.setOnClickListener {
-            hideColorPicker()
-        }
-
-        // 确认按钮
-        binding.btnConfirmColor.setOnClickListener {
-            selectedColor = tempSelectedColor
-            saveThemeColor(selectedColor, currentHue)
-            updateThemeColorPreview(selectedColor)
-            hideColorPicker()
-            Toast.makeText(this, R.string.theme_color_applied, Toast.LENGTH_SHORT).show()
+            showColorPickerDialog()
         }
 
         // 深色模式选择 - 修复点击冲突和交互问题
@@ -158,11 +140,53 @@ class DisplaySettingsActivity : BaseActivity() {
                 applyFontSize()
             }
         }
+    }
 
-        // 遮罩层点击关闭
-        binding.layoutColorPickerOverlay.setOnClickListener {
-            hideColorPicker()
+    private fun showColorPickerDialog() {
+        val dialog = ColorPickerDialog.newBuilder()
+            .setDialogType(ColorPickerDialog.TYPE_CUSTOM)
+            .setAllowPresets(true)
+            .setAllowCustom(true)
+            .setShowAlphaSlider(false)
+            .setShowColorShades(true)
+            .setColor(selectedColor)
+            .setDialogTitle(R.string.select_theme_color)
+            .setPresets(intArrayOf(
+                Color.parseColor("#FF2196F3"), // 蓝色
+                Color.parseColor("#FF6200EE"), // 紫色
+                Color.parseColor("#FFFF9800"), // 橙色
+                Color.parseColor("#FFF44336"), // 红色
+                Color.parseColor("#FF4CAF50"), // 绿色
+                Color.parseColor("#FF009688"), // 青色
+                Color.parseColor("#FF3F51B5"), // 靛蓝
+                Color.parseColor("#FFE91E63")  // 粉色
+            ))
+            .create()
+
+        // 在Dialog显示时设置圆角背景
+        dialog.setStyle(ColorPickerDialog.STYLE_NORMAL, R.style.ColorPickerDialogTheme)
+
+        dialog.show(supportFragmentManager, "color-picker-dialog")
+    }
+
+    override fun onColorSelected(dialogId: Int, color: Int) {
+        if (dialogId == COLOR_PICKER_DIALOG_ID) {
+            selectedColor = color
+            currentHue = colorToHue(color)
+            saveThemeColor(selectedColor, currentHue)
+            updateThemeColorPreview(selectedColor)
+            Toast.makeText(this, R.string.theme_color_applied, Toast.LENGTH_SHORT).show()
         }
+    }
+
+    override fun onDialogDismissed(dialogId: Int) {
+        // 对话框关闭时的回调，不需要额外处理
+    }
+
+    private fun colorToHue(color: Int): Float {
+        val hsv = FloatArray(3)
+        Color.colorToHSV(color, hsv)
+        return hsv[0]
     }
 
     private fun loadCurrentSettings() {
@@ -269,43 +293,11 @@ class DisplaySettingsActivity : BaseActivity() {
         }
     }
 
-    private fun showColorPicker() {
-        tempSelectedColor = selectedColor
-        currentHue = try {
-            prefs.getFloat(KEY_THEME_COLOR_HUE, DEFAULT_HUE)
-        } catch (e: Exception) {
-            DEFAULT_HUE
-        }
-        binding.sliderHue.value = currentHue
-        updateColorPreview(tempSelectedColor)
-        updateConfirmButtonColor(tempSelectedColor)
-        binding.layoutColorPickerOverlay.visibility = View.VISIBLE
-    }
-
-    private fun hideColorPicker() {
-        binding.layoutColorPickerOverlay.visibility = View.GONE
-    }
-
-    private fun updateColorPreview(color: Int) {
-        binding.viewColorPreview.setBackgroundColor(color)
-    }
-
     private fun updateThemeColorPreview(color: Int) {
         val drawable = binding.viewThemeColorPreview.background
         if (drawable is android.graphics.drawable.GradientDrawable) {
             drawable.setColor(color)
         }
-    }
-
-    private fun updateConfirmButtonColor(color: Int) {
-        binding.btnConfirmColor.backgroundTintList = android.content.res.ColorStateList.valueOf(color)
-        binding.btnCancelColor.setStrokeColorResource(android.R.color.transparent)
-        binding.btnCancelColor.setTextColor(color)
-    }
-
-    private fun hueToColor(hue: Float): Int {
-        val hsv = floatArrayOf(hue, 0.9f, 0.9f)
-        return Color.HSVToColor(hsv)
     }
 
     private fun saveThemeColor(color: Int, hue: Float) {

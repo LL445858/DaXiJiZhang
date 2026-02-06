@@ -22,8 +22,8 @@
 
     <!-- Theme for secondary activities in night mode -->
     <style name="Theme.Daxijizhang.Secondary" parent="Theme.Daxijizhang">
-        <!-- Black status bar for night mode -->
-        <item name="android:statusBarColor">@color/black</item>
+        <!-- Light black status bar for night mode (settings pages) -->
+        <item name="android:statusBarColor">@color/status_bar</item>
         <item name="android:windowLightStatusBar">false</item>
         <!-- TextInputLayout text color for night mode -->
         <item name="android:textColor">@color/text_primary</item>

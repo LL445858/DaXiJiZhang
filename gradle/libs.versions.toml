@@ -16,6 +16,7 @@ kotlin = "2.0.21"
 gson = "2.10.1"
 itextpdf = "5.5.13.3"
 itext-asian = "5.2.0"
+colorpicker = "1.1.0"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
@@ -51,6 +52,9 @@ gson = { group = "com.google.code.gson", name = "gson", version.ref = "gson" }
 # PDF Export
 itextpdf = { group = "com.itextpdf", name = "itextpdf", version.ref = "itextpdf" }
 itext-asian = { group = "com.itextpdf", name = "itext-asian", version.ref = "itext-asian" }
+
+# Color Picker
+colorpicker = { group = "com.jaredrummler", name = "colorpicker", version.ref = "colorpicker" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

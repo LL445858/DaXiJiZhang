@@ -24,6 +24,7 @@ import com.example.daxijizhang.data.database.AppDatabase
 import com.example.daxijizhang.data.model.Bill
 import com.example.daxijizhang.data.repository.BillRepository
 import com.example.daxijizhang.databinding.DialogFilterBinding
+import com.example.daxijizhang.databinding.DialogSortBinding
 import com.example.daxijizhang.databinding.FragmentBillsBinding
 import com.example.daxijizhang.util.ViewUtil.fadeIn
 import com.example.daxijizhang.util.ViewUtil.setOnOptimizedClickListener
@@ -177,23 +178,52 @@ class BillsFragment : Fragment() {
     }
 
     private fun showSortMenu() {
-        val popup = PopupMenu(requireContext(), binding.btnSort)
-        popup.menuInflater.inflate(R.menu.menu_sort, popup.menu)
+        val dialogBinding = DialogSortBinding.inflate(LayoutInflater.from(requireContext()))
 
-        popup.setOnMenuItemClickListener { item ->
-            when (item.itemId) {
-                R.id.sort_start_date_asc -> viewModel.setSortType(BillViewModel.SortType.START_DATE_ASC)
-                R.id.sort_start_date_desc -> viewModel.setSortType(BillViewModel.SortType.START_DATE_DESC)
-                R.id.sort_end_date_asc -> viewModel.setSortType(BillViewModel.SortType.END_DATE_ASC)
-                R.id.sort_end_date_desc -> viewModel.setSortType(BillViewModel.SortType.END_DATE_DESC)
-                R.id.sort_community -> viewModel.setSortType(BillViewModel.SortType.COMMUNITY_ASC)
-                R.id.sort_amount_asc -> viewModel.setSortType(BillViewModel.SortType.AMOUNT_ASC)
-                R.id.sort_amount_desc -> viewModel.setSortType(BillViewModel.SortType.AMOUNT_DESC)
-            }
-            true
+        val sortDialog = AlertDialog.Builder(requireContext())
+            .setView(dialogBinding.root)
+            .create()
+
+        // 设置排序选项点击事件
+        dialogBinding.btnSortStartDateDesc.setOnClickListener {
+            viewModel.setSortType(BillViewModel.SortType.START_DATE_DESC)
+            sortDialog.dismiss()
+        }
+        dialogBinding.btnSortStartDateAsc.setOnClickListener {
+            viewModel.setSortType(BillViewModel.SortType.START_DATE_ASC)
+            sortDialog.dismiss()
+        }
+        dialogBinding.btnSortEndDateDesc.setOnClickListener {
+            viewModel.setSortType(BillViewModel.SortType.END_DATE_DESC)
+            sortDialog.dismiss()
+        }
+        dialogBinding.btnSortEndDateAsc.setOnClickListener {
+            viewModel.setSortType(BillViewModel.SortType.END_DATE_ASC)
+            sortDialog.dismiss()
+        }
+        dialogBinding.btnSortCommunity.setOnClickListener {
+            viewModel.setSortType(BillViewModel.SortType.COMMUNITY_ASC)
+            sortDialog.dismiss()
+        }
+        dialogBinding.btnSortAmountDesc.setOnClickListener {
+            viewModel.setSortType(BillViewModel.SortType.AMOUNT_DESC)
+            sortDialog.dismiss()
+        }
+        dialogBinding.btnSortAmountAsc.setOnClickListener {
+            viewModel.setSortType(BillViewModel.SortType.AMOUNT_ASC)
+            sortDialog.dismiss()
         }
 
-        popup.show()
+        sortDialog.show()
+
+        // 在show()之后设置弹窗圆角背景和宽度为屏幕的70%
+        sortDialog.window?.apply {
+            setBackgroundDrawable(ContextCompat.getDrawable(requireContext(), R.drawable.bg_dialog_rounded))
+            // 设置弹窗宽度为屏幕宽度的70%
+            val displayMetrics = resources.displayMetrics
+            val width = (displayMetrics.widthPixels * 0.7).toInt()
+            setLayout(width, android.view.WindowManager.LayoutParams.WRAP_CONTENT)
+        }
     }
 
     private fun showFilterDialog() {
@@ -257,6 +287,11 @@ class BillsFragment : Fragment() {
         filterDialog = AlertDialog.Builder(requireContext())
             .setView(dialogBinding.root)
             .create()
+
+        // 设置弹窗圆角背景
+        filterDialog?.window?.apply {
+            setBackgroundDrawable(ContextCompat.getDrawable(requireContext(), R.drawable.bg_dialog_rounded))
+        }
 
         // 应用筛选按钮
         dialogBinding.btnApplyFilter.setOnClickListener {
@@ -361,7 +396,8 @@ class BillsFragment : Fragment() {
     private fun updateEmptyView(isEmpty: Boolean) {
         binding.emptyView.visibility = if (isEmpty) View.VISIBLE else View.GONE
         binding.recyclerBills.visibility = if (isEmpty) View.GONE else View.VISIBLE
-        binding.tvBillCount.visibility = if (isEmpty) View.GONE else View.VISIBLE
+        // 空状态下也显示账单数量提示
+        binding.tvBillCount.visibility = View.VISIBLE
     }
 
     private fun updateBillCount(count: Int) {

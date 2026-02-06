@@ -100,6 +100,9 @@ dependencies {
     implementation(libs.itextpdf)
     implementation(libs.itext.asian)
 
+    // Color Picker
+    implementation(libs.colorpicker)
+
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)

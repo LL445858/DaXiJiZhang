@@ -31,4 +31,11 @@
         <!-- Disable force dark mode -->
         <item name="android:forceDarkAllowed" tools:targetApi="29">false</item>
     </style>
+
+    <!-- ColorPicker Dialog Theme with rounded corners -->
+    <style name="ColorPickerDialogTheme" parent="Theme.MaterialComponents.Light.Dialog">
+        <item name="android:windowBackground">@drawable/bg_color_picker_dialog</item>
+        <item name="android:windowMinWidthMajor">70%</item>
+        <item name="android:windowMinWidthMinor">70%</item>
+    </style>
 </resources>
