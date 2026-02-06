@@ -27,7 +27,7 @@
     </style>
 
     <!-- BottomNavigationView文字样式 -->
-    <style name="TextAppearance.Daxijizhang.BottomNavigation" parent="TextAppearance.MaterialComponents.Caption">
+    <style name="TextAppearance.Daxijizhang.BottomNavigation" parent="TextAppearance.AppCompat.Caption">
         <!-- 使用sp单位，确保响应字体缩放 -->
         <item name="android:textSize">12sp</item>
     </style>

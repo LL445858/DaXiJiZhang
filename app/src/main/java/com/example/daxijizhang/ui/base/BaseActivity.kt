@@ -38,11 +38,7 @@ abstract class BaseActivity : AppCompatActivity(), DaxiApplication.OnFontScaleCh
             1.0f
         }
 
-        // 如果缩放值为1.0（100%），不需要修改
-        if (scale == 1.0f) {
-            return context
-        }
-
+        // 始终创建新的Configuration，确保字体缩放正确应用
         val configuration = Configuration(context.resources.configuration)
         configuration.fontScale = scale
         return context.createConfigurationContext(configuration)
