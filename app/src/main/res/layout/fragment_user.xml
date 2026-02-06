@@ -13,6 +13,7 @@
         android:id="@+id/status_bar_placeholder"
         android:layout_width="match_parent"
         android:layout_height="0dp"
+        android:background="@color/black"
         app:layout_constraintTop_toTopOf="parent" />
 
     <!-- 模块一：用户信息展示区 -->
@@ -138,7 +139,7 @@
                             android:layout_height="wrap_content"
                             android:layout_marginTop="8dp"
                             android:text="@string/info_settings"
-                            android:textColor="#333333"
+                            android:textColor="@color/text_primary"
                             android:textSize="12sp" />
 
                     </LinearLayout>
@@ -168,7 +169,7 @@
                             android:layout_height="wrap_content"
                             android:layout_marginTop="8dp"
                             android:text="@string/display_settings"
-                            android:textColor="#333333"
+                            android:textColor="@color/text_primary"
                             android:textSize="12sp" />
 
                     </LinearLayout>
@@ -198,7 +199,7 @@
                             android:layout_height="wrap_content"
                             android:layout_marginTop="8dp"
                             android:text="@string/data_migration"
-                            android:textColor="#333333"
+                            android:textColor="@color/text_primary"
                             android:textSize="12sp" />
 
                     </LinearLayout>
@@ -228,7 +229,7 @@
                             android:layout_height="wrap_content"
                             android:layout_marginTop="8dp"
                             android:text="@string/remote_sync"
-                            android:textColor="#333333"
+                            android:textColor="@color/text_primary"
                             android:textSize="12sp" />
 
                     </LinearLayout>

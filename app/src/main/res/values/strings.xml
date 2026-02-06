@@ -93,7 +93,7 @@
     <string name="delete_bill_confirm_message">确定要删除该账单吗？此操作不可恢复。</string>
     <string name="delete_bill_final_confirm">再次确认删除</string>
     <string name="unsaved_changes_title">未保存的更改</string>
-    <string name="unsaved_changes_message">账单更改未保存，是否退出？</string>
+    <string name="unsaved_changes_message">账单更改未保存，是否保存？</string>
     <string name="yes">是</string>
     <string name="no">否</string>
 
@@ -162,7 +162,7 @@
     <string name="password_or_key">密码/密钥</string>
     <string name="verify_connection">验证连接</string>
     <string name="sync_now">立即同步</string>
-    <string name="sync_path_info">同步路径：/daxijizhang/</string>
+    <string name="sync_path_info">同步路径：/daxijizhang, 请先确保坚果云中存在该文件夹</string>
     <string name="push_to_cloud">推送到云端</string>
     <string name="pull_from_cloud">从云端拉取</string>
     <string name="syncing">正在同步...</string>
@@ -172,6 +172,12 @@
     <string name="auto_sync_description">应用退出时自动推送最新账单数据文件到云端</string>
     <string name="view_sync_log">查看同步日志</string>
     <string name="sync_log">同步日志</string>
+    <string name="auto_cloud_backup">自动云备份</string>
+    <string name="auto_cloud_backup_description">软件正常退出后自动本地云备份一次</string>
+    <string name="account_not_configured">未配置</string>
+    <string name="account_configured">已配置</string>
+    <string name="auto_local_backup">自动本地备份</string>
+    <string name="auto_local_backup_description">软件正常退出后自动本地备份一次</string>
 
     <!-- 项目词典 -->
     <string name="project_dictionary">项目词典</string>
@@ -236,6 +242,14 @@
     <!-- 显示设置页面 -->
     <string name="theme_color_applied">主题颜色已应用</string>
     <string name="font_size_applied">字体大小已应用</string>
+    <string name="theme_settings">主题设置</string>
+    <string name="theme_color">主题颜色</string>
+    <string name="dark_mode">深色模式</string>
+    <string name="select_theme_color">选择主题颜色</string>
+    <string name="hue">色调</string>
+    <string name="dark_mode_always_on">始终开启</string>
+    <string name="dark_mode_always_off">始终关闭</string>
+    <string name="dark_mode_follow_system">跟随系统</string>
 
     <!-- 数据迁移页面 -->
     <string name="export_data_migration">导出数据</string>

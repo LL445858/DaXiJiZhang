@@ -3,45 +3,63 @@ package com.example.daxijizhang.util
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
+import okhttp3.ConnectionPool
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
+import okhttp3.Protocol
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
+import java.io.IOException
+import java.net.SocketException
 import java.net.URLDecoder
 import java.text.SimpleDateFormat
 import java.util.*
 import java.util.concurrent.TimeUnit
+import kotlin.math.min
 
 /**
  * WebDAV 工具类（坚果云）
  *
- * ✅ 已统一迁移为 OkHttp：支持 PROPFIND / MKCOL 等 WebDAV 方法
- * ✅ 统一的认证 / User-Agent / 超时 / 重试 / 日志
+ * ✅ 全部统一迁移为 OkHttp：支持 PROPFIND / MKCOL 等 WebDAV 方法
+ * ✅ 统一认证 / User-Agent / 超时 / 重试 / 日志
  *
  * 依赖：implementation("com.squareup.okhttp3:okhttp:4.12.0")
+ *
+ * 针对 “Socket closed” 的加固点：
+ * 1) 强制 HTTP/1.1（部分 WebDAV 服务的 HTTP/2 协商/实现不稳定）
+ * 2) 网络异常（IOException/SocketException）重试前主动 evictAll() 清理连接池
+ * 3) 退避重试（Backoff）避免短时间多次连接被服务端/中间设备直接断开
  */
 object WebDAVUtil {
 
     private const val TAG = "WebDAV"
     private const val DEFAULT_FOLDER = "daxijizhang"
+
     private const val MAX_RETRY_COUNT = 3
-    private const val RETRY_DELAY_MS = 1000L
+    private const val BASE_RETRY_DELAY_MS = 1200L      // 稍微加大基础重试间隔
+    private const val MAX_RETRY_DELAY_MS = 8000L       // 退避上限
 
     // 关键：坚果云常见需要自定义 UA，否则可能 403
     private const val USER_AGENT = "DaxiJizhang/1.0 (Android)"
 
-    // 统一超时（与原代码一致）
+    // 统一超时
     private const val CONNECT_TIMEOUT_SEC = 30L
-    private const val READ_TIMEOUT_SEC = 30L
+    private const val READ_TIMEOUT_SEC = 45L           // 拉取列表/文件读可能更慢，适当放宽
     private const val WRITE_TIMEOUT_SEC = 30L
+    private const val CALL_TIMEOUT_SEC = 60L
 
     // --- OkHttpClient 单例复用 ---
     private val httpClient: OkHttpClient by lazy {
         OkHttpClient.Builder()
+            // 针对“Socket closed/协议协商异常”常见于 HTTP/2：强制 HTTP/1.1 更稳
+            .protocols(listOf(Protocol.HTTP_1_1))
             .connectTimeout(CONNECT_TIMEOUT_SEC, TimeUnit.SECONDS)
             .readTimeout(READ_TIMEOUT_SEC, TimeUnit.SECONDS)
             .writeTimeout(WRITE_TIMEOUT_SEC, TimeUnit.SECONDS)
+            .callTimeout(CALL_TIMEOUT_SEC, TimeUnit.SECONDS)
             .retryOnConnectionFailure(true)
+            // 连接池显式设置，便于在出现网络异常时 evictAll 清理
+            .connectionPool(ConnectionPool(5, 2, TimeUnit.MINUTES))
             .build()
     }
 
@@ -106,13 +124,21 @@ object WebDAVUtil {
         }
     }
 
-    // --- 统一构建 Request：自动带 Authorization/User-Agent/Connection: close ---
+    // --- 统一构建 Request：自动带 Authorization/User-Agent ---
     private fun newRequestBuilder(config: WebDAVConfig, url: String): Request.Builder {
         return Request.Builder()
             .url(url)
             .header("Authorization", createAuthHeader(config))
             .header("User-Agent", USER_AGENT)
-            .header("Connection", "close")
+            // 注意：不要强行加 "Connection: close"
+            // 在某些网络/代理/协议协商下会引发底层连接更早关闭，增加 Socket closed 概率
+            .header("Accept", "*/*")
+    }
+
+    private fun computeBackoffDelayMs(attempt: Int): Long {
+        // 简单指数退避：base * 2^attempt，上限 MAX_RETRY_DELAY_MS
+        val delay = BASE_RETRY_DELAY_MS * (1L shl attempt)
+        return min(delay, MAX_RETRY_DELAY_MS)
     }
 
     /**
@@ -120,43 +146,54 @@ object WebDAVUtil {
      *
      * - 200..299 视作成功（但 WebDAV 的 PROPFIND 常返回 207，也视作成功）
      * - 401/403 直接失败（通常无需重试）
+     * - IOException/SocketException：重试前清理连接池，降低复用坏连接概率
      */
     private suspend fun <T> executeWithRetry(
         actionName: String,
         onStatusUpdate: ((SyncStatus) -> Unit)? = null,
         block: () -> Result<T>
     ): Result<T> = withContext(Dispatchers.IO) {
-        repeat(MAX_RETRY_COUNT) { attempt ->
+
+        var lastErr: Throwable? = null
+
+        for (attempt in 0 until MAX_RETRY_COUNT) {
             try {
                 val result = block()
-                // 成功直接返回
                 if (result.isSuccess) return@withContext result
 
-                // 失败时：如果是权限类错误，通常不需要重试
-                val exMsg = result.exceptionOrNull()?.message.orEmpty()
-                if (exMsg.contains("401") || exMsg.contains("403") ||
-                    exMsg.contains("认证失败") || exMsg.contains("访问拒绝")
+                lastErr = result.exceptionOrNull()
+
+                // 权限类错误一般无需重试
+                val msg = lastErr?.message.orEmpty()
+                if (msg.contains("401") || msg.contains("403") ||
+                    msg.contains("认证失败") || msg.contains("访问拒绝")
                 ) {
                     return@withContext result
                 }
 
-                if (attempt < MAX_RETRY_COUNT - 1) {
-                    onStatusUpdate?.invoke(SyncStatus(false, "$actionName 失败，重试中(${attempt + 1}/${MAX_RETRY_COUNT})...", 0))
-                    delay(RETRY_DELAY_MS)
-                } else {
-                    return@withContext result
-                }
-            } catch (e: Exception) {
-                android.util.Log.e(TAG, "$actionName error", e)
-                if (attempt < MAX_RETRY_COUNT - 1) {
-                    onStatusUpdate?.invoke(SyncStatus(false, "$actionName 异常，重试中(${attempt + 1}/${MAX_RETRY_COUNT})...", 0))
-                    delay(RETRY_DELAY_MS)
-                } else {
-                    return@withContext Result.failure(e)
+            } catch (e: Throwable) {
+                lastErr = e
+            }
+
+            // 最后一次直接返回失败
+            if (attempt == MAX_RETRY_COUNT - 1) {
+                return@withContext Result.failure(lastErr ?: Exception("$actionName 失败"))
+            }
+
+            // 网络类异常：清连接池再重试
+            if (lastErr is IOException || lastErr is SocketException) {
+                try {
+                    httpClient.connectionPool.evictAll()
+                } catch (_: Throwable) {
                 }
             }
+
+            val delayMs = computeBackoffDelayMs(attempt)
+            onStatusUpdate?.invoke(SyncStatus(false, "$actionName 失败：${lastErr?.message ?: "未知错误"}，$delayMs ms 后重试(${attempt + 1}/${MAX_RETRY_COUNT})", 0))
+            delay(delayMs)
         }
-        Result.failure(Exception("$actionName 失败"))
+
+        Result.failure(lastErr ?: Exception("$actionName 失败"))
     }
 
     /**
@@ -175,7 +212,7 @@ object WebDAVUtil {
                 val code = resp.code
                 logResponse(code, resp.message)
 
-                return@use when (code) {
+                when (code) {
                     in 200..299 -> Result.success(true)
                     401 -> Result.failure(Exception("认证失败(401)，请检查用户名和密码/应用密码"))
                     403 -> Result.failure(Exception("访问被拒绝(403)，请检查账户权限或 User-Agent 策略"))
@@ -210,14 +247,11 @@ object WebDAVUtil {
                 logResponse(code, resp.message)
 
                 when (code) {
-                    in 200..299 -> return@use Result.success(true)
-                    404 -> {
-                        // 2) 创建目录 MKCOL
-                        return@use createDirectory(config, folderUrl)
-                    }
-                    401 -> return@use Result.failure(Exception("权限不足或认证失败(401)"))
-                    403 -> return@use Result.failure(Exception("访问被拒绝(403)"))
-                    else -> return@use Result.failure(Exception("无法访问目录($code)"))
+                    in 200..299 -> Result.success(true)
+                    404 -> createDirectory(config, folderUrl)
+                    401 -> Result.failure(Exception("权限不足或认证失败(401)"))
+                    403 -> Result.failure(Exception("访问被拒绝(403)"))
+                    else -> Result.failure(Exception("无法访问目录($code)"))
                 }
             }
         } catch (e: Exception) {
@@ -274,18 +308,17 @@ object WebDAVUtil {
 
             httpClient.newCall(request).execute().use { resp ->
                 val code = resp.code
-                val respBody = resp.body?.string()
+                val respBody = resp.body?.string() // 读出来便于排障（也避免资源未消费导致连接复用问题）
                 logResponse(code, resp.message, respBody)
 
-                return@use if (code in 200..299 || code == 201 || code == 204) {
-                    onStatusUpdate?.invoke(SyncStatus(true, "上传成功", 100))
-                    Result.success("上传成功")
-                } else if (code == 401) {
-                    Result.failure(Exception("上传失败：认证失败(401)"))
-                } else if (code == 403) {
-                    Result.failure(Exception("上传失败：访问拒绝(403)"))
-                } else {
-                    Result.failure(Exception("上传失败 Code: $code"))
+                when {
+                    code in 200..299 || code == 201 || code == 204 -> {
+                        onStatusUpdate?.invoke(SyncStatus(true, "上传成功", 100))
+                        Result.success("上传成功")
+                    }
+                    code == 401 -> Result.failure(Exception("上传失败：认证失败(401)"))
+                    code == 403 -> Result.failure(Exception("上传失败：访问拒绝(403)"))
+                    else -> Result.failure(Exception("上传失败 Code: $code, body=${respBody?.take(200)}"))
                 }
             }
         } catch (e: Exception) {
@@ -312,15 +345,14 @@ object WebDAVUtil {
             httpClient.newCall(request).execute().use { resp ->
                 val code = resp.code
                 val bodyStr = resp.body?.string()
+                logResponse(code, resp.message, bodyStr)
 
-                logResponse(code, resp.message, bodyStr?.let { "Length: ${it.length}" })
-
-                return@use when (code) {
+                when (code) {
                     in 200..299 -> Result.success(bodyStr.orEmpty())
                     404 -> Result.failure(Exception("文件不存在(404)"))
                     401 -> Result.failure(Exception("下载失败：认证失败(401)"))
                     403 -> Result.failure(Exception("下载失败：访问拒绝(403)"))
-                    else -> Result.failure(Exception("下载失败: HTTP $code"))
+                    else -> Result.failure(Exception("下载失败: HTTP $code, body=${bodyStr?.take(200)}"))
                 }
             }
         } catch (e: Exception) {
@@ -339,9 +371,10 @@ object WebDAVUtil {
         try {
             onStatusUpdate?.invoke(SyncStatus(true, "正在获取列表...", 20))
 
+            // 坚果云 PROPFIND 必须以 / 结尾
             val folderUrl = buildFullPath(config, "$folderName/")
 
-            // 建议带最小 XML body，提高兼容性
+            // 最小 XML body：提高兼容性（空 body 在某些服务端会被中间件直接断开）
             val xml = """
                 <?xml version="1.0" encoding="utf-8" ?>
                 <d:propfind xmlns:d="DAV:">
@@ -364,10 +397,9 @@ object WebDAVUtil {
             httpClient.newCall(request).execute().use { resp ->
                 val code = resp.code
                 val respBody = resp.body?.string()
+                logResponse(code, resp.message, respBody)
 
-                logResponse(code, resp.message, respBody?.let { "Length: ${it.length}" })
-
-                return@use when {
+                when {
                     code == 207 || code in 200..299 -> {
                         val files = parseWebDavXml(respBody.orEmpty(), folderName)
                         onStatusUpdate?.invoke(SyncStatus(true, "获取列表成功", 50))
@@ -384,7 +416,7 @@ object WebDAVUtil {
         }
     }
 
-    // --- XML 解析：保持你的原逻辑（微调：URLDecoder import、健壮性） ---
+    // --- XML 解析：保持你的原逻辑（微调：健壮性） ---
     private fun parseWebDavXml(xml: String, folderName: String): List<RemoteFile> {
         val files = mutableListOf<RemoteFile>()
         try {
@@ -393,8 +425,10 @@ object WebDAVUtil {
             for (responseFragment in responses) {
                 if (responseFragment.isBlank()) continue
 
-                val hrefMatch = "(<d:href>|<D:href>|<href>)(.*?)(</d:href>|</D:href>|</href>)".toRegex()
+                val hrefMatch = "(<d:href>|<D:href>|<href>)(.*?)(</d:href>|</D:href>|</href>)"
+                    .toRegex()
                     .find(responseFragment)
+
                 var rawHref = hrefMatch?.groupValues?.get(2)?.trim() ?: continue
 
                 rawHref = try {
@@ -403,7 +437,7 @@ object WebDAVUtil {
                     rawHref
                 }
 
-                // 过滤目录本身（目录一般以 / 结尾）
+                // 过滤目录本身
                 if (rawHref.endsWith("/") || rawHref.endsWith(folderName) || rawHref.endsWith("$folderName/")) {
                     continue
                 }
@@ -412,11 +446,13 @@ object WebDAVUtil {
                 if (!fileName.endsWith(".json")) continue
 
                 val sizeMatch = "(<d:getcontentlength>|<D:getcontentlength>|<getcontentlength>)(.*?)(</d:getcontentlength>|</D:getcontentlength>|</getcontentlength>)"
-                    .toRegex().find(responseFragment)
+                    .toRegex()
+                    .find(responseFragment)
                 val size = sizeMatch?.groupValues?.get(2)?.toLongOrNull() ?: 0L
 
                 val timeMatch = "(<d:getlastmodified>|<D:getlastmodified>|<getlastmodified>)(.*?)(</d:getlastmodified>|</D:getlastmodified>|</getlastmodified>)"
-                    .toRegex().find(responseFragment)
+                    .toRegex()
+                    .find(responseFragment)
                 val timeStr = timeMatch?.groupValues?.get(2) ?: ""
 
                 files.add(
@@ -447,7 +483,6 @@ object WebDAVUtil {
                 sdf.timeZone = TimeZone.getTimeZone("GMT")
                 return sdf.parse(dateString) ?: continue
             } catch (_: Exception) {
-                // try next
             }
         }
         return Date()
@@ -456,19 +491,54 @@ object WebDAVUtil {
     // --- 文件名生成辅助方法（保持不变） ---
     fun generateManualPushFileName(): String {
         val timestamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(Date())
-        return "${DEFAULT_FOLDER}_手动_$timestamp.json"
+        return "manual_backup_$timestamp.json"
     }
 
     fun generateAutoPushFileName(): String {
         val timestamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(Date())
-        return "${DEFAULT_FOLDER}_自动_$timestamp.json"
+        return "auto_backup_$timestamp.json"
     }
 
     fun isAutoPushFile(fileName: String): Boolean {
-        return fileName.startsWith("${DEFAULT_FOLDER}_自动_")
+        return fileName.startsWith("auto_backup_")
     }
 
+
     fun isManualPushFile(fileName: String): Boolean {
-        return fileName.startsWith("${DEFAULT_FOLDER}_手动_")
+        return fileName.startsWith("manual_backup_")
+    }
+
+    /**
+     * 删除文件：DELETE
+     */
+    suspend fun deleteFile(
+        config: WebDAVConfig,
+        remotePath: String
+    ): Result<Boolean> = executeWithRetry("删除文件") {
+        try {
+            val fullPath = buildFullPath(config, remotePath)
+
+            val request = newRequestBuilder(config, fullPath)
+                .delete()
+                .build()
+
+            logRequest("DELETE", fullPath)
+
+            httpClient.newCall(request).execute().use { resp ->
+                val code = resp.code
+                val respBody = resp.body?.string()
+                logResponse(code, resp.message, respBody)
+
+                when (code) {
+                    in 200..299, 204 -> Result.success(true)
+                    404 -> Result.success(true) // 文件不存在也算删除成功
+                    401 -> Result.failure(Exception("删除失败：认证失败(401)"))
+                    403 -> Result.failure(Exception("删除失败：访问拒绝(403)"))
+                    else -> Result.failure(Exception("删除失败: HTTP $code"))
+                }
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
     }
 }

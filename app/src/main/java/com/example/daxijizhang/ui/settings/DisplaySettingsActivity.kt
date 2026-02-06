@@ -3,48 +3,82 @@ package com.example.daxijizhang.ui.settings
 import android.content.SharedPreferences
 import android.graphics.Color
 import android.os.Bundle
+import android.util.Log
 import android.view.View
+import android.widget.ArrayAdapter
 import android.widget.Toast
-import androidx.core.content.ContextCompat
+import androidx.appcompat.app.AppCompatDelegate
 import com.example.daxijizhang.R
 import com.example.daxijizhang.databinding.ActivityDisplaySettingsBinding
 import com.example.daxijizhang.ui.base.BaseActivity
 import com.example.daxijizhang.util.ThemeManager
 import com.example.daxijizhang.util.ViewUtil
-import com.google.android.material.slider.Slider
 
 class DisplaySettingsActivity : BaseActivity() {
 
     private lateinit var binding: ActivityDisplaySettingsBinding
     private lateinit var prefs: SharedPreferences
 
-    private val themeColors = listOf(
-        ThemeColor("blue", R.color.primary, R.drawable.circle_color_blue),
-        ThemeColor("purple", R.color.purple_500, R.drawable.circle_color_purple),
-        ThemeColor("orange", R.color.warning, R.drawable.circle_color_orange),
-        ThemeColor("red", R.color.error, R.drawable.circle_color_red),
-        ThemeColor("green", R.color.success, R.drawable.circle_color_green)
-    )
-
-    private var selectedColorKey = "blue"
     private var currentFontSize = 16f
+    private var currentHue = 210f // 默认蓝色色相
+    private var selectedColor = Color.parseColor("#FF2196F3") // 默认蓝色
+    private var tempSelectedColor = selectedColor // 临时选择的颜色
 
-    data class ThemeColor(
-        val key: String,
-        val colorRes: Int,
-        val drawableRes: Int
+    // 深色模式选项
+    private val darkModeOptions = listOf("始终关闭", "始终开启", "跟随系统")
+    private val darkModeValues = listOf(
+        AppCompatDelegate.MODE_NIGHT_NO,
+        AppCompatDelegate.MODE_NIGHT_YES,
+        AppCompatDelegate.MODE_NIGHT_FOLLOW_SYSTEM
     )
+
+    companion object {
+        private const val TAG = "DisplaySettingsActivity"
+        private const val PREFS_NAME = "user_settings"
+        private const val KEY_THEME_COLOR = "theme_color"
+        private const val KEY_THEME_COLOR_HUE = "theme_color_hue"
+        private const val KEY_DARK_MODE = "dark_mode"
+        private const val KEY_FONT_SIZE = "font_size"
+        private const val DEFAULT_HUE = 210f
+        private const val DEFAULT_FONT_SIZE = 16f
+        private const val DEFAULT_COLOR = 0xFF2196F3.toInt()
+
+        // 旧版本颜色映射（用于兼容）
+        private val legacyColorMap = mapOf(
+            "blue" to 0xFF2196F3.toInt(),
+            "purple" to 0xFF6200EE.toInt(),
+            "orange" to 0xFFFF9800.toInt(),
+            "red" to 0xFFF44336.toInt(),
+            "green" to 0xFF4CAF50.toInt()
+        )
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         binding = ActivityDisplaySettingsBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
-        prefs = getSharedPreferences("user_settings", MODE_PRIVATE)
+        prefs = getSharedPreferences(PREFS_NAME, MODE_PRIVATE)
 
         initViews()
         setupClickListeners()
         loadCurrentSettings()
+    }
+
+    override fun onResume() {
+        super.onResume()
+        // 确保adapter在深色模式切换后正确设置
+        setupDarkModeSpinner()
+    }
+
+    private fun setupDarkModeSpinner() {
+        // 设置深色模式下拉框 - 使用自定义布局来减少行间距
+        val adapter = ArrayAdapter(this, R.layout.item_dropdown_dark_mode, darkModeOptions)
+        binding.spinnerDarkMode.setAdapter(adapter)
+        // 确保当前选中的值正确显示
+        val darkMode = loadDarkModeSafely()
+        val darkModeIndex = darkModeValues.indexOf(darkMode).takeIf { it >= 0 } ?: 0
+        binding.spinnerDarkMode.setText(darkModeOptions[darkModeIndex], false)
     }
 
     private fun initViews() {
@@ -57,15 +91,66 @@ class DisplaySettingsActivity : BaseActivity() {
             currentFontSize = value
             updateFontSizeDisplay(value)
         }
+
+        // 设置颜色选择器滑动条监听
+        binding.sliderHue.addOnChangeListener { _, value, _ ->
+            currentHue = value
+            tempSelectedColor = hueToColor(value)
+            updateColorPreview(tempSelectedColor)
+            updateConfirmButtonColor(tempSelectedColor)
+        }
+
+        // 设置深色模式下拉框
+        setupDarkModeSpinner()
     }
 
     private fun setupClickListeners() {
-        // 颜色选择
-        binding.colorBlue.setOnClickListener { selectColor("blue") }
-        binding.colorPurple.setOnClickListener { selectColor("purple") }
-        binding.colorOrange.setOnClickListener { selectColor("orange") }
-        binding.colorRed.setOnClickListener { selectColor("red") }
-        binding.colorGreen.setOnClickListener { selectColor("green") }
+        // 主题颜色条目点击 - 显示颜色选择器
+        binding.itemThemeColor.setOnClickListener {
+            showColorPicker()
+        }
+
+        // 取消按钮
+        binding.btnCancelColor.setOnClickListener {
+            hideColorPicker()
+        }
+
+        // 确认按钮
+        binding.btnConfirmColor.setOnClickListener {
+            selectedColor = tempSelectedColor
+            saveThemeColor(selectedColor, currentHue)
+            updateThemeColorPreview(selectedColor)
+            hideColorPicker()
+            Toast.makeText(this, R.string.theme_color_applied, Toast.LENGTH_SHORT).show()
+        }
+
+        // 深色模式选择 - 修复点击冲突和交互问题
+        binding.spinnerDarkMode.setOnItemClickListener { parent, _, position, _ ->
+            // 关闭下拉菜单
+            parent?.let {
+                val inputMethodManager = getSystemService(INPUT_METHOD_SERVICE) as android.view.inputmethod.InputMethodManager
+                inputMethodManager.hideSoftInputFromWindow(binding.spinnerDarkMode.windowToken, 0)
+            }
+
+            val selectedMode = darkModeValues[position]
+            saveDarkMode(selectedMode)
+            applyDarkMode(selectedMode)
+            // 更新显示文本但不触发重新弹窗
+            binding.spinnerDarkMode.setText(darkModeOptions[position], false)
+            // 清除焦点防止再次触发
+            binding.spinnerDarkMode.clearFocus()
+        }
+
+        // 修复：点击深色模式条目时，如果下拉菜单已打开则关闭它
+        binding.itemDarkMode.setOnClickListener {
+            // 如果下拉菜单正在显示，则关闭它
+            if (binding.spinnerDarkMode.isPopupShowing) {
+                binding.spinnerDarkMode.dismissDropDown()
+            } else {
+                // 否则显示下拉菜单
+                binding.spinnerDarkMode.showDropDown()
+            }
+        }
 
         // 应用字体大小
         binding.btnApplyFontSize.setOnClickListener {
@@ -73,57 +158,175 @@ class DisplaySettingsActivity : BaseActivity() {
                 applyFontSize()
             }
         }
-    }
 
-    private fun loadCurrentSettings() {
-        // 加载主题颜色
-        selectedColorKey = prefs.getString("theme_color", "blue") ?: "blue"
-        updateColorSelection(selectedColorKey)
-
-        // 加载字体大小
-        currentFontSize = prefs.getFloat("font_size", 16f)
-        binding.sliderFontSize.value = currentFontSize
-        updateFontSizeDisplay(currentFontSize)
-        
-        // 显示设置页面的标题栏始终保持白色，不跟随主题色变化
-        binding.toolbar.setBackgroundColor(Color.WHITE)
-        binding.toolbar.setTitleTextColor(Color.BLACK)
-        binding.toolbar.navigationIcon?.setTint(Color.BLACK)
-    }
-
-    private fun selectColor(colorKey: String) {
-        selectedColorKey = colorKey
-        updateColorSelection(colorKey)
-        saveThemeColor(colorKey)
-    }
-
-    private fun updateColorSelection(colorKey: String) {
-        // 隐藏所有选中标记
-        binding.ivCheckBlue.visibility = View.GONE
-        binding.ivCheckPurple.visibility = View.GONE
-        binding.ivCheckOrange.visibility = View.GONE
-        binding.ivCheckRed.visibility = View.GONE
-        binding.ivCheckGreen.visibility = View.GONE
-
-        // 显示当前选中的标记
-        when (colorKey) {
-            "blue" -> binding.ivCheckBlue.visibility = View.VISIBLE
-            "purple" -> binding.ivCheckPurple.visibility = View.VISIBLE
-            "orange" -> binding.ivCheckOrange.visibility = View.VISIBLE
-            "red" -> binding.ivCheckRed.visibility = View.VISIBLE
-            "green" -> binding.ivCheckGreen.visibility = View.VISIBLE
+        // 遮罩层点击关闭
+        binding.layoutColorPickerOverlay.setOnClickListener {
+            hideColorPicker()
         }
     }
 
-    private fun saveThemeColor(colorKey: String) {
-        prefs.edit().putString("theme_color", colorKey).apply()
+    private fun loadCurrentSettings() {
+        // 加载主题颜色（带类型安全检查）
+        selectedColor = loadThemeColorSafely()
+        currentHue = try {
+            prefs.getFloat(KEY_THEME_COLOR_HUE, DEFAULT_HUE)
+        } catch (e: Exception) {
+            DEFAULT_HUE
+        }
+        updateThemeColorPreview(selectedColor)
 
-        // 显示设置页面的标题栏始终保持白色
-        binding.toolbar.setBackgroundColor(Color.WHITE)
-        binding.toolbar.setTitleTextColor(Color.BLACK)
-        binding.toolbar.navigationIcon?.setTint(Color.BLACK)
+        // 加载深色模式（带类型安全检查）
+        val darkMode = loadDarkModeSafely()
+        val darkModeIndex = darkModeValues.indexOf(darkMode).takeIf { it >= 0 } ?: 0
+        binding.spinnerDarkMode.setText(darkModeOptions[darkModeIndex], false)
 
-        Toast.makeText(this, R.string.theme_color_applied, Toast.LENGTH_SHORT).show()
+        // 加载字体大小
+        currentFontSize = try {
+            prefs.getFloat(KEY_FONT_SIZE, DEFAULT_FONT_SIZE)
+        } catch (e: Exception) {
+            DEFAULT_FONT_SIZE
+        }
+        binding.sliderFontSize.value = currentFontSize
+        updateFontSizeDisplay(currentFontSize)
+
+        // 设置页面标题栏跟随深色模式
+        updateToolbarForDarkMode()
+    }
+
+    private fun updateToolbarForDarkMode() {
+        val isDarkMode = (resources.configuration.uiMode and android.content.res.Configuration.UI_MODE_NIGHT_MASK) == 
+                android.content.res.Configuration.UI_MODE_NIGHT_YES
+        if (isDarkMode) {
+            binding.toolbar.setBackgroundColor(getColor(R.color.surface))
+            binding.toolbar.setTitleTextColor(getColor(R.color.text_primary))
+            binding.toolbar.navigationIcon?.setTint(getColor(R.color.text_primary))
+        } else {
+            binding.toolbar.setBackgroundColor(getColor(R.color.surface))
+            binding.toolbar.setTitleTextColor(getColor(R.color.text_primary))
+            binding.toolbar.navigationIcon?.setTint(getColor(R.color.text_primary))
+        }
+    }
+
+    /**
+     * 安全地加载主题颜色
+     * 处理旧版本String类型和新版本Int类型的兼容问题
+     */
+    private fun loadThemeColorSafely(): Int {
+        return try {
+            // 首先尝试作为Int读取
+            prefs.getInt(KEY_THEME_COLOR, DEFAULT_COLOR)
+        } catch (e: ClassCastException) {
+            // 如果失败，可能是旧版本的String类型
+            try {
+                val colorString = prefs.getString(KEY_THEME_COLOR, null)
+                val color = if (colorString != null) {
+                    // 尝试从旧版颜色名称映射获取
+                    legacyColorMap[colorString] ?: DEFAULT_COLOR
+                } else {
+                    DEFAULT_COLOR
+                }
+                // 将旧格式转换为新格式（Int）并保存
+                prefs.edit().putInt(KEY_THEME_COLOR, color).apply()
+                Log.i(TAG, "迁移旧版主题颜色: $colorString -> $color")
+                color
+            } catch (e2: Exception) {
+                Log.e(TAG, "读取主题颜色失败，使用默认值", e2)
+                DEFAULT_COLOR
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "读取主题颜色失败，使用默认值", e)
+            DEFAULT_COLOR
+        }
+    }
+
+    /**
+     * 安全地加载深色模式设置
+     * 处理可能的类型不兼容问题
+     */
+    private fun loadDarkModeSafely(): Int {
+        return try {
+            prefs.getInt(KEY_DARK_MODE, AppCompatDelegate.MODE_NIGHT_NO)
+        } catch (e: ClassCastException) {
+            // 如果类型不匹配，尝试读取String并转换
+            try {
+                val modeString = prefs.getString(KEY_DARK_MODE, null)
+                val mode = when (modeString) {
+                    "yes", "on", "true" -> AppCompatDelegate.MODE_NIGHT_YES
+                    "no", "off", "false" -> AppCompatDelegate.MODE_NIGHT_NO
+                    else -> AppCompatDelegate.MODE_NIGHT_NO
+                }
+                // 更新为正确的Int类型
+                prefs.edit().putInt(KEY_DARK_MODE, mode).apply()
+                Log.i(TAG, "迁移旧版深色模式设置: $modeString -> $mode")
+                mode
+            } catch (e2: Exception) {
+                Log.e(TAG, "读取深色模式失败，使用默认设置", e2)
+                AppCompatDelegate.MODE_NIGHT_NO
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "读取深色模式失败，使用默认设置", e)
+            AppCompatDelegate.MODE_NIGHT_NO
+        }
+    }
+
+    private fun showColorPicker() {
+        tempSelectedColor = selectedColor
+        currentHue = try {
+            prefs.getFloat(KEY_THEME_COLOR_HUE, DEFAULT_HUE)
+        } catch (e: Exception) {
+            DEFAULT_HUE
+        }
+        binding.sliderHue.value = currentHue
+        updateColorPreview(tempSelectedColor)
+        updateConfirmButtonColor(tempSelectedColor)
+        binding.layoutColorPickerOverlay.visibility = View.VISIBLE
+    }
+
+    private fun hideColorPicker() {
+        binding.layoutColorPickerOverlay.visibility = View.GONE
+    }
+
+    private fun updateColorPreview(color: Int) {
+        binding.viewColorPreview.setBackgroundColor(color)
+    }
+
+    private fun updateThemeColorPreview(color: Int) {
+        val drawable = binding.viewThemeColorPreview.background
+        if (drawable is android.graphics.drawable.GradientDrawable) {
+            drawable.setColor(color)
+        }
+    }
+
+    private fun updateConfirmButtonColor(color: Int) {
+        binding.btnConfirmColor.backgroundTintList = android.content.res.ColorStateList.valueOf(color)
+        binding.btnCancelColor.setStrokeColorResource(android.R.color.transparent)
+        binding.btnCancelColor.setTextColor(color)
+    }
+
+    private fun hueToColor(hue: Float): Int {
+        val hsv = floatArrayOf(hue, 0.9f, 0.9f)
+        return Color.HSVToColor(hsv)
+    }
+
+    private fun saveThemeColor(color: Int, hue: Float) {
+        prefs.edit()
+            .putInt(KEY_THEME_COLOR, color)
+            .putFloat(KEY_THEME_COLOR_HUE, hue)
+            .apply()
+
+        // 更新全局主题色
+        ThemeManager.setThemeColor(color)
+
+        // 更新标题栏
+        updateToolbarForDarkMode()
+    }
+
+    private fun saveDarkMode(mode: Int) {
+        prefs.edit().putInt(KEY_DARK_MODE, mode).apply()
+    }
+
+    private fun applyDarkMode(mode: Int) {
+        AppCompatDelegate.setDefaultNightMode(mode)
     }
 
     private fun updateFontSizeDisplay(size: Float) {
@@ -132,7 +335,7 @@ class DisplaySettingsActivity : BaseActivity() {
     }
 
     private fun applyFontSize() {
-        prefs.edit().putFloat("font_size", currentFontSize).apply()
+        prefs.edit().putFloat(KEY_FONT_SIZE, currentFontSize).apply()
         Toast.makeText(this, R.string.font_size_applied, Toast.LENGTH_SHORT).show()
 
         // 立即应用字体大小到当前Activity

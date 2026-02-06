@@ -1,6 +1,8 @@
 package com.example.daxijizhang.ui.settings
 
 import android.app.Activity
+import android.app.AlertDialog
+import android.app.Application
 import android.content.ContentValues
 import android.content.Intent
 import android.content.SharedPreferences
@@ -10,8 +12,8 @@ import android.os.Bundle
 import android.os.Environment
 import android.provider.DocumentsContract
 import android.provider.MediaStore
+import android.view.LayoutInflater
 import android.view.View
-import android.window.OnBackInvokedDispatcher
 import android.widget.Toast
 import androidx.activity.OnBackPressedCallback
 import androidx.activity.result.contract.ActivityResultContracts
@@ -27,11 +29,11 @@ import com.example.daxijizhang.data.model.BillWithItems
 import com.example.daxijizhang.data.model.PaymentRecord
 import com.example.daxijizhang.data.repository.BillRepository
 import com.example.daxijizhang.databinding.ActivityDataMigrationBinding
+import com.example.daxijizhang.databinding.DialogJianguoyunAccountBinding
 import com.example.daxijizhang.databinding.ItemSyncLogBinding
 import com.example.daxijizhang.util.ViewUtil
 import com.example.daxijizhang.util.WebDAVUtil
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.json.JSONArray
@@ -78,23 +80,22 @@ class DataMigrationActivity : AppCompatActivity() {
 
         initRepository()
         initViews()
+        setupSyncLogRecycler()
         setupClickListeners()
         setupBackPressHandler()
         setupForwardTransition()
         loadSettings()
-        setupSyncLogRecycler()
+        updateAccountStatus()
     }
 
     private fun setupBackPressHandler() {
-        // Android 13+ 使用新的预测性返回手势API
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             onBackInvokedDispatcher.registerOnBackInvokedCallback(
-                OnBackInvokedDispatcher.PRIORITY_DEFAULT
+                android.window.OnBackInvokedDispatcher.PRIORITY_DEFAULT
             ) {
                 finishWithAnimation()
             }
         } else {
-            // 低版本使用OnBackPressedDispatcher
             onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
                 override fun handleOnBackPressed() {
                     finishWithAnimation()
@@ -103,11 +104,7 @@ class DataMigrationActivity : AppCompatActivity() {
         }
     }
 
-    /**
-     * 设置进入动画（前进动画）
-     */
     private fun setupForwardTransition() {
-        // Android 13+ 使用新的过渡API
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             overrideActivityTransition(
                 Activity.OVERRIDE_TRANSITION_OPEN,
@@ -117,19 +114,14 @@ class DataMigrationActivity : AppCompatActivity() {
         }
     }
 
-    /**
-     * 设置返回动画（后退动画）并结束Activity
-     */
     private fun finishWithAnimation() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            // Android 13+ 使用新的API
             overrideActivityTransition(
                 Activity.OVERRIDE_TRANSITION_CLOSE,
                 R.anim.slide_in_left,
                 R.anim.slide_out_right
             )
         } else {
-            // 低版本仍然需要使用旧API
             @Suppress("DEPRECATION")
             overridePendingTransition(R.anim.slide_in_left, R.anim.slide_out_right)
         }
@@ -149,32 +141,18 @@ class DataMigrationActivity : AppCompatActivity() {
         binding.toolbar.setNavigationOnClickListener {
             finish()
         }
-
-        // 设置同步策略单选按钮监听
-        binding.rgSyncStrategy.setOnCheckedChangeListener { _, checkedId ->
-            when (checkedId) {
-                R.id.rb_manual_sync -> {
-                    prefs.edit().putString("sync_strategy", "manual").apply()
-                    binding.tvAutoSyncDescription.visibility = View.GONE
-                }
-                R.id.rb_auto_sync -> {
-                    prefs.edit().putString("sync_strategy", "auto").apply()
-                    binding.tvAutoSyncDescription.visibility = View.VISIBLE
-                }
-            }
-        }
     }
 
     private fun setupClickListeners() {
-        // 导出数据 - 使用MediaStore API，无需权限申请
-        binding.btnExportData.setOnClickListener {
+        // 导出数据
+        binding.itemExportData.setOnClickListener {
             ViewUtil.applyClickAnimation(it) {
                 startExport()
             }
         }
 
-        // 导入数据 - 使用SAF，无需权限申请
-        binding.btnImportData.setOnClickListener {
+        // 导入数据
+        binding.itemImportData.setOnClickListener {
             ViewUtil.applyClickAnimation(it) {
                 openFilePicker()
             }
@@ -196,56 +174,166 @@ class DataMigrationActivity : AppCompatActivity() {
             }
         }
 
-        // 验证连接
-        binding.btnVerifyConnection.setOnClickListener {
+        // 自动本地备份开关
+        binding.switchAutoLocalBackup.setOnCheckedChangeListener { _, isChecked ->
+            prefs.edit().putBoolean("auto_local_backup", isChecked).apply()
+            val status = if (isChecked) "开启" else "关闭"
+            addSyncLog("自动本地备份", "设置", "自动本地备份已$status")
+        }
+
+        // 坚果云账户设置
+        binding.itemJianguoyunAccount.setOnClickListener {
             ViewUtil.applyClickAnimation(it) {
-                verifyConnection()
+                showJianguoyunAccountDialog()
             }
         }
 
         // 推送到云端
-        binding.btnPushToCloud.setOnClickListener {
+        binding.itemPushToCloud.setOnClickListener {
             ViewUtil.applyClickAnimation(it) {
                 startSync("push")
             }
         }
 
         // 从云端拉取
-        binding.btnPullFromCloud.setOnClickListener {
+        binding.itemPullFromCloud.setOnClickListener {
             ViewUtil.applyClickAnimation(it) {
                 startSync("pull")
             }
         }
 
+        // 自动云备份开关
+        binding.switchAutoBackup.setOnCheckedChangeListener { _, isChecked ->
+            prefs.edit().putBoolean("auto_cloud_backup", isChecked).apply()
+            val status = if (isChecked) "开启" else "关闭"
+            addSyncLog("自动云备份", "设置", "自动云备份已$status")
+        }
+
         // 查看同步日志
-        binding.btnViewSyncLog.setOnClickListener {
+        binding.itemViewSyncLog.setOnClickListener {
             ViewUtil.applyClickAnimation(it) {
-                toggleSyncLogVisibility()
+                showSyncLogDialog()
             }
         }
 
-        // 关闭日志
+        // 关闭日志弹窗
         binding.btnCloseLog.setOnClickListener {
-            binding.cardSyncLog.visibility = View.GONE
+            hideSyncLogDialog()
+        }
+
+        // 点击遮罩层关闭弹窗
+        binding.layoutSyncLogOverlay.setOnClickListener {
+            hideSyncLogDialog()
+        }
+
+        // 阻止弹窗内容区域点击事件穿透
+        binding.cardSyncLog.setOnClickListener {
+            // 不执行任何操作，仅阻止事件穿透
+        }
+    }
+
+    private fun showJianguoyunAccountDialog() {
+        val dialogBinding = DialogJianguoyunAccountBinding.inflate(LayoutInflater.from(this))
+
+        val savedUsername = prefs.getString("webdav_username", "") ?: ""
+        val savedPassword = prefs.getString("webdav_password", "") ?: ""
+        dialogBinding.etUsername.setText(savedUsername)
+        dialogBinding.etPassword.setText(savedPassword)
+
+        val dialog = AlertDialog.Builder(this)
+            .setView(dialogBinding.root)
+            .create()
+
+        dialogBinding.btnVerify.setOnClickListener {
+            val username = dialogBinding.etUsername.text.toString().trim()
+            val password = dialogBinding.etPassword.text.toString().trim()
+
+            if (username.isEmpty()) {
+                dialogBinding.tilUsername.error = getString(R.string.username)
+                return@setOnClickListener
+            }
+
+            if (password.isEmpty()) {
+                dialogBinding.tilPassword.error = getString(R.string.password_or_key)
+                return@setOnClickListener
+            }
+
+            verifyConnectionInDialog(dialogBinding, username, password)
+        }
+
+        dialogBinding.btnSave.setOnClickListener {
+            val username = dialogBinding.etUsername.text.toString().trim()
+            val password = dialogBinding.etPassword.text.toString().trim()
+
+            if (username.isEmpty() || password.isEmpty()) {
+                dialogBinding.tvVerifyResult.visibility = View.VISIBLE
+                dialogBinding.tvVerifyResult.text = "请输入用户名和密码"
+                dialogBinding.tvVerifyResult.setTextColor(getColor(R.color.error))
+                return@setOnClickListener
+            }
+
+            prefs.edit().apply {
+                putString("webdav_username", username)
+                putString("webdav_password", password)
+                apply()
+            }
+            updateAccountStatus()
+            addSyncLog("账户设置", "成功", "坚果云账户配置已保存")
+            dialog.dismiss()
+        }
+
+        dialog.show()
+    }
+
+    private fun verifyConnectionInDialog(
+        dialogBinding: DialogJianguoyunAccountBinding,
+        username: String,
+        password: String
+    ) {
+        val serverUrl = "https://dav.jianguoyun.com/dav/"
+        val config = WebDAVUtil.WebDAVConfig(serverUrl, username, password)
+
+        dialogBinding.tvVerifyResult.visibility = View.VISIBLE
+        dialogBinding.tvVerifyResult.text = getString(R.string.verifying)
+        dialogBinding.tvVerifyResult.setTextColor(getColor(R.color.info))
+        dialogBinding.btnVerify.isEnabled = false
+
+        lifecycleScope.launch {
+            val result = WebDAVUtil.verifyConnection(config)
+
+            dialogBinding.btnVerify.isEnabled = true
+
+            result.onSuccess {
+                dialogBinding.tvVerifyResult.text = getString(R.string.connection_success)
+                dialogBinding.tvVerifyResult.setTextColor(getColor(R.color.success))
+                addSyncLog("验证连接", "成功", "坚果云连接验证成功")
+            }.onFailure { e ->
+                dialogBinding.tvVerifyResult.text = getString(R.string.connection_failed)
+                dialogBinding.tvVerifyResult.setTextColor(getColor(R.color.error))
+                addSyncLog("验证连接", "失败", "坚果云连接验证失败: ${e.message}")
+            }
+        }
+    }
+
+    private fun updateAccountStatus() {
+        val username = prefs.getString("webdav_username", "") ?: ""
+        val password = prefs.getString("webdav_password", "") ?: ""
+
+        if (username.isNotEmpty() && password.isNotEmpty()) {
+            binding.tvAccountStatus.text = getString(R.string.account_configured)
+            binding.tvAccountStatus.setTextColor(getColor(R.color.success))
+        } else {
+            binding.tvAccountStatus.text = getString(R.string.account_not_configured)
+            binding.tvAccountStatus.setTextColor(getColor(R.color.text_secondary))
         }
     }
 
     private fun loadSettings() {
-        val serverUrl = "https://dav.jianguoyun.com/dav/"
-        val username = prefs.getString("webdav_username", "")
-        val password = prefs.getString("webdav_password", "")
+        val autoLocalBackup = prefs.getBoolean("auto_local_backup", false)
+        binding.switchAutoLocalBackup.isChecked = autoLocalBackup
 
-        binding.etUsername.setText(username)
-        binding.etPassword.setText(password)
-
-        val syncStrategy = prefs.getString("sync_strategy", "manual")
-        if (syncStrategy == "auto") {
-            binding.rbAutoSync.isChecked = true
-            binding.tvAutoSyncDescription.visibility = View.VISIBLE
-        } else {
-            binding.rbManualSync.isChecked = true
-            binding.tvAutoSyncDescription.visibility = View.GONE
-        }
+        val autoBackup = prefs.getBoolean("auto_cloud_backup", false)
+        binding.switchAutoBackup.isChecked = autoBackup
     }
 
     private fun setupSyncLogRecycler() {
@@ -253,18 +341,14 @@ class DataMigrationActivity : AppCompatActivity() {
         binding.recyclerSyncLog.layoutManager = LinearLayoutManager(this)
         binding.recyclerSyncLog.adapter = syncLogAdapter
 
-        // 加载历史日志
         loadSyncLogs()
     }
 
     private fun loadSyncLogs() {
-        // 从SharedPreferences加载历史同步日志
         val logsJson = prefs.getString("sync_logs", "")
         if (!logsJson.isNullOrEmpty()) {
-            // TODO: 解析并加载历史日志
         }
 
-        // 如果没有日志，添加一些示例日志
         if (syncLogs.isEmpty()) {
             syncLogs.add(SyncLogEntry(
                 System.currentTimeMillis(),
@@ -276,59 +360,15 @@ class DataMigrationActivity : AppCompatActivity() {
         }
     }
 
-    private fun verifyConnection() {
-        val serverUrl = "https://dav.jianguoyun.com/dav/"
-        val username = binding.etUsername.text.toString().trim()
-        val password = binding.etPassword.text.toString().trim()
+    private fun showSyncLogDialog() {
+        binding.layoutSyncLogOverlay.visibility = View.VISIBLE
+        binding.cardSyncLog.visibility = View.VISIBLE
+        syncLogAdapter.notifyDataSetChanged()
+    }
 
-        if (username.isEmpty()) {
-            binding.tilUsername.error = getString(R.string.username)
-            return
-        }
-
-        if (password.isEmpty()) {
-            binding.tilPassword.error = getString(R.string.password_or_key)
-            return
-        }
-
-        val config = WebDAVUtil.WebDAVConfig(serverUrl, username, password)
-
-        binding.layoutConnectionStatus.visibility = View.VISIBLE
-        binding.ivConnectionStatus.setImageResource(R.drawable.ic_sync)
-        binding.ivConnectionStatus.setColorFilter(getColor(R.color.info))
-        binding.tvConnectionStatus.text = getString(R.string.verifying)
-        binding.tvConnectionStatus.setTextColor(getColor(R.color.info))
-        binding.btnVerifyConnection.isEnabled = false
-
-        lifecycleScope.launch {
-            val result = WebDAVUtil.verifyConnection(config)
-
-            binding.btnVerifyConnection.isEnabled = true
-
-            result.onSuccess {
-                binding.ivConnectionStatus.setImageResource(R.drawable.ic_check)
-                binding.ivConnectionStatus.setColorFilter(getColor(R.color.success))
-                binding.tvConnectionStatus.text = getString(R.string.connection_success)
-                binding.tvConnectionStatus.setTextColor(getColor(R.color.success))
-                Toast.makeText(this@DataMigrationActivity, R.string.connection_success, Toast.LENGTH_SHORT).show()
-                
-                prefs.edit().apply {
-                    putString("webdav_username", username)
-                    putString("webdav_password", password)
-                    apply()
-                }
-                
-                addSyncLog("验证连接", "成功", "坚果云连接验证成功")
-            }.onFailure { e ->
-                binding.ivConnectionStatus.setImageResource(R.drawable.ic_close)
-                binding.ivConnectionStatus.setColorFilter(getColor(R.color.error))
-                binding.tvConnectionStatus.text = getString(R.string.connection_failed)
-                binding.tvConnectionStatus.setTextColor(getColor(R.color.error))
-                Toast.makeText(this@DataMigrationActivity, R.string.connection_failed, Toast.LENGTH_SHORT).show()
-                
-                addSyncLog("验证连接", "失败", "坚果云连接验证失败: ${e.message}")
-            }
-        }
+    private fun hideSyncLogDialog() {
+        binding.layoutSyncLogOverlay.visibility = View.GONE
+        binding.cardSyncLog.visibility = View.GONE
     }
 
     private fun startSync(direction: String) {
@@ -345,8 +385,8 @@ class DataMigrationActivity : AppCompatActivity() {
 
         binding.layoutSyncProgress.visibility = View.VISIBLE
         binding.tvSyncResult.visibility = View.GONE
-        binding.btnPushToCloud.isEnabled = false
-        binding.btnPullFromCloud.isEnabled = false
+        binding.itemPushToCloud.isEnabled = false
+        binding.itemPullFromCloud.isEnabled = false
 
         val actionText = if (direction == "push") "推送到云端" else "从云端拉取"
         binding.tvSyncStatus.text = getString(R.string.syncing_with_action, actionText)
@@ -359,8 +399,8 @@ class DataMigrationActivity : AppCompatActivity() {
             }
 
             binding.layoutSyncProgress.visibility = View.GONE
-            binding.btnPushToCloud.isEnabled = true
-            binding.btnPullFromCloud.isEnabled = true
+            binding.itemPushToCloud.isEnabled = true
+            binding.itemPullFromCloud.isEnabled = true
 
             result.onSuccess { message ->
                 binding.tvSyncResult.visibility = View.VISIBLE
@@ -381,38 +421,34 @@ class DataMigrationActivity : AppCompatActivity() {
     private suspend fun pushToCloud(config: WebDAVUtil.WebDAVConfig): Result<String> {
         return try {
             withContext(Dispatchers.IO) {
-                // 更新状态：检查目录
                 withContext(Dispatchers.Main) {
                     binding.tvSyncStatus.text = "正在检查云端目录..."
                 }
-                
+
                 val ensureResult = WebDAVUtil.ensureDirectoryExists(config)
                 if (ensureResult.isFailure) {
                     throw ensureResult.exceptionOrNull() ?: Exception("创建目录失败")
                 }
 
-                // 更新状态：导出数据
                 withContext(Dispatchers.Main) {
                     binding.tvSyncStatus.text = "正在准备数据..."
                 }
-                
+
                 val exportData = createExportData()
                 val jsonContent = exportData.toString(2)
                 val fileName = WebDAVUtil.generateManualPushFileName()
                 val remotePath = "daxijizhang/$fileName"
 
-                // 更新状态：上传文件
                 withContext(Dispatchers.Main) {
                     binding.tvSyncStatus.text = "正在上传文件..."
                 }
-                
+
                 val uploadResult = WebDAVUtil.uploadFile(config, remotePath, jsonContent) { status ->
-                    // 在UI线程更新状态
                     runOnUiThread {
                         binding.tvSyncStatus.text = status.message
                     }
                 }
-                
+
                 if (uploadResult.isFailure) {
                     throw uploadResult.exceptionOrNull() ?: Exception("上传失败")
                 }
@@ -429,18 +465,16 @@ class DataMigrationActivity : AppCompatActivity() {
     private suspend fun pullFromCloud(config: WebDAVUtil.WebDAVConfig): Result<String> {
         return try {
             withContext(Dispatchers.IO) {
-                // 更新状态：获取文件列表
                 withContext(Dispatchers.Main) {
                     binding.tvSyncStatus.text = "正在获取云端文件列表..."
                 }
-                
+
                 val listResult = WebDAVUtil.listFiles(config) { status ->
-                    // 在UI线程更新状态
                     runOnUiThread {
                         binding.tvSyncStatus.text = status.message
                     }
                 }
-                
+
                 if (listResult.isFailure) {
                     throw listResult.exceptionOrNull() ?: Exception("获取文件列表失败")
                 }
@@ -450,11 +484,10 @@ class DataMigrationActivity : AppCompatActivity() {
                     return@withContext Result.success("云端没有备份文件")
                 }
 
-                // 在UI线程显示对话框
                 withContext(Dispatchers.Main) {
                     showCloudFileListDialog(config, files)
                 }
-                
+
                 Result.success("请选择要导入的文件")
             }
         } catch (e: Exception) {
@@ -464,26 +497,104 @@ class DataMigrationActivity : AppCompatActivity() {
     }
 
     private fun showCloudFileListDialog(config: WebDAVUtil.WebDAVConfig, files: List<WebDAVUtil.RemoteFile>) {
-        val listView = android.widget.ListView(this)
-        val adapter = CloudFileAdapter(files) { file ->
-            showCloudFileImportDialog(config, file)
-        }
-        listView.adapter = adapter
-        listView.setOnItemClickListener { _, _, position, _ ->
-            val file = files[position]
-            showCloudFileImportDialog(config, file)
-        }
+        // 按修改时间降序排列
+        val sortedFiles = files.sortedByDescending { it.modifiedTime }
 
-        val dialog = android.app.AlertDialog.Builder(this)
-            .setTitle("选择云端备份文件")
+        val dialogBinding = com.example.daxijizhang.databinding.DialogCloudFilesBinding.inflate(LayoutInflater.from(this))
+
+        val adapter = CloudFileRecyclerAdapter(
+            sortedFiles,
+            onFileClick = { file ->
+                showCloudFileImportDialog(config, file)
+            },
+            onDeleteClick = { file ->
+                showDeleteCloudFileConfirmDialog(config, file, dialogBinding)
+            }
+        )
+
+        dialogBinding.recyclerCloudFiles.layoutManager = LinearLayoutManager(this)
+        dialogBinding.recyclerCloudFiles.adapter = adapter
+
+        val dialog = AlertDialog.Builder(this)
             .setNegativeButton("取消", null)
-            .setView(listView)
+            .setView(dialogBinding.root)
             .create()
+
+        // 设置透明背景以显示 MaterialCardView 的圆角
+        dialog.window?.setBackgroundDrawableResource(android.R.color.transparent)
+
         dialog.show()
     }
 
+    private fun showDeleteCloudFileConfirmDialog(
+        config: WebDAVUtil.WebDAVConfig,
+        file: WebDAVUtil.RemoteFile,
+        dialogBinding: com.example.daxijizhang.databinding.DialogCloudFilesBinding
+    ) {
+        val dialog = AlertDialog.Builder(this)
+            .setTitle("删除云端备份")
+            .setMessage("确定要删除文件：${file.name}？此操作不可恢复。")
+            .setPositiveButton("删除") { _, _ ->
+                deleteCloudFile(config, file, dialogBinding)
+            }
+            .setNegativeButton("取消", null)
+            .create()
+
+        // 设置圆角背景
+        dialog.window?.setBackgroundDrawableResource(R.drawable.bg_dialog_rounded)
+
+        dialog.show()
+    }
+
+    private fun deleteCloudFile(
+        config: WebDAVUtil.WebDAVConfig,
+        file: WebDAVUtil.RemoteFile,
+        dialogBinding: com.example.daxijizhang.databinding.DialogCloudFilesBinding
+    ) {
+        lifecycleScope.launch {
+            val result = withContext(Dispatchers.IO) {
+                WebDAVUtil.deleteFile(config, file.path)
+            }
+
+            result.onSuccess {
+                Toast.makeText(this@DataMigrationActivity, "删除成功", Toast.LENGTH_SHORT).show()
+                addSyncLog("删除云端文件", "成功", "删除文件: ${file.name}")
+                // 刷新文件列表
+                refreshCloudFileList(config, dialogBinding)
+            }.onFailure { e ->
+                Toast.makeText(this@DataMigrationActivity, "删除失败: ${e.message}", Toast.LENGTH_SHORT).show()
+                addSyncLog("删除云端文件", "失败", "删除失败: ${e.message}")
+            }
+        }
+    }
+
+    private fun refreshCloudFileList(
+        config: WebDAVUtil.WebDAVConfig,
+        dialogBinding: com.example.daxijizhang.databinding.DialogCloudFilesBinding
+    ) {
+        lifecycleScope.launch {
+            val listResult = withContext(Dispatchers.IO) {
+                WebDAVUtil.listFiles(config) { }
+            }
+
+            listResult.onSuccess { files ->
+                val sortedFiles = files.sortedByDescending { it.modifiedTime }
+                val adapter = CloudFileRecyclerAdapter(
+                    sortedFiles,
+                    onFileClick = { file ->
+                        showCloudFileImportDialog(config, file)
+                    },
+                    onDeleteClick = { file ->
+                        showDeleteCloudFileConfirmDialog(config, file, dialogBinding)
+                    }
+                )
+                dialogBinding.recyclerCloudFiles.adapter = adapter
+            }
+        }
+    }
+
     private fun showCloudFileImportDialog(config: WebDAVUtil.WebDAVConfig, file: WebDAVUtil.RemoteFile) {
-        val dialog = android.app.AlertDialog.Builder(this)
+        val dialog = AlertDialog.Builder(this)
             .setTitle("导入备份文件")
             .setMessage("确定要导入文件：${file.name}？")
             .setPositiveButton("导入") { _, _ ->
@@ -491,6 +602,10 @@ class DataMigrationActivity : AppCompatActivity() {
             }
             .setNegativeButton("取消", null)
             .create()
+
+        // 设置圆角背景
+        dialog.window?.setBackgroundDrawableResource(R.drawable.bg_dialog_rounded)
+
         dialog.show()
     }
 
@@ -543,54 +658,50 @@ class DataMigrationActivity : AppCompatActivity() {
         }
     }
 
-    inner class CloudFileAdapter(
+    inner class CloudFileRecyclerAdapter(
         private val files: List<WebDAVUtil.RemoteFile>,
-        private val onFileClick: (WebDAVUtil.RemoteFile) -> Unit
-    ) : android.widget.ArrayAdapter<WebDAVUtil.RemoteFile>(
-        this@DataMigrationActivity,
-        android.R.layout.simple_list_item_2,
-        files
-    ) {
-        override fun getView(position: Int, convertView: android.view.View?, parent: android.view.ViewGroup): android.view.View {
-            val view = convertView ?: android.view.LayoutInflater.from(context)
-                .inflate(android.R.layout.simple_list_item_2, parent, false)
+        private val onFileClick: (WebDAVUtil.RemoteFile) -> Unit,
+        private val onDeleteClick: (WebDAVUtil.RemoteFile) -> Unit
+    ) : RecyclerView.Adapter<CloudFileRecyclerAdapter.ViewHolder>() {
 
-            val file = files[position]
-            val titleText = view.findViewById<android.widget.TextView>(android.R.id.text1)
-            val subtitleText = view.findViewById<android.widget.TextView>(android.R.id.text2)
+        inner class ViewHolder(val binding: com.example.daxijizhang.databinding.ItemCloudFileBinding) :
+            RecyclerView.ViewHolder(binding.root)
 
-            titleText.text = file.name
-            val dateFormat = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault())
-            subtitleText.text = "修改时间: ${dateFormat.format(file.modifiedTime)}"
-
-            return view
+        override fun onCreateViewHolder(parent: android.view.ViewGroup, viewType: Int): ViewHolder {
+            val binding = com.example.daxijizhang.databinding.ItemCloudFileBinding.inflate(
+                LayoutInflater.from(parent.context), parent, false
+            )
+            return ViewHolder(binding)
         }
+
+        override fun onBindViewHolder(holder: ViewHolder, position: Int) {
+            val file = files[position]
+            holder.binding.tvFileName.text = file.name
+
+            holder.itemView.setOnClickListener {
+                onFileClick(file)
+            }
+
+            holder.binding.btnDelete.setOnClickListener {
+                onDeleteClick(file)
+            }
+        }
+
+        override fun getItemCount() = files.size
     }
 
     private fun addSyncLog(action: String, status: String, message: String) {
+        if (!::syncLogAdapter.isInitialized) return
         val entry = SyncLogEntry(System.currentTimeMillis(), action, status, message)
         syncLogs.add(0, entry)
         syncLogAdapter.notifyItemInserted(0)
         binding.recyclerSyncLog.scrollToPosition(0)
-
-        // 保存日志到SharedPreferences
         saveSyncLogs()
     }
 
     private fun saveSyncLogs() {
-        // TODO: 将日志保存到SharedPreferences
-        // 限制日志数量，只保留最近50条
         while (syncLogs.size > 50) {
             syncLogs.removeAt(syncLogs.size - 1)
-        }
-    }
-
-    private fun toggleSyncLogVisibility() {
-        if (binding.cardSyncLog.visibility == View.VISIBLE) {
-            binding.cardSyncLog.visibility = View.GONE
-        } else {
-            binding.cardSyncLog.visibility = View.VISIBLE
-            syncLogAdapter.notifyDataSetChanged()
         }
     }
 
@@ -621,15 +732,12 @@ class DataMigrationActivity : AppCompatActivity() {
         return try {
             val exportData = createExportData()
 
-            // 保存到文件 - 使用MediaStore API，无需权限申请
-            val fileName = "大喜记账备份_${SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(Date())}.json"
+            val fileName = "manual_backup_${SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(Date())}.json"
             val jsonContent = exportData.toString(2)
 
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                // Android 10+ 使用MediaStore
                 saveFileUsingMediaStore(fileName, jsonContent)
             } else {
-                // Android 9及以下使用传统方式
                 saveFileLegacy(fileName, jsonContent)
             }
         } catch (e: Exception) {
@@ -638,13 +746,9 @@ class DataMigrationActivity : AppCompatActivity() {
         }
     }
 
-    /**
-     * 创建导出数据JSON对象 - 只包含账单数据，不包含APP信息
-     */
     private suspend fun createExportData(): JSONObject {
         val exportData = JSONObject()
 
-        // 从数据库读取实际数据 - 使用同步查询
         val billsWithItems = repository.getAllBillsWithItemsList()
         val billsArray = JSONArray()
 
@@ -660,13 +764,9 @@ class DataMigrationActivity : AppCompatActivity() {
         return exportData
     }
 
-    /**
-     * 创建单个账单的JSON对象
-     */
     private suspend fun createBillJson(billWithItems: BillWithItems): JSONObject {
         val bill = billWithItems.bill
         return JSONObject().apply {
-            // 账单基本信息
             put("communityName", bill.communityName)
             put("phase", bill.phase ?: "")
             put("buildingNumber", bill.buildingNumber ?: "")
@@ -679,7 +779,6 @@ class DataMigrationActivity : AppCompatActivity() {
             put("remark", bill.remark ?: "")
             put("createdAt", formatDate(bill.createdAt))
 
-            // 账单装修项目
             val itemsArray = JSONArray()
             billWithItems.items.forEach { item ->
                 val itemJson = JSONObject().apply {
@@ -692,7 +791,6 @@ class DataMigrationActivity : AppCompatActivity() {
             }
             put("items", itemsArray)
 
-            // 结付记录
             val paymentRecords = repository.getPaymentRecordsByBillIdList(bill.id)
             val recordsArray = JSONArray()
             paymentRecords.forEach { record ->
@@ -710,9 +808,6 @@ class DataMigrationActivity : AppCompatActivity() {
         return SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).format(date)
     }
 
-    /**
-     * 使用MediaStore保存文件 - Android 10+ 无需权限
-     */
     private fun saveFileUsingMediaStore(fileName: String, content: String): String? {
         return try {
             val contentValues = ContentValues().apply {
@@ -732,7 +827,6 @@ class DataMigrationActivity : AppCompatActivity() {
                         writer.write(content)
                     }
                 }
-                // 返回文件路径
                 "Download/大喜记账/$fileName"
             }
         } catch (e: Exception) {
@@ -741,9 +835,6 @@ class DataMigrationActivity : AppCompatActivity() {
         }
     }
 
-    /**
-     * 传统方式保存文件 - Android 9及以下
-     */
     private fun saveFileLegacy(fileName: String, content: String): String? {
         return try {
             val downloadDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
@@ -818,9 +909,6 @@ class DataMigrationActivity : AppCompatActivity() {
         }
     }
 
-    /**
-     * 解析导入的账单数据
-     */
     private fun parseImportBills(billsArray: JSONArray?): List<ImportBillData> {
         val importBills = mutableListOf<ImportBillData>()
         if (billsArray == null) return importBills
@@ -829,9 +917,8 @@ class DataMigrationActivity : AppCompatActivity() {
             try {
                 val billJson = billsArray.getJSONObject(i)
 
-                // 解析账单基本信息 - 使用新ID避免冲突
                 val bill = Bill(
-                    id = 0, // 新数据，使用自增ID，避免覆盖现有数据
+                    id = 0,
                     communityName = billJson.optString("communityName", ""),
                     phase = billJson.optString("phase", "").takeIf { it.isNotEmpty() },
                     buildingNumber = billJson.optString("buildingNumber", "").takeIf { it.isNotEmpty() },
@@ -845,7 +932,6 @@ class DataMigrationActivity : AppCompatActivity() {
                     createdAt = parseDate(billJson.optString("createdAt"))
                 )
 
-                // 解析账单项目
                 val itemsArray = billJson.optJSONArray("items")
                 val items = mutableListOf<BillItem>()
                 itemsArray?.let {
@@ -854,7 +940,7 @@ class DataMigrationActivity : AppCompatActivity() {
                         items.add(
                             BillItem(
                                 id = 0,
-                                billId = 0, // 将在保存时更新
+                                billId = 0,
                                 projectName = itemJson.optString("projectName", ""),
                                 unitPrice = itemJson.optDouble("unitPrice", 0.0),
                                 quantity = itemJson.optDouble("quantity", 0.0),
@@ -864,7 +950,6 @@ class DataMigrationActivity : AppCompatActivity() {
                     }
                 }
 
-                // 解析结付记录
                 val recordsArray = billJson.optJSONArray("paymentRecords")
                 val paymentRecords = mutableListOf<PaymentRecord>()
                 recordsArray?.let {
@@ -873,7 +958,7 @@ class DataMigrationActivity : AppCompatActivity() {
                         paymentRecords.add(
                             PaymentRecord(
                                 id = 0,
-                                billId = 0, // 将在保存时更新
+                                billId = 0,
                                 paymentDate = parseDate(recordJson.optString("paymentDate")),
                                 amount = recordJson.optDouble("amount", 0.0)
                             )
@@ -884,28 +969,22 @@ class DataMigrationActivity : AppCompatActivity() {
                 importBills.add(ImportBillData(bill, items, paymentRecords))
             } catch (e: Exception) {
                 e.printStackTrace()
-                // 跳过解析失败的账单，继续处理其他账单
             }
         }
 
         return importBills
     }
 
-    /**
-     * 解析日期字符串
-     */
     private fun parseDate(dateString: String): Date {
         if (dateString.isBlank()) return Date()
         return try {
             if (dateString.contains(" ")) {
-                // 完整日期时间格式
                 SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).parse(dateString)
             } else {
-                // 仅日期格式
                 SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).parse(dateString)
             }
         } catch (e: Exception) {
-            Date() // 解析失败返回当前时间
+            Date()
         } ?: Date()
     }
 
@@ -947,9 +1026,6 @@ class DataMigrationActivity : AppCompatActivity() {
         }
     }
 
-    /**
-     * 生成账单的唯一标识符（小区名+期数+楼栋号+门牌号）
-     */
     private fun generateBillUniqueKey(bill: Bill): String {
         val sb = StringBuilder()
         sb.append(bill.communityName)
@@ -971,9 +1047,6 @@ class DataMigrationActivity : AppCompatActivity() {
         return sb.toString()
     }
 
-    /**
-     * 将导入的账单数据写入数据库 - 追加模式，过滤重复账单
-     */
     private suspend fun importBillsToDatabase(importBills: List<ImportBillData>): ImportResult {
         var importedCount = 0
         var duplicateCount = 0
@@ -1033,18 +1106,12 @@ class DataMigrationActivity : AppCompatActivity() {
         }
     }
 
-    /**
-     * 导入数据封装类
-     */
     data class ImportBillData(
         val bill: Bill,
         val items: List<BillItem>,
         val paymentRecords: List<PaymentRecord>
     )
 
-    /**
-     * 导入结果封装类
-     */
     data class ImportResult(
         val success: Boolean,
         val importedCount: Int,
@@ -1054,12 +1121,12 @@ class DataMigrationActivity : AppCompatActivity() {
     private fun showExportProgress() {
         binding.layoutExportProgress.visibility = View.VISIBLE
         binding.layoutExportResult.visibility = View.GONE
-        binding.btnExportData.isEnabled = false
+        binding.itemExportData.isEnabled = false
     }
 
     private fun hideExportProgress() {
         binding.layoutExportProgress.visibility = View.GONE
-        binding.btnExportData.isEnabled = true
+        binding.itemExportData.isEnabled = true
     }
 
     private fun showExportSuccess(filePath: String) {
@@ -1100,7 +1167,6 @@ class DataMigrationActivity : AppCompatActivity() {
         Toast.makeText(this, failedMessage, Toast.LENGTH_LONG).show()
     }
 
-    // 同步日志适配器
     inner class SyncLogAdapter(private val logs: List<SyncLogEntry>) :
         RecyclerView.Adapter<SyncLogAdapter.ViewHolder>() {
 
@@ -1123,7 +1189,6 @@ class DataMigrationActivity : AppCompatActivity() {
             holder.binding.tvLogStatus.text = log.status
             holder.binding.tvLogMessage.text = log.message
 
-            // 根据状态设置颜色
             val statusColor = when (log.status) {
                 "成功" -> R.color.success
                 "失败" -> R.color.error
@@ -1133,5 +1198,10 @@ class DataMigrationActivity : AppCompatActivity() {
         }
 
         override fun getItemCount() = logs.size
+    }
+
+    companion object {
+        const val AUTO_BACKUP_FILE_PREFIX = "auto_backup_"
+        const val AUTO_CLOUD_BACKUP_PREFIX = "auto_backup_"
     }
 }

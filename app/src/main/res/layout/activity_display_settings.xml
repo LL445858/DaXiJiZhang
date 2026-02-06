@@ -12,12 +12,12 @@
         android:id="@+id/toolbar"
         android:layout_width="match_parent"
         android:layout_height="?attr/actionBarSize"
-        android:background="@color/white"
+        android:background="@color/surface"
         android:elevation="0dp"
         app:navigationIcon="@drawable/ic_back"
-        app:navigationIconTint="@color/black"
+        app:navigationIconTint="@color/text_primary"
         app:title="@string/display_settings"
-        app:titleTextColor="@color/black" />
+        app:titleTextColor="@color/text_primary" />
 
     <!-- 内容区域 -->
     <androidx.core.widget.NestedScrollView
@@ -31,7 +31,7 @@
             android:orientation="vertical"
             android:padding="16dp">
 
-            <!-- 主题颜色设置卡片 -->
+            <!-- 主题设置模块 -->
             <com.google.android.material.card.MaterialCardView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
@@ -45,169 +45,105 @@
                     android:orientation="vertical"
                     android:padding="16dp">
 
+                    <!-- 模块标题：主题设置 -->
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="@string/theme_color_setting"
+                        android:text="@string/theme_settings"
                         android:textColor="@color/text_primary"
                         android:textSize="16sp"
                         android:textStyle="bold" />
 
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="4dp"
-                        android:text="@string/theme_color_description"
-                        android:textColor="@color/text_secondary"
-                        android:textSize="12sp" />
-
-                    <!-- 颜色选择器 -->
+                    <!-- 主题颜色条目 -->
                     <LinearLayout
+                        android:id="@+id/item_theme_color"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:layout_marginTop="16dp"
                         android:orientation="horizontal"
-                        android:gravity="center">
+                        android:gravity="center_vertical"
+                        android:background="?attr/selectableItemBackground"
+                        android:clickable="true"
+                        android:focusable="true"
+                        android:paddingVertical="8dp">
 
-                        <!-- 蓝色 -->
-                        <FrameLayout
-                            android:id="@+id/color_blue"
+                        <TextView
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:text="@string/theme_color"
+                            android:textColor="@color/text_primary"
+                            android:textSize="14sp"
+                            android:textStyle="bold" />
+
+                        <!-- 颜色显示区域 -->
+                        <View
+                            android:id="@+id/view_theme_color_preview"
                             android:layout_width="48dp"
-                            android:layout_height="48dp"
-                            android:layout_margin="8dp"
-                            android:background="@drawable/bg_color_selector"
-                            android:clickable="true"
-                            android:focusable="true">
+                            android:layout_height="24dp"
+                            android:background="@drawable/bg_color_preview"
+                            android:layout_marginEnd="8dp" />
 
-                            <View
-                                android:layout_width="40dp"
-                                android:layout_height="40dp"
-                                android:layout_gravity="center"
-                                android:background="@drawable/circle_color_blue" />
+                        <ImageView
+                            android:layout_width="16dp"
+                            android:layout_height="16dp"
+                            android:src="@drawable/ic_arrow_right_small"
+                            app:tint="@color/text_hint"
+                            android:contentDescription="@null" />
 
-                            <ImageView
-                                android:id="@+id/iv_check_blue"
-                                android:layout_width="24dp"
-                                android:layout_height="24dp"
-                                android:layout_gravity="center"
-                                android:src="@drawable/ic_check"
-                                app:tint="@color/white"
-                                android:visibility="visible"
-                                android:contentDescription="@null" />
+                    </LinearLayout>
 
-                        </FrameLayout>
+                    <!-- 深色模式条目 -->
+                    <LinearLayout
+                        android:id="@+id/item_dark_mode"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="16dp"
+                        android:orientation="horizontal"
+                        android:gravity="center_vertical"
+                        android:background="?attr/selectableItemBackground"
+                        android:clickable="true"
+                        android:focusable="true"
+                        android:paddingVertical="8dp">
 
-                        <!-- 紫色 -->
-                        <FrameLayout
-                            android:id="@+id/color_purple"
-                            android:layout_width="48dp"
-                            android:layout_height="48dp"
-                            android:layout_margin="8dp"
-                            android:background="@drawable/bg_color_selector"
-                            android:clickable="true"
-                            android:focusable="true">
+                        <TextView
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:text="@string/dark_mode"
+                            android:textColor="@color/text_primary"
+                            android:textSize="14sp"
+                            android:textStyle="bold" />
 
-                            <View
-                                android:layout_width="40dp"
-                                android:layout_height="40dp"
-                                android:layout_gravity="center"
-                                android:background="@drawable/circle_color_purple" />
+                        <!-- 深色模式下拉选择框 -->
+                        <com.google.android.material.textfield.TextInputLayout
+                            android:id="@+id/til_dark_mode"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox.ExposedDropdownMenu"
+                            app:boxCornerRadiusTopStart="12dp"
+                            app:boxCornerRadiusTopEnd="12dp"
+                            app:boxCornerRadiusBottomStart="12dp"
+                            app:boxCornerRadiusBottomEnd="12dp"
+                            app:boxStrokeWidth="1dp"
+                            app:boxStrokeColor="@color/divider"
+                            app:hintEnabled="false"
+                            app:endIconTint="@color/text_primary">
 
-                            <ImageView
-                                android:id="@+id/iv_check_purple"
-                                android:layout_width="24dp"
-                                android:layout_height="24dp"
-                                android:layout_gravity="center"
-                                android:src="@drawable/ic_check"
-                                app:tint="@color/white"
-                                android:visibility="gone"
-                                android:contentDescription="@null" />
+                            <AutoCompleteTextView
+                                android:id="@+id/spinner_dark_mode"
+                                android:layout_width="140dp"
+                                android:layout_height="48dp"
+                                android:inputType="none"
+                                android:textSize="13sp"
+                                android:gravity="center"
+                                android:paddingHorizontal="8dp"
+                                android:textColor="@color/text_primary"
+                                android:dropDownHeight="wrap_content"
+                                android:ellipsize="end"
+                                android:maxLines="1" />
 
-                        </FrameLayout>
-
-                        <!-- 橙色 -->
-                        <FrameLayout
-                            android:id="@+id/color_orange"
-                            android:layout_width="48dp"
-                            android:layout_height="48dp"
-                            android:layout_margin="8dp"
-                            android:background="@drawable/bg_color_selector"
-                            android:clickable="true"
-                            android:focusable="true">
-
-                            <View
-                                android:layout_width="40dp"
-                                android:layout_height="40dp"
-                                android:layout_gravity="center"
-                                android:background="@drawable/circle_color_orange" />
-
-                            <ImageView
-                                android:id="@+id/iv_check_orange"
-                                android:layout_width="24dp"
-                                android:layout_height="24dp"
-                                android:layout_gravity="center"
-                                android:src="@drawable/ic_check"
-                                app:tint="@color/white"
-                                android:visibility="gone"
-                                android:contentDescription="@null" />
-
-                        </FrameLayout>
-
-                        <!-- 红色 -->
-                        <FrameLayout
-                            android:id="@+id/color_red"
-                            android:layout_width="48dp"
-                            android:layout_height="48dp"
-                            android:layout_margin="8dp"
-                            android:background="@drawable/bg_color_selector"
-                            android:clickable="true"
-                            android:focusable="true">
-
-                            <View
-                                android:layout_width="40dp"
-                                android:layout_height="40dp"
-                                android:layout_gravity="center"
-                                android:background="@drawable/circle_color_red" />
-
-                            <ImageView
-                                android:id="@+id/iv_check_red"
-                                android:layout_width="24dp"
-                                android:layout_height="24dp"
-                                android:layout_gravity="center"
-                                android:src="@drawable/ic_check"
-                                app:tint="@color/white"
-                                android:visibility="gone"
-                                android:contentDescription="@null" />
-
-                        </FrameLayout>
-
-                        <!-- 绿色 -->
-                        <FrameLayout
-                            android:id="@+id/color_green"
-                            android:layout_width="48dp"
-                            android:layout_height="48dp"
-                            android:layout_margin="8dp"
-                            android:background="@drawable/bg_color_selector"
-                            android:clickable="true"
-                            android:focusable="true">
-
-                            <View
-                                android:layout_width="40dp"
-                                android:layout_height="40dp"
-                                android:layout_gravity="center"
-                                android:background="@drawable/circle_color_green" />
-
-                            <ImageView
-                                android:id="@+id/iv_check_green"
-                                android:layout_width="24dp"
-                                android:layout_height="24dp"
-                                android:layout_gravity="center"
-                                android:src="@drawable/ic_check"
-                                app:tint="@color/white"
-                                android:visibility="gone"
-                                android:contentDescription="@null" />
-
-                        </FrameLayout>
+                        </com.google.android.material.textfield.TextInputLayout>
 
                     </LinearLayout>
 
@@ -318,5 +254,118 @@
         </LinearLayout>
 
     </androidx.core.widget.NestedScrollView>
+
+    <!-- 颜色选择器弹窗遮罩层 -->
+    <FrameLayout
+        android:id="@+id/layout_color_picker_overlay"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:background="#80000000"
+        android:visibility="gone"
+        android:clickable="true"
+        android:focusable="true">
+
+        <!-- 颜色选择器弹窗 -->
+        <com.google.android.material.card.MaterialCardView
+            android:id="@+id/card_color_picker"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_margin="32dp"
+            android:layout_gravity="center"
+            app:cardCornerRadius="12dp"
+            app:cardElevation="4dp"
+            app:cardBackgroundColor="@color/surface">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:padding="20dp">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/select_theme_color"
+                    android:textColor="@color/text_primary"
+                    android:textSize="18sp"
+                    android:textStyle="bold" />
+
+                <!-- 颜色选择区域 -->
+                <com.google.android.material.slider.Slider
+                    android:id="@+id/slider_hue"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="24dp"
+                    android:valueFrom="0"
+                    android:valueTo="360"
+                    android:stepSize="1"
+                    android:value="210"
+                    app:trackHeight="12dp"
+                    app:trackColorInactive="#E0E0E0"
+                    app:thumbColor="@color/primary" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp"
+                    android:text="@string/hue"
+                    android:textColor="@color/text_secondary"
+                    android:textSize="12sp" />
+
+                <!-- 饱和度和亮度预览区域 -->
+                <FrameLayout
+                    android:id="@+id/color_preview_container"
+                    android:layout_width="match_parent"
+                    android:layout_height="80dp"
+                    android:layout_marginTop="24dp"
+                    android:background="@drawable/bg_color_gradient">
+
+                    <View
+                        android:id="@+id/view_color_preview"
+                        android:layout_width="match_parent"
+                        android:layout_height="match_parent"
+                        android:background="@color/primary" />
+
+                </FrameLayout>
+
+                <!-- 按钮区域 -->
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="24dp"
+                    android:orientation="horizontal">
+
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/btn_cancel_color"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:layout_marginEnd="8dp"
+                        android:text="@string/cancel"
+                        android:textColor="@color/primary"
+                        android:textSize="14sp"
+                        app:cornerRadius="8dp"
+                        style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+                        app:strokeColor="@color/primary" />
+
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/btn_confirm_color"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:layout_marginStart="8dp"
+                        android:text="@string/confirm"
+                        android:textColor="@color/white"
+                        android:textSize="14sp"
+                        app:cornerRadius="8dp"
+                        android:backgroundTint="@color/primary" />
+
+                </LinearLayout>
+
+            </LinearLayout>
+
+        </com.google.android.material.card.MaterialCardView>
+
+    </FrameLayout>
 
 </androidx.coordinatorlayout.widget.CoordinatorLayout>

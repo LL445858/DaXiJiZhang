@@ -412,9 +412,9 @@ class BillDetailActivity : AppCompatActivity() {
                 billEndDate = bill.endDate
                 binding.etStartDate.setText(dateFormat.format(bill.startDate))
                 binding.etEndDate.setText(dateFormat.format(bill.endDate))
-                // 设置日期字段文本颜色为黑色，确保禁用状态下也显示黑色
-                binding.etStartDate.setTextColor(ContextCompat.getColor(this@BillDetailActivity, android.R.color.black))
-                binding.etEndDate.setTextColor(ContextCompat.getColor(this@BillDetailActivity, android.R.color.black))
+                // 设置日期字段文本颜色为主题颜色，确保禁用状态下也显示正确颜色
+                binding.etStartDate.setTextColor(ContextCompat.getColor(this@BillDetailActivity, R.color.text_primary))
+                binding.etEndDate.setTextColor(ContextCompat.getColor(this@BillDetailActivity, R.color.text_primary))
                 binding.etCommunity.setText(bill.communityName)
                 binding.etPhase.setText(bill.phase ?: "")
                 binding.etBuilding.setText(bill.buildingNumber ?: "")
@@ -613,6 +613,9 @@ class BillDetailActivity : AppCompatActivity() {
             .setView(dialogBinding.root)
             .create()
 
+        // 设置透明背景以显示圆角
+        dialog.window?.setBackgroundDrawableResource(android.R.color.transparent)
+
         // 对话框关闭时重置标记
         dialog.setOnDismissListener {
             isAddProjectDialogShowing = false
@@ -657,6 +660,9 @@ class BillDetailActivity : AppCompatActivity() {
         val dialog = AlertDialog.Builder(this)
             .setView(dialogBinding.root)
             .create()
+
+        // 设置透明背景以显示圆角
+        dialog.window?.setBackgroundDrawableResource(android.R.color.transparent)
 
         // 对话框关闭时重置标记
         dialog.setOnDismissListener {
@@ -947,13 +953,15 @@ class BillDetailActivity : AppCompatActivity() {
             }
             else -> {
                 // 3.3.3 已结清或多收状态，显示提示
-                AlertDialog.Builder(this)
+                val dialog = AlertDialog.Builder(this)
                     .setTitle(R.string.already_paid_title)
                     .setMessage(R.string.already_paid_message)
                     .setPositiveButton(R.string.confirm) { dialog, _ ->
                         dialog.dismiss()
                     }
-                    .show()
+                    .create()
+                dialog.window?.setBackgroundDrawableResource(R.drawable.bg_dialog_rounded)
+                dialog.show()
             }
         }
     }
@@ -966,7 +974,7 @@ class BillDetailActivity : AppCompatActivity() {
     }
 
     private fun showDeleteConfirmDialog(onConfirm: () -> Unit) {
-        AlertDialog.Builder(this)
+        val dialog = AlertDialog.Builder(this)
             .setTitle(R.string.delete_confirm_title)
             .setMessage(R.string.delete_confirm_message)
             .setPositiveButton(R.string.confirm) { dialog, _ ->
@@ -976,17 +984,19 @@ class BillDetailActivity : AppCompatActivity() {
             .setNegativeButton(R.string.back) { dialog, _ ->
                 dialog.dismiss()
             }
-            .show()
+            .create()
+        dialog.window?.setBackgroundDrawableResource(R.drawable.bg_dialog_rounded)
+        dialog.show()
     }
 
     private fun showDeleteBillConfirmDialog() {
         // 第一次确认
-        AlertDialog.Builder(this)
+        val firstDialog = AlertDialog.Builder(this)
             .setTitle(R.string.delete_bill_confirm_title)
             .setMessage(R.string.delete_bill_confirm_message)
             .setPositiveButton(R.string.confirm) { _, _ ->
                 // 第二次确认
-                AlertDialog.Builder(this)
+                val secondDialog = AlertDialog.Builder(this)
                     .setTitle(R.string.delete_bill_final_confirm)
                     .setMessage(R.string.delete_bill_confirm_message)
                     .setPositiveButton(R.string.confirm) { _, _ ->
@@ -995,17 +1005,21 @@ class BillDetailActivity : AppCompatActivity() {
                     .setNegativeButton(R.string.cancel) { dialog, _ ->
                         dialog.dismiss()
                     }
-                    .show()
+                    .create()
+                secondDialog.window?.setBackgroundDrawableResource(R.drawable.bg_dialog_rounded)
+                secondDialog.show()
             }
             .setNegativeButton(R.string.cancel) { dialog, _ ->
                 dialog.dismiss()
             }
-            .show()
+            .create()
+        firstDialog.window?.setBackgroundDrawableResource(R.drawable.bg_dialog_rounded)
+        firstDialog.show()
     }
 
     private fun checkUnsavedChangesBeforeExport() {
         if (hasUnsavedChanges) {
-            AlertDialog.Builder(this)
+            val dialog = AlertDialog.Builder(this)
                 .setTitle(R.string.unsaved_changes_title)
                 .setMessage(R.string.unsaved_changes_export_message)
                 .setPositiveButton(R.string.save) { _, _ ->
@@ -1015,7 +1029,9 @@ class BillDetailActivity : AppCompatActivity() {
                 .setNegativeButton(R.string.cancel) { dialog, _ ->
                     dialog.dismiss()
                 }
-                .show()
+                .create()
+            dialog.window?.setBackgroundDrawableResource(R.drawable.bg_dialog_rounded)
+            dialog.show()
         } else {
             showExportBillDialog()
         }
@@ -1089,6 +1105,9 @@ class BillDetailActivity : AppCompatActivity() {
         val dialog = AlertDialog.Builder(this)
             .setView(dialogBinding.root)
             .create()
+
+        // 设置透明背景以显示圆角
+        dialog.window?.setBackgroundDrawableResource(android.R.color.transparent)
 
         // 对话框关闭时重置标记
         dialog.setOnDismissListener {
@@ -1266,18 +1285,73 @@ class BillDetailActivity : AppCompatActivity() {
 
     private fun handleBackPressed() {
         if (hasUnsavedChanges) {
-            AlertDialog.Builder(this)
+            val primaryColor = ContextCompat.getColor(this, R.color.primary)
+            val dialog = AlertDialog.Builder(this)
                 .setTitle(R.string.unsaved_changes_title)
                 .setMessage(R.string.unsaved_changes_message)
                 .setPositiveButton(R.string.yes) { _, _ ->
+                    saveBillAndFinish()
+                }
+                .setNegativeButton(R.string.no) { _, _ ->
                     finish()
                 }
-                .setNegativeButton(R.string.no) { dialog, _ ->
-                    dialog.dismiss()
-                }
-                .show()
+                .create()
+            dialog.window?.setBackgroundDrawableResource(R.drawable.bg_dialog_rounded)
+            dialog.show()
+            // 设置按钮颜色为主题色
+            dialog.getButton(AlertDialog.BUTTON_POSITIVE).setTextColor(primaryColor)
+            dialog.getButton(AlertDialog.BUTTON_NEGATIVE).setTextColor(primaryColor)
         } else {
             finish()
+        }
+    }
+
+    private fun saveBillAndFinish() {
+        if (!validateBillInput()) {
+            return
+        }
+
+        if (items.isEmpty()) {
+            Toast.makeText(this, R.string.error_add_at_least_one_item, Toast.LENGTH_SHORT).show()
+            return
+        }
+
+        val bill = Bill(
+            id = billId,
+            startDate = billStartDate!!,
+            endDate = billEndDate!!,
+            communityName = binding.etCommunity.text.toString().trim(),
+            phase = binding.etPhase.text.toString().trim().takeIf { it.isNotBlank() },
+            buildingNumber = binding.etBuilding.text.toString().trim().takeIf { it.isNotBlank() },
+            roomNumber = binding.etRoom.text.toString().trim().takeIf { it.isNotBlank() },
+            remark = binding.etRemark.text.toString().trim().takeIf { it.isNotBlank() },
+            totalAmount = items.sumOf { it.totalPrice },
+            paidAmount = paymentRecords.sumOf { it.amount },
+            waivedAmount = waivedAmount
+        )
+
+        lifecycleScope.launch {
+            try {
+                viewModel.repository.updateBill(bill)
+                viewModel.repository.deleteBillItemsByBillId(billId)
+                viewModel.repository.deletePaymentRecordsByBillId(billId)
+
+                val itemsWithBillId = items.map { it.copy(billId = billId) }
+                viewModel.repository.insertBillItems(itemsWithBillId)
+
+                if (paymentRecords.isNotEmpty()) {
+                    val recordsWithBillId = paymentRecords.map { it.copy(billId = billId) }
+                    recordsWithBillId.forEach { viewModel.repository.insertPaymentRecord(it) }
+                }
+
+                saveOriginalValues()
+                hasUnsavedChanges = false
+
+                Toast.makeText(this@BillDetailActivity, "账单保存成功", Toast.LENGTH_SHORT).show()
+                finish()
+            } catch (e: Exception) {
+                Toast.makeText(this@BillDetailActivity, "保存失败：${e.message}", Toast.LENGTH_SHORT).show()
+            }
         }
     }
 

@@ -77,7 +77,7 @@ class AddBillActivity : AppCompatActivity() {
 
     private fun checkAndLoadDraft() {
         if (draftManager.hasDraft()) {
-            AlertDialog.Builder(this)
+            val dialog = AlertDialog.Builder(this)
                 .setTitle("加载草稿")
                 .setMessage("检测到未保存的草稿，是否加载？")
                 .setPositiveButton("加载") { _, _ ->
@@ -87,7 +87,9 @@ class AddBillActivity : AppCompatActivity() {
                     draftManager.clearDraft()
                 }
                 .setCancelable(false)
-                .show()
+                .create()
+            dialog.window?.setBackgroundDrawableResource(R.drawable.bg_dialog_rounded)
+            dialog.show()
         }
     }
 
@@ -289,7 +291,7 @@ class AddBillActivity : AppCompatActivity() {
 
     private fun handleBackPressed() {
         if (hasContent()) {
-            AlertDialog.Builder(this)
+            val dialog = AlertDialog.Builder(this)
                 .setTitle("保存草稿")
                 .setMessage("是否需要将已填写内容保存为草稿？")
                 .setPositiveButton("是") { _, _ ->
@@ -301,7 +303,9 @@ class AddBillActivity : AppCompatActivity() {
                     finish()
                 }
                 .setCancelable(false)
-                .show()
+                .create()
+            dialog.window?.setBackgroundDrawableResource(R.drawable.bg_dialog_rounded)
+            dialog.show()
         } else {
             finish()
         }
@@ -351,6 +355,9 @@ class AddBillActivity : AppCompatActivity() {
             .setView(dialogBinding.root)
             .create()
 
+        // 设置透明背景以显示圆角
+        dialog.window?.setBackgroundDrawableResource(android.R.color.transparent)
+
         // 对话框关闭时重置标记
         dialog.setOnDismissListener {
             isAddProjectDialogShowing = false
@@ -396,6 +403,9 @@ class AddBillActivity : AppCompatActivity() {
         val dialog = AlertDialog.Builder(this)
             .setView(dialogBinding.root)
             .create()
+
+        // 设置透明背景以显示圆角
+        dialog.window?.setBackgroundDrawableResource(android.R.color.transparent)
 
         // 对话框关闭时重置标记
         dialog.setOnDismissListener {
@@ -730,7 +740,7 @@ class AddBillActivity : AppCompatActivity() {
     }
 
     private fun showDeleteConfirmDialog(onConfirm: () -> Unit) {
-        AlertDialog.Builder(this)
+        val dialog = AlertDialog.Builder(this)
             .setTitle(R.string.delete_confirm_title)
             .setMessage(R.string.delete_confirm_message)
             .setPositiveButton(R.string.confirm) { dialog, _ ->
@@ -740,11 +750,13 @@ class AddBillActivity : AppCompatActivity() {
             .setNegativeButton(R.string.back) { dialog, _ ->
                 dialog.dismiss()
             }
-            .show()
+            .create()
+        dialog.window?.setBackgroundDrawableResource(R.drawable.bg_dialog_rounded)
+        dialog.show()
     }
 
     private fun showClearContentConfirmDialog() {
-        AlertDialog.Builder(this)
+        val dialog = AlertDialog.Builder(this)
             .setTitle(R.string.clear_content_confirm_title)
             .setMessage(R.string.clear_content_confirm_message)
             .setPositiveButton(R.string.confirm) { dialog, _ ->
@@ -754,7 +766,9 @@ class AddBillActivity : AppCompatActivity() {
             .setNegativeButton(R.string.cancel) { dialog, _ ->
                 dialog.dismiss()
             }
-            .show()
+            .create()
+        dialog.window?.setBackgroundDrawableResource(R.drawable.bg_dialog_rounded)
+        dialog.show()
     }
 
     private fun clearAllContent() {

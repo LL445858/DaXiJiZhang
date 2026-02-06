@@ -34,10 +34,9 @@ class MainActivity : AppCompatActivity() {
     private lateinit var repository: BillRepository
 
     override fun onCreate(savedInstanceState: Bundle?) {
-        AppCompatDelegate.setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_NO)
         super.onCreate(savedInstanceState)
         
-        setupWhiteStatusBar()
+        setupStatusBar()
         
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
@@ -63,16 +62,25 @@ class MainActivity : AppCompatActivity() {
     }
     
     /**
-     * 设置白色状态栏，深色图标
+     * 设置状态栏颜色，根据深色模式动态调整
      */
-    private fun setupWhiteStatusBar() {
+    private fun setupStatusBar() {
         window.apply {
-            // 设置状态栏颜色为白色
-            statusBarColor = Color.WHITE
-            // 设置状态栏图标为深色
-            WindowCompat.getInsetsController(this, decorView).apply {
-                isAppearanceLightStatusBars = true
+            val isDarkMode = (resources.configuration.uiMode and android.content.res.Configuration.UI_MODE_NIGHT_MASK) == 
+                    android.content.res.Configuration.UI_MODE_NIGHT_YES
+            
+            // 根据深色模式设置状态栏颜色
+            statusBarColor = if (isDarkMode) {
+                Color.BLACK
+            } else {
+                Color.WHITE
             }
+            
+            // 设置状态栏图标颜色
+            WindowCompat.getInsetsController(this, decorView).apply {
+                isAppearanceLightStatusBars = !isDarkMode
+            }
+            
             // 允许内容延伸到状态栏下方
             WindowCompat.setDecorFitsSystemWindows(this, false)
         }

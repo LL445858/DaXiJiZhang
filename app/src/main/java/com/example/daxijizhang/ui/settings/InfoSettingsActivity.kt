@@ -4,6 +4,8 @@ import android.app.Activity
 import android.content.Intent
 import android.graphics.Bitmap
 import android.os.Bundle
+import android.text.Editable
+import android.text.TextWatcher
 import android.widget.Toast
 import com.example.daxijizhang.R
 import com.example.daxijizhang.databinding.ActivityInfoSettingsBinding
@@ -24,6 +26,7 @@ class InfoSettingsActivity : BaseActivity() {
         initViews()
         setupClickListeners()
         setupSliders()
+        setupNicknameAutoSave()
         loadCurrentSettings()
     }
 
@@ -47,13 +50,6 @@ class InfoSettingsActivity : BaseActivity() {
                 ImagePickerUtil.pickBackgroundFromGallery(this)
             }
         }
-
-        // 保存昵称
-        binding.btnSaveNickname.setOnClickListener {
-            ViewUtil.applyClickAnimation(it) {
-                saveNickname()
-            }
-        }
     }
 
     private fun setupSliders() {
@@ -72,40 +68,30 @@ class InfoSettingsActivity : BaseActivity() {
         }
     }
 
+    private fun setupNicknameAutoSave() {
+        binding.etNickname.addTextChangedListener(object : TextWatcher {
+            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
+            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
+            override fun afterTextChanged(s: Editable?) {
+                s?.toString()?.trim()?.let { nickname ->
+                    if (nickname.isNotEmpty()) {
+                        prefs.edit().putString("nickname", nickname).apply()
+                    }
+                }
+            }
+        })
+    }
+
     private fun loadCurrentSettings() {
         // 加载昵称
         val nickname = prefs.getString("nickname", "")
         binding.etNickname.setText(nickname)
-
-        // 加载头像和背景预览
-        loadAvatarPreview()
-        loadBackgroundPreview()
 
         // 加载滑块值
         val blurValue = prefs.getInt("background_blur", 0)
         val overlayValue = prefs.getInt("background_overlay", 0)
         binding.sliderBlur.value = blurValue.toFloat()
         binding.sliderOverlay.value = overlayValue.toFloat()
-    }
-
-    private fun loadAvatarPreview() {
-        // 加载自定义头像
-        val avatarBitmap = ImagePickerUtil.loadAvatar(this)
-        if (avatarBitmap != null) {
-            binding.ivAvatarPreview.setImageBitmap(avatarBitmap)
-        } else {
-            binding.ivAvatarPreview.setImageResource(R.drawable.default_avatar)
-        }
-    }
-
-    private fun loadBackgroundPreview() {
-        // 加载自定义背景
-        val backgroundBitmap = ImagePickerUtil.loadBackground(this)
-        if (backgroundBitmap != null) {
-            binding.ivBackgroundPreview.setImageBitmap(backgroundBitmap)
-        } else {
-            binding.ivBackgroundPreview.setImageResource(R.drawable.default_user_background)
-        }
     }
 
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
@@ -118,9 +104,6 @@ class InfoSettingsActivity : BaseActivity() {
             data,
             object : ImagePickerUtil.ImagePickerCallback {
                 override fun onAvatarPicked(avatarPath: String) {
-                    // 仅更新头像预览
-                    loadAvatarPreview()
-                    
                     // 保存设置标记
                     prefs.edit()
                         .putBoolean("has_custom_avatar", true)
@@ -134,9 +117,6 @@ class InfoSettingsActivity : BaseActivity() {
                 }
 
                 override fun onBackgroundPicked(backgroundPath: String) {
-                    // 仅更新背景预览
-                    loadBackgroundPreview()
-                    
                     // 保存设置标记
                     prefs.edit()
                         .putBoolean("has_custom_background", true)
@@ -158,18 +138,5 @@ class InfoSettingsActivity : BaseActivity() {
                 }
             }
         )
-    }
-
-    private fun saveNickname() {
-        val nickname = binding.etNickname.text.toString().trim()
-        if (nickname.isEmpty()) {
-            binding.tilNickname.error = getString(R.string.nickname_required)
-            return
-        }
-
-        prefs.edit().putString("nickname", nickname).apply()
-
-        Toast.makeText(this, R.string.nickname_saved, Toast.LENGTH_SHORT).show()
-        onBackPressedDispatcher.onBackPressed()
     }
 }

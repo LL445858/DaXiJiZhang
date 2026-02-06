@@ -18,7 +18,7 @@
             android:id="@+id/status_bar_placeholder"
             android:layout_width="match_parent"
             android:layout_height="0dp"
-            android:background="@color/surface" />
+            android:background="@color/black" />
 
         <!-- 账单数量提示 -->
         <TextView
@@ -29,7 +29,7 @@
             android:paddingHorizontal="16dp"
             android:paddingTop="8dp"
             android:paddingBottom="4dp"
-            android:textColor="#000000"
+            android:textColor="@color/text_primary"
             android:textSize="14sp"
             tools:text="共10条账单" />
 
@@ -49,7 +49,8 @@
                 android:layout_height="48dp"
                 android:background="?attr/selectableItemBackgroundBorderless"
                 android:contentDescription="@string/sort"
-                android:src="@drawable/ic_sort" />
+                android:src="@drawable/ic_sort"
+                app:tint="@color/text_primary" />
 
             <!-- 筛选按钮 -->
             <ImageButton
@@ -58,7 +59,8 @@
                 android:layout_height="48dp"
                 android:background="?attr/selectableItemBackgroundBorderless"
                 android:contentDescription="@string/filter"
-                android:src="@drawable/ic_filter" />
+                android:src="@drawable/ic_filter"
+                app:tint="@color/text_primary" />
 
             <!-- 查找按钮 -->
             <ImageButton
@@ -67,7 +69,8 @@
                 android:layout_height="48dp"
                 android:background="?attr/selectableItemBackgroundBorderless"
                 android:contentDescription="@string/search"
-                android:src="@drawable/ic_search" />
+                android:src="@drawable/ic_search"
+                app:tint="@color/text_primary" />
 
             <View
                 android:layout_width="0dp"
@@ -110,7 +113,8 @@
                 android:layout_width="120dp"
                 android:layout_height="120dp"
                 android:alpha="0.3"
-                android:src="@drawable/ic_bills" />
+                android:src="@drawable/ic_bills"
+                app:tint="@color/text_hint" />
 
             <TextView
                 android:layout_width="wrap_content"

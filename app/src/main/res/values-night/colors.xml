@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- 深色模式下的颜色覆盖 -->
+
+    <!-- 文字颜色 - 深色模式下改为白色 -->
+    <color name="text_primary">#FFFFFF</color>
+    <color name="text_secondary">#B3FFFFFF</color>
+    <color name="text_hint">#80FFFFFF</color>
+
+    <!-- 背景色 - 深色模式下改为黑色/深灰色 -->
+    <color name="background">#000000</color>
+    <color name="surface">#1E1E1E</color>
+    <color name="divider">#1FFFFFFF</color>
+
+    <!-- 开关颜色 -->
+    <color name="switch_track_on">#4D2196F3</color>
+    <color name="switch_track_off">#1E1E1E</color>
+</resources>

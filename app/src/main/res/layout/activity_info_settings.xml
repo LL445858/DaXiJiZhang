@@ -12,12 +12,12 @@
         android:id="@+id/toolbar"
         android:layout_width="match_parent"
         android:layout_height="?attr/actionBarSize"
-        android:background="@color/white"
+        android:background="@color/surface"
         android:elevation="0dp"
         app:navigationIcon="@drawable/ic_back"
-        app:navigationIconTint="@color/black"
+        app:navigationIconTint="@color/text_primary"
         app:title="@string/info_settings"
-        app:titleTextColor="@color/black" />
+        app:titleTextColor="@color/text_primary" />
 
     <!-- 内容区域 -->
     <androidx.core.widget.NestedScrollView
@@ -31,58 +31,10 @@
             android:orientation="vertical"
             android:padding="16dp">
 
-            <!-- 头像设置卡片 -->
+            <!-- 信息设置卡片（整合昵称、头像、背景设置） -->
             <com.google.android.material.card.MaterialCardView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                app:cardCornerRadius="12dp"
-                app:cardElevation="0dp"
-                app:cardBackgroundColor="@color/surface">
-
-                <LinearLayout
-                    android:id="@+id/item_avatar_setting"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:orientation="horizontal"
-                    android:gravity="center_vertical"
-                    android:background="?attr/selectableItemBackground"
-                    android:clickable="true"
-                    android:focusable="true"
-                    android:padding="16dp">
-
-                    <TextView
-                        android:layout_width="0dp"
-                        android:layout_height="wrap_content"
-                        android:layout_weight="1"
-                        android:text="@string/avatar_setting"
-                        android:textColor="@color/text_primary"
-                        android:textSize="16sp" />
-
-                    <com.google.android.material.imageview.ShapeableImageView
-                        android:id="@+id/iv_avatar_preview"
-                        android:layout_width="56dp"
-                        android:layout_height="56dp"
-                        android:scaleType="centerCrop"
-                        android:src="@drawable/default_avatar"
-                        app:shapeAppearanceOverlay="@style/CircleImageView" />
-
-                    <ImageView
-                        android:layout_width="24dp"
-                        android:layout_height="24dp"
-                        android:layout_marginStart="8dp"
-                        android:src="@drawable/ic_arrow_right"
-                        app:tint="@color/text_hint"
-                        android:contentDescription="@null" />
-
-                </LinearLayout>
-
-            </com.google.android.material.card.MaterialCardView>
-
-            <!-- 背景图片设置卡片（整合图片选择、高斯模糊、遮罩浓度） -->
-            <com.google.android.material.card.MaterialCardView
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="12dp"
                 app:cardCornerRadius="12dp"
                 app:cardElevation="0dp"
                 app:cardBackgroundColor="@color/surface">
@@ -93,11 +45,96 @@
                     android:orientation="vertical"
                     android:padding="16dp">
 
-                    <!-- 背景图片选择 -->
+                    <!-- 模块标题 -->
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="信息设置"
+                        android:textColor="@color/text_primary"
+                        android:textSize="16sp"
+                        android:textStyle="bold" />
+
+                    <!-- 昵称设置条目 -->
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="16dp"
+                        android:orientation="horizontal"
+                        android:gravity="center_vertical">
+
+                        <TextView
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:text="@string/nickname_setting"
+                            android:textColor="@color/text_primary"
+                            android:textSize="14sp"
+                            android:textStyle="bold" />
+
+                        <com.google.android.material.textfield.TextInputLayout
+                            android:id="@+id/til_nickname"
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="0.7"
+                            style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox.Dense"
+                            app:hintEnabled="false"
+                            app:boxCornerRadiusTopStart="12dp"
+                            app:boxCornerRadiusTopEnd="12dp"
+                            app:boxCornerRadiusBottomStart="12dp"
+                            app:boxCornerRadiusBottomEnd="12dp">
+
+                            <com.google.android.material.textfield.TextInputEditText
+                                android:id="@+id/et_nickname"
+                                android:layout_width="match_parent"
+                                android:layout_height="30dp"
+                                android:hint="@string/nickname_hint"
+                                android:inputType="textPersonName"
+                                android:maxLength="8"
+                                android:textSize="13sp"
+                                android:gravity="end|center_vertical"
+                                android:paddingVertical="4dp" />
+
+                        </com.google.android.material.textfield.TextInputLayout>
+
+                    </LinearLayout>
+
+                    <!-- 头像设置条目 -->
+                    <LinearLayout
+                        android:id="@+id/item_avatar_setting"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="16dp"
+                        android:orientation="horizontal"
+                        android:gravity="center_vertical"
+                        android:background="?attr/selectableItemBackground"
+                        android:clickable="true"
+                        android:focusable="true"
+                        android:paddingVertical="8dp">
+
+                        <TextView
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:text="@string/avatar_setting"
+                            android:textColor="@color/text_primary"
+                            android:textSize="14sp"
+                            android:textStyle="bold" />
+
+                        <ImageView
+                            android:layout_width="16dp"
+                            android:layout_height="16dp"
+                            android:src="@drawable/ic_arrow_right_small"
+                            app:tint="@color/text_hint"
+                            android:contentDescription="@null" />
+
+                    </LinearLayout>
+
+                    <!-- 背景图片设置条目 -->
                     <LinearLayout
                         android:id="@+id/item_background_setting"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
+                        android:layout_marginTop="16dp"
                         android:orientation="horizontal"
                         android:gravity="center_vertical"
                         android:background="?attr/selectableItemBackground"
@@ -111,113 +148,15 @@
                             android:layout_weight="1"
                             android:text="@string/background_setting"
                             android:textColor="@color/text_primary"
-                            android:textSize="16sp" />
+                            android:textSize="14sp"
+                            android:textStyle="bold" />
 
                         <ImageView
-                            android:id="@+id/iv_background_preview"
-                            android:layout_width="80dp"
-                            android:layout_height="48dp"
-                            android:scaleType="centerCrop"
-                            android:src="@drawable/default_user_background"
-                            android:contentDescription="@null" />
-
-                        <ImageView
-                            android:layout_width="24dp"
-                            android:layout_height="24dp"
-                            android:layout_marginStart="8dp"
-                            android:src="@drawable/ic_arrow_right"
+                            android:layout_width="16dp"
+                            android:layout_height="16dp"
+                            android:src="@drawable/ic_arrow_right_small"
                             app:tint="@color/text_hint"
                             android:contentDescription="@null" />
-
-                    </LinearLayout>
-
-                    <!-- 高斯模糊滑块 -->
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="20dp"
-                        android:text="@string/background_blur"
-                        android:textColor="@color/text_primary"
-                        android:textSize="16sp" />
-
-                    <LinearLayout
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="8dp"
-                        android:orientation="horizontal"
-                        android:gravity="center_vertical">
-
-                        <TextView
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:text="0"
-                            android:textColor="@color/text_secondary"
-                            android:textSize="12sp" />
-
-                        <com.google.android.material.slider.Slider
-                            android:id="@+id/slider_blur"
-                            android:layout_width="0dp"
-                            android:layout_height="wrap_content"
-                            android:layout_weight="1"
-                            android:layout_marginHorizontal="8dp"
-                            android:valueFrom="0"
-                            android:valueTo="100"
-                            android:stepSize="1"
-                            app:trackColorInactive="@color/divider"
-                            app:trackColorActive="@color/primary"
-                            app:thumbColor="@color/primary" />
-
-                        <TextView
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:text="100"
-                            android:textColor="@color/text_secondary"
-                            android:textSize="12sp" />
-
-                    </LinearLayout>
-
-                    <!-- 遮罩浓度滑块 -->
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="16dp"
-                        android:text="@string/background_overlay"
-                        android:textColor="@color/text_primary"
-                        android:textSize="16sp" />
-
-                    <LinearLayout
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="8dp"
-                        android:orientation="horizontal"
-                        android:gravity="center_vertical">
-
-                        <TextView
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:text="0"
-                            android:textColor="@color/text_secondary"
-                            android:textSize="12sp" />
-
-                        <com.google.android.material.slider.Slider
-                            android:id="@+id/slider_overlay"
-                            android:layout_width="0dp"
-                            android:layout_height="wrap_content"
-                            android:layout_weight="1"
-                            android:layout_marginHorizontal="8dp"
-                            android:valueFrom="0"
-                            android:valueTo="100"
-                            android:stepSize="1"
-                            app:trackColorInactive="@color/divider"
-                            app:trackColorActive="@color/primary"
-                            app:thumbColor="@color/primary" />
-
-                        <TextView
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:text="100"
-                            android:textColor="@color/text_secondary"
-                            android:textSize="12sp" />
 
                     </LinearLayout>
 
@@ -225,7 +164,7 @@
 
             </com.google.android.material.card.MaterialCardView>
 
-            <!-- 昵称设置卡片 -->
+            <!-- 背景效果设置卡片 -->
             <com.google.android.material.card.MaterialCardView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
@@ -240,44 +179,80 @@
                     android:orientation="vertical"
                     android:padding="16dp">
 
+                    <!-- 模块标题 -->
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="@string/nickname_setting"
+                        android:text="背景效果设置"
                         android:textColor="@color/text_primary"
-                        android:textSize="16sp" />
+                        android:textSize="16sp"
+                        android:textStyle="bold" />
 
-                    <com.google.android.material.textfield.TextInputLayout
-                        android:id="@+id/til_nickname"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="12dp"
-                        style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
-                        app:hintEnabled="false">
-
-                        <com.google.android.material.textfield.TextInputEditText
-                            android:id="@+id/et_nickname"
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:hint="@string/nickname_hint"
-                            android:inputType="textPersonName"
-                            android:maxLength="20"
-                            android:textSize="16sp" />
-
-                    </com.google.android.material.textfield.TextInputLayout>
-
-                    <com.google.android.material.button.MaterialButton
-                        android:id="@+id/btn_save_nickname"
-                        style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+                    <!-- 高斯模糊条目 -->
+                    <LinearLayout
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:layout_marginTop="16dp"
-                        android:text="@string/save"
-                        android:textColor="@color/primary"
-                        android:textSize="16sp"
-                        app:cornerRadius="8dp"
-                        app:strokeColor="@color/primary"
-                        app:strokeWidth="1dp" />
+                        android:orientation="horizontal"
+                        android:gravity="center_vertical">
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="高斯模糊"
+                            android:textColor="@color/text_primary"
+                            android:textSize="14sp"
+                            android:textStyle="bold" />
+
+                        <com.google.android.material.slider.Slider
+                            android:id="@+id/slider_blur"
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:layout_marginStart="80dp"
+                            android:valueFrom="0"
+                            android:valueTo="100"
+                            android:stepSize="1"
+                            app:trackHeight="2dp"
+                            app:trackColorInactive="@color/divider"
+                            app:trackColorActive="@color/primary"
+                            app:thumbColor="@color/primary"
+                            app:thumbRadius="6dp" />
+
+                    </LinearLayout>
+
+                    <!-- 遮罩浓度条目 -->
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="16dp"
+                        android:orientation="horizontal"
+                        android:gravity="center_vertical">
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="遮罩浓度"
+                            android:textColor="@color/text_primary"
+                            android:textSize="14sp"
+                            android:textStyle="bold" />
+
+                        <com.google.android.material.slider.Slider
+                            android:id="@+id/slider_overlay"
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:layout_marginStart="80dp"
+                            android:valueFrom="0"
+                            android:valueTo="100"
+                            android:stepSize="1"
+                            app:trackHeight="2dp"
+                            app:trackColorInactive="@color/divider"
+                            app:trackColorActive="@color/primary"
+                            app:thumbColor="@color/primary"
+                            app:thumbRadius="6dp" />
+
+                    </LinearLayout>
 
                 </LinearLayout>
 

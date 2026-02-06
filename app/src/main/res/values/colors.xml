@@ -29,4 +29,8 @@
     <color name="warning">#FFFF9800</color>
     <color name="error">#FFF44336</color>
     <color name="info">#FF2196F3</color>
+
+    <!-- 开关颜色 -->
+    <color name="switch_track_on">#4D2196F3</color>
+    <color name="switch_track_off">#FFFFFFFF</color>
 </resources>

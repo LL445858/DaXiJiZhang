@@ -353,7 +353,7 @@ class BillsFragment : Fragment() {
         val color = if (isActive) {
             ContextCompat.getColor(requireContext(), R.color.primary)
         } else {
-            Color.BLACK
+            ContextCompat.getColor(requireContext(), R.color.text_primary)
         }
         binding.btnFilter.setColorFilter(color)
     }
