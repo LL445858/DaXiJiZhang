@@ -15,6 +15,21 @@
         <item name="android:windowBackground">@color/background</item>
         <!-- Disable force dark mode -->
         <item name="android:forceDarkAllowed" tools:targetApi="29">false</item>
+        <!-- BottomNavigationView样式 -->
+        <item name="bottomNavigationStyle">@style/Widget.Daxijizhang.BottomNavigationView</item>
+    </style>
+
+    <!-- 自定义BottomNavigationView样式 -->
+    <style name="Widget.Daxijizhang.BottomNavigationView" parent="Widget.MaterialComponents.BottomNavigationView">
+        <!-- 使用默认字体大小，让它响应系统字体缩放 -->
+        <item name="itemTextAppearanceActive">@style/TextAppearance.Daxijizhang.BottomNavigation</item>
+        <item name="itemTextAppearanceInactive">@style/TextAppearance.Daxijizhang.BottomNavigation</item>
+    </style>
+
+    <!-- BottomNavigationView文字样式 -->
+    <style name="TextAppearance.Daxijizhang.BottomNavigation" parent="TextAppearance.MaterialComponents.Caption">
+        <!-- 使用sp单位，确保响应字体缩放 -->
+        <item name="android:textSize">12sp</item>
     </style>
 
     <!-- Theme for activities to ensure light mode -->

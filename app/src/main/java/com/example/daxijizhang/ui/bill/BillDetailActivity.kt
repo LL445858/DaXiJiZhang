@@ -9,7 +9,6 @@ import android.view.View
 import android.view.inputmethod.InputMethodManager
 import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
-import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.ItemTouchHelper
@@ -25,6 +24,7 @@ import com.example.daxijizhang.databinding.ActivityBillDetailBinding
 import com.example.daxijizhang.databinding.DialogAddPaymentBinding
 import com.example.daxijizhang.databinding.DialogAddProjectBinding
 import com.example.daxijizhang.databinding.DialogExportBillBinding
+import com.example.daxijizhang.ui.base.BaseActivity
 import com.example.daxijizhang.util.BillExportUtil
 import com.example.daxijizhang.util.ThemeManager
 import com.example.daxijizhang.util.ViewUtil.setOnOptimizedClickListener
@@ -35,7 +35,7 @@ import java.util.Collections
 import java.util.Date
 import java.util.Locale
 
-class BillDetailActivity : AppCompatActivity() {
+class BillDetailActivity : BaseActivity() {
 
     private lateinit var binding: ActivityBillDetailBinding
     private lateinit var billItemAdapter: BillItemAdapter

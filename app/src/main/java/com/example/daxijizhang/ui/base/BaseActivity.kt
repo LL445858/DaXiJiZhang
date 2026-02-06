@@ -1,6 +1,7 @@
 package com.example.daxijizhang.ui.base
 
 import android.app.Activity
+import android.content.Context
 import android.content.res.Configuration
 import android.os.Build
 import android.os.Bundle
@@ -18,6 +19,34 @@ import com.example.daxijizhang.util.ThemeManager
  * 统一处理返回按钮动画和全局字体缩放
  */
 abstract class BaseActivity : AppCompatActivity(), DaxiApplication.OnFontScaleChangeListener {
+
+    override fun attachBaseContext(newBase: Context) {
+        // 在attachBaseContext中应用字体缩放，确保所有Activity都能正确应用
+        val scaledContext = applyFontScaleToContext(newBase)
+        super.attachBaseContext(scaledContext)
+    }
+
+    /**
+     * 应用字体缩放到Context
+     */
+    private fun applyFontScaleToContext(context: Context): Context {
+        // 从SharedPreferences读取字体缩放值
+        val prefs = context.getSharedPreferences("user_settings", Context.MODE_PRIVATE)
+        val scale = try {
+            prefs.getFloat("font_size_percent", 100f) / 100f
+        } catch (e: Exception) {
+            1.0f
+        }
+
+        // 如果缩放值为1.0（100%），不需要修改
+        if (scale == 1.0f) {
+            return context
+        }
+
+        val configuration = Configuration(context.resources.configuration)
+        configuration.fontScale = scale
+        return context.createConfigurationContext(configuration)
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)

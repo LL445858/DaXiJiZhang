@@ -6,12 +6,12 @@ import android.os.Bundle
 import android.window.OnBackInvokedDispatcher
 import android.widget.Toast
 import androidx.activity.OnBackPressedCallback
-import androidx.appcompat.app.AppCompatActivity
 import com.example.daxijizhang.R
 import com.example.daxijizhang.databinding.ActivityRemoteSyncBinding
+import com.example.daxijizhang.ui.base.BaseActivity
 import com.example.daxijizhang.util.ViewUtil
 
-class MoreSettingsActivity : AppCompatActivity() {
+class MoreSettingsActivity : BaseActivity() {
 
     private lateinit var binding: ActivityRemoteSyncBinding
 

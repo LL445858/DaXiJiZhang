@@ -14,6 +14,8 @@
         <item name="android:windowLightStatusBar">false</item>
         <!-- Customize your theme here. -->
         <item name="android:windowBackground">@color/background</item>
+        <!-- BottomNavigationView样式 -->
+        <item name="bottomNavigationStyle">@style/Widget.Daxijizhang.BottomNavigationView</item>
     </style>
 
     <!-- Theme for activities in night mode -->

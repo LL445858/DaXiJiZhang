@@ -17,7 +17,6 @@ import android.view.View
 import android.widget.Toast
 import androidx.activity.OnBackPressedCallback
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
@@ -31,6 +30,7 @@ import com.example.daxijizhang.data.repository.BillRepository
 import com.example.daxijizhang.databinding.ActivityDataMigrationBinding
 import com.example.daxijizhang.databinding.DialogJianguoyunAccountBinding
 import com.example.daxijizhang.databinding.ItemSyncLogBinding
+import com.example.daxijizhang.ui.base.BaseActivity
 import com.example.daxijizhang.util.ThemeManager
 import com.example.daxijizhang.util.ViewUtil
 import com.example.daxijizhang.util.WebDAVUtil
@@ -43,7 +43,7 @@ import java.io.*
 import java.text.SimpleDateFormat
 import java.util.*
 
-class DataMigrationActivity : AppCompatActivity() {
+class DataMigrationActivity : BaseActivity() {
 
     private lateinit var binding: ActivityDataMigrationBinding
     private lateinit var repository: BillRepository

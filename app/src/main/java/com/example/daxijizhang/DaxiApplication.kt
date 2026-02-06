@@ -32,33 +32,8 @@ class DaxiApplication : Application() {
         ProcessLifecycleOwner.get().lifecycle.addObserver(AppLifecycleObserver())
     }
 
-    override fun attachBaseContext(base: Context) {
-        // 在Application级别应用字体缩放
-        val scaledContext = applyFontScaleToContext(base)
-        super.attachBaseContext(scaledContext)
-    }
-
-    /**
-     * 应用字体缩放到Context
-     */
-    private fun applyFontScaleToContext(context: Context): Context {
-        // 从SharedPreferences读取字体缩放值
-        val prefs = context.getSharedPreferences("user_settings", Context.MODE_PRIVATE)
-        val scale = try {
-            prefs.getFloat("font_size_percent", 100f) / 100f
-        } catch (e: Exception) {
-            1.0f
-        }
-
-        // 如果缩放值为1.0（100%），不需要修改
-        if (scale == 1.0f) {
-            return context
-        }
-
-        val configuration = Configuration(context.resources.configuration)
-        configuration.fontScale = scale
-        return context.createConfigurationContext(configuration)
-    }
+    // 注意：字体缩放通过BaseActivity.attachBaseContext统一处理
+    // 不在Application级别应用，避免重复缩放
 
     /**
      * 注册MainActivity引用
