@@ -8,6 +8,7 @@ import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
 import com.example.daxijizhang.data.model.Bill
 import com.example.daxijizhang.databinding.ItemBillBinding
+import com.example.daxijizhang.util.ThemeManager
 import java.text.SimpleDateFormat
 import java.util.Locale
 
@@ -42,14 +43,20 @@ class BillAdapter(
                 // 地址
                 tvAddress.text = bill.getDisplayAddress()
 
-                // 金额
+                // 金额 - 使用主题颜色
                 tvAmount.text = String.format("¥%,.2f", bill.totalAmount)
+                tvAmount.setTextColor(ThemeManager.getThemeColor())
 
                 // 支付状态
                 val statusText = bill.getPaymentStatus()
                 tvPaymentStatus.text = statusText
 
-                // 根据状态设置颜色
+                // 获取主题色并添加透明度作为背景色
+                val themeColor = ThemeManager.getThemeColor()
+                val themeColorWithAlpha = (0x33 shl 24) or (themeColor and 0x00FFFFFF) // 20%透明度
+                tvPaymentStatus.setBackgroundColor(themeColorWithAlpha)
+
+                // 根据状态设置文字颜色
                 val statusColor = if (bill.isPaid()) {
                     Color.parseColor("#4CAF50") // 绿色
                 } else {

@@ -24,6 +24,7 @@ import com.example.daxijizhang.data.repository.BillRepository
 import com.example.daxijizhang.databinding.ActivityAddBillBinding
 import com.example.daxijizhang.databinding.DialogAddPaymentBinding
 import com.example.daxijizhang.databinding.DialogAddProjectBinding
+import com.example.daxijizhang.util.ThemeManager
 import com.example.daxijizhang.util.ViewUtil.setOnOptimizedClickListener
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
@@ -70,13 +71,68 @@ class AddBillActivity : AppCompatActivity() {
         setupRecyclerViews()
         setupListeners()
         updatePaymentStatus()
+        applyThemeColor()
 
         // 检查是否有草稿
         checkAndLoadDraft()
     }
 
+    /**
+     * 应用主题颜色到视图
+     */
+    private fun applyThemeColor() {
+        val themeColor = ThemeManager.getThemeColor()
+
+        // 设置"添加项目"按钮颜色和边框
+        binding.btnAddProject.setTextColor(themeColor)
+        binding.btnAddProject.strokeColor = android.content.res.ColorStateList.valueOf(themeColor)
+        binding.btnAddProject.compoundDrawables.forEach { drawable ->
+            drawable?.setTint(themeColor)
+        }
+
+        // 设置"添加记录"按钮颜色和边框
+        binding.btnAddPayment.setTextColor(themeColor)
+        binding.btnAddPayment.strokeColor = android.content.res.ColorStateList.valueOf(themeColor)
+        binding.btnAddPayment.compoundDrawables.forEach { drawable ->
+            drawable?.setTint(themeColor)
+        }
+
+        // 设置"账单结清"按钮颜色和边框
+        binding.btnSettleBill.setTextColor(themeColor)
+        binding.btnSettleBill.strokeColor = android.content.res.ColorStateList.valueOf(themeColor)
+        binding.btnSettleBill.compoundDrawables.forEach { drawable ->
+            drawable?.setTint(themeColor)
+        }
+
+        // 设置底部"保存账单"按钮颜色
+        binding.btnSaveBill.backgroundTintList = android.content.res.ColorStateList.valueOf(themeColor)
+
+        // 设置输入框边框和标题颜色
+        applyInputLayoutThemeColor(binding.tilStartDate, themeColor)
+        applyInputLayoutThemeColor(binding.tilEndDate, themeColor)
+        applyInputLayoutThemeColor(binding.tilCommunity, themeColor)
+        applyInputLayoutThemeColor(binding.tilPhase, themeColor)
+        applyInputLayoutThemeColor(binding.tilBuilding, themeColor)
+        applyInputLayoutThemeColor(binding.tilRoom, themeColor)
+        applyInputLayoutThemeColor(binding.tilRemark, themeColor)
+    }
+
+    /**
+     * 应用主题颜色到TextInputLayout
+     */
+    private fun applyInputLayoutThemeColor(textInputLayout: com.google.android.material.textfield.TextInputLayout, color: Int) {
+        // 设置边框颜色
+        textInputLayout.boxStrokeColor = color
+        // 设置标题颜色
+        textInputLayout.hintTextColor = android.content.res.ColorStateList.valueOf(color)
+        // 设置光标颜色
+        textInputLayout.editText?.textCursorDrawable = null
+        textInputLayout.editText?.highlightColor = color
+    }
+
     private fun checkAndLoadDraft() {
         if (draftManager.hasDraft()) {
+            val themeColor = ThemeManager.getThemeColor()
             val dialog = AlertDialog.Builder(this)
                 .setTitle("加载草稿")
                 .setMessage("检测到未保存的草稿，是否加载？")
@@ -90,6 +146,9 @@ class AddBillActivity : AppCompatActivity() {
                 .create()
             dialog.window?.setBackgroundDrawableResource(R.drawable.bg_dialog_rounded)
             dialog.show()
+            // 设置按钮颜色为主题色
+            dialog.getButton(AlertDialog.BUTTON_POSITIVE).setTextColor(themeColor)
+            dialog.getButton(AlertDialog.BUTTON_NEGATIVE).setTextColor(themeColor)
         }
     }
 
@@ -291,6 +350,7 @@ class AddBillActivity : AppCompatActivity() {
 
     private fun handleBackPressed() {
         if (hasContent()) {
+            val themeColor = ThemeManager.getThemeColor()
             val dialog = AlertDialog.Builder(this)
                 .setTitle("保存草稿")
                 .setMessage("是否需要将已填写内容保存为草稿？")
@@ -306,6 +366,9 @@ class AddBillActivity : AppCompatActivity() {
                 .create()
             dialog.window?.setBackgroundDrawableResource(R.drawable.bg_dialog_rounded)
             dialog.show()
+            // 设置按钮颜色为主题色
+            dialog.getButton(AlertDialog.BUTTON_POSITIVE).setTextColor(themeColor)
+            dialog.getButton(AlertDialog.BUTTON_NEGATIVE).setTextColor(themeColor)
         } else {
             finish()
         }
@@ -740,6 +803,7 @@ class AddBillActivity : AppCompatActivity() {
     }
 
     private fun showDeleteConfirmDialog(onConfirm: () -> Unit) {
+        val themeColor = ThemeManager.getThemeColor()
         val dialog = AlertDialog.Builder(this)
             .setTitle(R.string.delete_confirm_title)
             .setMessage(R.string.delete_confirm_message)
@@ -753,9 +817,13 @@ class AddBillActivity : AppCompatActivity() {
             .create()
         dialog.window?.setBackgroundDrawableResource(R.drawable.bg_dialog_rounded)
         dialog.show()
+        // 设置按钮颜色为主题色
+        dialog.getButton(AlertDialog.BUTTON_POSITIVE).setTextColor(themeColor)
+        dialog.getButton(AlertDialog.BUTTON_NEGATIVE).setTextColor(themeColor)
     }
 
     private fun showClearContentConfirmDialog() {
+        val themeColor = ThemeManager.getThemeColor()
         val dialog = AlertDialog.Builder(this)
             .setTitle(R.string.clear_content_confirm_title)
             .setMessage(R.string.clear_content_confirm_message)
@@ -769,6 +837,9 @@ class AddBillActivity : AppCompatActivity() {
             .create()
         dialog.window?.setBackgroundDrawableResource(R.drawable.bg_dialog_rounded)
         dialog.show()
+        // 设置按钮颜色为主题色
+        dialog.getButton(AlertDialog.BUTTON_POSITIVE).setTextColor(themeColor)
+        dialog.getButton(AlertDialog.BUTTON_NEGATIVE).setTextColor(themeColor)
     }
 
     private fun clearAllContent() {

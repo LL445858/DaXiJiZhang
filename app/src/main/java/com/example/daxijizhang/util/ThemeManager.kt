@@ -22,12 +22,23 @@ object ThemeManager {
     private const val KEY_THEME_COLOR_HUE = "theme_color_hue"
     private const val KEY_DARK_MODE = "dark_mode"
     private const val KEY_FONT_SIZE = "font_size"
+    private const val KEY_FONT_SIZE_PERCENT = "font_size_percent"
     private const val DEFAULT_HUE = 210f
     private const val DEFAULT_FONT_SIZE = 16f
+    private const val DEFAULT_FONT_SIZE_PERCENT = 1.0f // 默认100%
     private const val DEFAULT_COLOR = 0xFF2196F3.toInt() // 默认蓝色
 
     private var currentThemeColor: Int = DEFAULT_COLOR
+    private var currentFontScale: Float = DEFAULT_FONT_SIZE_PERCENT
     private var isInitialized = false
+
+    // 主题颜色变化监听器列表
+    private val themeColorListeners = mutableListOf<OnThemeColorChangeListener>()
+
+    // 主题颜色变化监听器接口
+    interface OnThemeColorChangeListener {
+        fun onThemeColorChanged(color: Int)
+    }
 
     // 旧版本颜色映射（用于兼容）
     private val legacyColorMap = mapOf(
@@ -49,22 +60,15 @@ object ThemeManager {
         // 加载主题色（带类型安全检查和异常处理）
         currentThemeColor = loadThemeColorSafely(prefs)
 
+        // 加载字体缩放比例
+        currentFontScale = loadFontScaleSafely(prefs)
+
         // 加载并应用深色模式（带类型安全检查和异常处理）
         val darkMode = loadDarkModeSafely(prefs)
         AppCompatDelegate.setDefaultNightMode(darkMode)
 
-        // 注册Activity生命周期回调
-        application.registerActivityLifecycleCallbacks(object : Application.ActivityLifecycleCallbacks {
-            override fun onActivityCreated(activity: Activity, savedInstanceState: Bundle?) {
-                applyTheme(activity)
-            }
-            override fun onActivityStarted(activity: Activity) {}
-            override fun onActivityResumed(activity: Activity) {}
-            override fun onActivityPaused(activity: Activity) {}
-            override fun onActivityStopped(activity: Activity) {}
-            override fun onActivitySaveInstanceState(activity: Activity, outState: Bundle) {}
-            override fun onActivityDestroyed(activity: Activity) {}
-        })
+        // 注意：字体缩放现在通过BaseActivity.attachBaseContext统一处理
+        // 不再需要在Activity生命周期回调中单独应用
 
         isInitialized = true
     }
@@ -98,6 +102,20 @@ object ThemeManager {
         } catch (e: Exception) {
             Log.e(TAG, "读取主题颜色失败，使用默认值", e)
             DEFAULT_COLOR
+        }
+    }
+
+    /**
+     * 安全地加载字体缩放比例
+     * 处理可能的类型不兼容问题
+     * 默认值为1.0f (100%)
+     */
+    private fun loadFontScaleSafely(prefs: SharedPreferences): Float {
+        return try {
+            prefs.getFloat(KEY_FONT_SIZE_PERCENT, DEFAULT_FONT_SIZE_PERCENT)
+        } catch (e: Exception) {
+            Log.e(TAG, "读取字体缩放比例失败，使用默认值", e)
+            DEFAULT_FONT_SIZE_PERCENT
         }
     }
 
@@ -139,10 +157,118 @@ object ThemeManager {
     fun getThemeColor(): Int = currentThemeColor
 
     /**
+     * 获取当前字体缩放比例 (0.5 - 1.5)
+     */
+    fun getFontScale(): Float = currentFontScale
+
+    /**
+     * 设置字体缩放比例
+     */
+    fun setFontScale(scale: Float) {
+        currentFontScale = scale.coerceIn(0.5f, 1.5f)
+    }
+
+    /**
      * 设置主题颜色
      */
     fun setThemeColor(color: Int) {
         currentThemeColor = color
+        // 通知所有监听器主题颜色已变化
+        notifyThemeColorChanged(color)
+    }
+
+    /**
+     * 添加主题颜色变化监听器
+     */
+    fun addThemeColorChangeListener(listener: OnThemeColorChangeListener) {
+        if (!themeColorListeners.contains(listener)) {
+            themeColorListeners.add(listener)
+        }
+    }
+
+    /**
+     * 移除主题颜色变化监听器
+     */
+    fun removeThemeColorChangeListener(listener: OnThemeColorChangeListener) {
+        themeColorListeners.remove(listener)
+    }
+
+    /**
+     * 通知所有监听器主题颜色已变化
+     */
+    private fun notifyThemeColorChanged(color: Int) {
+        themeColorListeners.forEach { listener ->
+            try {
+                listener.onThemeColorChanged(color)
+            } catch (e: Exception) {
+                Log.e(TAG, "通知主题颜色变化失败", e)
+            }
+        }
+    }
+
+    /**
+     * 应用主题颜色到视图
+     * 用于在运行时动态更新视图的主题色
+     */
+    fun applyThemeColorToView(view: View) {
+        when (view) {
+            is com.google.android.material.floatingactionbutton.FloatingActionButton -> {
+                view.backgroundTintList = android.content.res.ColorStateList.valueOf(currentThemeColor)
+            }
+            is com.google.android.material.button.MaterialButton -> {
+                if (view.tag == "primary") {
+                    view.backgroundTintList = android.content.res.ColorStateList.valueOf(currentThemeColor)
+                }
+            }
+            is com.google.android.material.slider.Slider -> {
+                view.trackActiveTintList = android.content.res.ColorStateList.valueOf(currentThemeColor)
+                view.thumbTintList = android.content.res.ColorStateList.valueOf(currentThemeColor)
+            }
+            is com.google.android.material.switchmaterial.SwitchMaterial -> {
+                view.thumbTintList = createSwitchThumbColorStateList()
+                view.trackTintList = createSwitchTrackColorStateList()
+            }
+            is android.widget.ImageView -> {
+                if (view.tag == "theme_icon") {
+                    view.setColorFilter(currentThemeColor)
+                }
+            }
+            is android.widget.TextView -> {
+                if (view.tag == "theme_text") {
+                    view.setTextColor(currentThemeColor)
+                }
+            }
+        }
+    }
+
+    /**
+     * 创建开关滑块颜色状态列表
+     */
+    fun createSwitchThumbColorStateList(): android.content.res.ColorStateList {
+        val states = arrayOf(
+            intArrayOf(android.R.attr.state_checked),
+            intArrayOf(-android.R.attr.state_checked)
+        )
+        val colors = intArrayOf(
+            currentThemeColor,
+            Color.WHITE
+        )
+        return android.content.res.ColorStateList(states, colors)
+    }
+
+    /**
+     * 创建开关轨道颜色状态列表
+     */
+    fun createSwitchTrackColorStateList(): android.content.res.ColorStateList {
+        val states = arrayOf(
+            intArrayOf(android.R.attr.state_checked),
+            intArrayOf(-android.R.attr.state_checked)
+        )
+        val colors = intArrayOf(
+            getThemeColorWithAlpha(128),
+            Color.parseColor("#FFE0E0E0")
+        )
+        return android.content.res.ColorStateList(states, colors)
     }
 
     /**
@@ -180,45 +306,11 @@ object ThemeManager {
     }
 
     /**
-     * 应用字体大小到所有TextView
-     */
-    fun applyFontSizeToActivity(activity: Activity) {
-        try {
-            val fontSize = getFontSize(activity)
-            val rootView = activity.window.decorView.findViewById<ViewGroup>(android.R.id.content)
-            applyFontSizeToView(rootView, fontSize)
-        } catch (e: Exception) {
-            Log.e(TAG, "应用字体大小失败", e)
-        }
-    }
-
-    /**
-     * 递归应用字体大小到所有TextView
-     */
-    private fun applyFontSizeToView(view: View, fontSize: Float) {
-        when (view) {
-            is TextView -> {
-                // 只调整正文字体大小，不调整标题和小字
-                @Suppress("DEPRECATION")
-                val currentSize = view.textSize / view.resources.displayMetrics.scaledDensity
-                if (currentSize >= 14 && currentSize <= 20) {
-                    view.setTextSize(TypedValue.COMPLEX_UNIT_SP, fontSize)
-                }
-            }
-            is ViewGroup -> {
-                for (i in 0 until view.childCount) {
-                    applyFontSizeToView(view.getChildAt(i), fontSize)
-                }
-            }
-        }
-    }
-
-    /**
      * 应用完整主题到Activity
+     * 注意：字体缩放现在通过Application配置统一处理
      */
     fun applyTheme(activity: Activity) {
-        // 应用字体大小
-        applyFontSizeToActivity(activity)
+        // 字体缩放已通过Application配置处理，这里不需要额外操作
     }
 
     /**

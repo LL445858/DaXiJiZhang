@@ -11,6 +11,7 @@ import com.example.daxijizhang.R
 import com.example.daxijizhang.databinding.ActivityInfoSettingsBinding
 import com.example.daxijizhang.ui.base.BaseActivity
 import com.example.daxijizhang.util.ImagePickerUtil
+import com.example.daxijizhang.util.ThemeManager
 import com.example.daxijizhang.util.ViewUtil
 
 class InfoSettingsActivity : BaseActivity() {
@@ -53,6 +54,16 @@ class InfoSettingsActivity : BaseActivity() {
     }
 
     private fun setupSliders() {
+        val themeColor = ThemeManager.getThemeColor()
+
+        // 设置滑动条主题颜色
+        binding.sliderBlur.trackActiveTintList = android.content.res.ColorStateList.valueOf(themeColor)
+        binding.sliderBlur.thumbTintList = android.content.res.ColorStateList.valueOf(themeColor)
+        binding.sliderBlur.tickTintList = android.content.res.ColorStateList.valueOf(themeColor)
+        binding.sliderOverlay.trackActiveTintList = android.content.res.ColorStateList.valueOf(themeColor)
+        binding.sliderOverlay.thumbTintList = android.content.res.ColorStateList.valueOf(themeColor)
+        binding.sliderOverlay.tickTintList = android.content.res.ColorStateList.valueOf(themeColor)
+
         // 高斯模糊滑块
         binding.sliderBlur.addOnChangeListener { _, value, fromUser ->
             if (fromUser) {

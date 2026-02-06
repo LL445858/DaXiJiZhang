@@ -26,6 +26,7 @@ import com.example.daxijizhang.data.repository.BillRepository
 import com.example.daxijizhang.databinding.DialogFilterBinding
 import com.example.daxijizhang.databinding.DialogSortBinding
 import com.example.daxijizhang.databinding.FragmentBillsBinding
+import com.example.daxijizhang.util.ThemeManager
 import com.example.daxijizhang.util.ViewUtil.fadeIn
 import com.example.daxijizhang.util.ViewUtil.setOnOptimizedClickListener
 import java.text.SimpleDateFormat
@@ -78,6 +79,16 @@ class BillsFragment : Fragment() {
         setupRecyclerView()
         setupObservers()
         setupListeners()
+        applyThemeColor()
+    }
+
+    /**
+     * 应用主题颜色到视图
+     */
+    private fun applyThemeColor() {
+        val themeColor = ThemeManager.getThemeColor()
+        // 设置加号按钮背景颜色
+        binding.fabAddBill.backgroundTintList = android.content.res.ColorStateList.valueOf(themeColor)
     }
 
     private fun setupStatusBarPadding() {
@@ -293,6 +304,11 @@ class BillsFragment : Fragment() {
             setBackgroundDrawable(ContextCompat.getDrawable(requireContext(), R.drawable.bg_dialog_rounded))
         }
 
+        // 应用主题颜色到按钮
+        val themeColor = ThemeManager.getThemeColor()
+        dialogBinding.btnApplyFilter.backgroundTintList = android.content.res.ColorStateList.valueOf(themeColor)
+        dialogBinding.btnClearFilter.setTextColor(themeColor)
+
         // 应用筛选按钮
         dialogBinding.btnApplyFilter.setOnClickListener {
             // 验证并应用开始日期筛选
@@ -386,7 +402,7 @@ class BillsFragment : Fragment() {
 
     private fun updateFilterButtonState(isActive: Boolean) {
         val color = if (isActive) {
-            ContextCompat.getColor(requireContext(), R.color.primary)
+            ThemeManager.getThemeColor()
         } else {
             ContextCompat.getColor(requireContext(), R.color.text_primary)
         }

@@ -31,6 +31,7 @@ import com.example.daxijizhang.data.repository.BillRepository
 import com.example.daxijizhang.databinding.ActivityDataMigrationBinding
 import com.example.daxijizhang.databinding.DialogJianguoyunAccountBinding
 import com.example.daxijizhang.databinding.ItemSyncLogBinding
+import com.example.daxijizhang.util.ThemeManager
 import com.example.daxijizhang.util.ViewUtil
 import com.example.daxijizhang.util.WebDAVUtil
 import kotlinx.coroutines.Dispatchers
@@ -86,6 +87,31 @@ class DataMigrationActivity : AppCompatActivity() {
         setupForwardTransition()
         loadSettings()
         updateAccountStatus()
+        applyThemeColor()
+    }
+
+    /**
+     * 应用主题颜色到开关
+     */
+    private fun applyThemeColor() {
+        // 设置开关颜色
+        binding.switchAutoLocalBackup.thumbTintList = ThemeManager.createSwitchThumbColorStateList()
+        binding.switchAutoLocalBackup.trackTintList = ThemeManager.createSwitchTrackColorStateList()
+        binding.switchAutoBackup.thumbTintList = ThemeManager.createSwitchThumbColorStateList()
+        binding.switchAutoBackup.trackTintList = ThemeManager.createSwitchTrackColorStateList()
+    }
+
+    /**
+     * 应用主题颜色到TextInputLayout
+     */
+    private fun applyInputLayoutThemeColor(textInputLayout: com.google.android.material.textfield.TextInputLayout, color: Int) {
+        // 设置边框颜色
+        textInputLayout.boxStrokeColor = color
+        // 设置标题颜色
+        textInputLayout.hintTextColor = android.content.res.ColorStateList.valueOf(color)
+        // 设置光标颜色
+        textInputLayout.editText?.textCursorDrawable = null
+        textInputLayout.editText?.highlightColor = color
     }
 
     private fun setupBackPressHandler() {
@@ -233,6 +259,7 @@ class DataMigrationActivity : AppCompatActivity() {
     }
 
     private fun showJianguoyunAccountDialog() {
+        val themeColor = ThemeManager.getThemeColor()
         val dialogBinding = DialogJianguoyunAccountBinding.inflate(LayoutInflater.from(this))
 
         val savedUsername = prefs.getString("webdav_username", "") ?: ""
@@ -243,6 +270,16 @@ class DataMigrationActivity : AppCompatActivity() {
         val dialog = AlertDialog.Builder(this)
             .setView(dialogBinding.root)
             .create()
+
+        dialog.window?.setBackgroundDrawableResource(R.drawable.bg_dialog_rounded)
+
+        // 应用主题颜色到输入框
+        applyInputLayoutThemeColor(dialogBinding.tilUsername, themeColor)
+        applyInputLayoutThemeColor(dialogBinding.tilPassword, themeColor)
+
+        // 应用主题颜色到按钮
+        dialogBinding.btnVerify.backgroundTintList = android.content.res.ColorStateList.valueOf(themeColor)
+        dialogBinding.btnSave.backgroundTintList = android.content.res.ColorStateList.valueOf(themeColor)
 
         dialogBinding.btnVerify.setOnClickListener {
             val username = dialogBinding.etUsername.text.toString().trim()

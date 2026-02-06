@@ -6,7 +6,6 @@ import android.os.Bundle
 import android.view.View
 import android.view.WindowManager
 import androidx.activity.OnBackPressedCallback
-import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.app.AppCompatDelegate
 import androidx.core.content.ContextCompat
 import androidx.core.view.WindowCompat
@@ -16,6 +15,7 @@ import androidx.navigation.ui.setupWithNavController
 import com.example.daxijizhang.databinding.ActivityMainBinding
 import com.example.daxijizhang.data.database.AppDatabase
 import com.example.daxijizhang.data.repository.BillRepository
+import com.example.daxijizhang.ui.base.BaseActivity
 import com.example.daxijizhang.util.ThemeManager
 import com.example.daxijizhang.util.WebDAVUtil
 import kotlinx.coroutines.Dispatchers
@@ -28,7 +28,7 @@ import java.util.*
  * 应用主Activity
  * 管理底部导航栏和Fragment导航
  */
-class MainActivity : AppCompatActivity() {
+class MainActivity : BaseActivity() {
 
     private lateinit var binding: ActivityMainBinding
     private lateinit var prefs: SharedPreferences
@@ -36,21 +36,29 @@ class MainActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        
+
         setupStatusBar()
-        
+
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
         prefs = getSharedPreferences("user_settings", MODE_PRIVATE)
-        
+
         initRepository()
         setupNavigation()
         setupBackPressHandler()
-        
+
         playEntranceAnimation()
-        
-        ThemeManager.applyTheme(this)
+
+        // 注册到Application
+        (application as? DaxiApplication)?.registerMainActivity(this)
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        // 从Application注销
+        (application as? DaxiApplication)?.unregisterMainActivity()
+        performAutoSync()
     }
 
     private fun initRepository() {
@@ -117,11 +125,14 @@ class MainActivity : AppCompatActivity() {
 
         binding.bottomNav.setupWithNavController(navController)
 
+        // 设置底部导航栏选中颜色为主题色
+        applyBottomNavThemeColor()
+
         // 设置底部导航监听，用于处理导航事件
         binding.bottomNav.setOnItemSelectedListener { item ->
             // 添加触觉反馈
             binding.bottomNav.performHapticFeedback(android.view.HapticFeedbackConstants.VIRTUAL_KEY)
-            
+
             when (item.itemId) {
                 R.id.navigation_bills -> {
                     updateStatusBarForDestination(R.id.navigation_bills)
@@ -141,11 +152,38 @@ class MainActivity : AppCompatActivity() {
                 else -> false
             }
         }
-        
+
         // 监听导航变化，更新状态栏颜色
         navController.addOnDestinationChangedListener { _, destination, _ ->
             updateStatusBarForDestination(destination.id)
         }
+    }
+
+    /**
+     * 应用底部导航栏主题颜色
+     */
+    private fun applyBottomNavThemeColor() {
+        val themeColor = ThemeManager.getThemeColor()
+        // 创建颜色状态列表
+        val colorStateList = android.content.res.ColorStateList(
+            arrayOf(
+                intArrayOf(android.R.attr.state_checked),
+                intArrayOf(-android.R.attr.state_checked)
+            ),
+            intArrayOf(
+                themeColor,
+                ContextCompat.getColor(this, R.color.text_secondary)
+            )
+        )
+        binding.bottomNav.itemIconTintList = colorStateList
+        binding.bottomNav.itemTextColor = colorStateList
+    }
+
+    /**
+     * 重新应用主题颜色（当主题颜色变化时调用）
+     */
+    fun reapplyThemeColor() {
+        applyBottomNavThemeColor()
     }
     
     /**
@@ -194,11 +232,6 @@ class MainActivity : AppCompatActivity() {
             .setStartDelay(100)
             .setInterpolator(android.view.animation.DecelerateInterpolator())
             .start()
-    }
-
-    override fun onDestroy() {
-        super.onDestroy()
-        performAutoSync()
     }
 
     private fun performAutoSync() {

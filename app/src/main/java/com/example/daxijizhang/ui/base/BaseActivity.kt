@@ -1,6 +1,7 @@
 package com.example.daxijizhang.ui.base
 
 import android.app.Activity
+import android.content.res.Configuration
 import android.os.Build
 import android.os.Bundle
 import android.window.OnBackInvokedDispatcher
@@ -8,18 +9,36 @@ import androidx.activity.OnBackPressedCallback
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityOptionsCompat
 import androidx.core.os.BuildCompat
+import com.example.daxijizhang.DaxiApplication
 import com.example.daxijizhang.R
+import com.example.daxijizhang.util.ThemeManager
 
 /**
  * 基础Activity类
- * 统一处理返回按钮动画
+ * 统一处理返回按钮动画和全局字体缩放
  */
-abstract class BaseActivity : AppCompatActivity() {
+abstract class BaseActivity : AppCompatActivity(), DaxiApplication.OnFontScaleChangeListener {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setupBackPressHandler()
         setupForwardTransition()
+        // 注册字体缩放监听器
+        (application as? DaxiApplication)?.addFontScaleListener(this)
+    }
+
+    /**
+     * 字体缩放变化回调
+     */
+    override fun onFontScaleChanged(scale: Float) {
+        // 重新创建Activity以应用新的字体缩放
+        recreate()
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        // 注销字体缩放监听器
+        (application as? DaxiApplication)?.removeFontScaleListener(this)
     }
 
     private fun setupBackPressHandler() {

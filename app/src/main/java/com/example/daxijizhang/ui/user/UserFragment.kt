@@ -25,13 +25,14 @@ import com.example.daxijizhang.ui.settings.InfoSettingsActivity
 import com.example.daxijizhang.ui.settings.MoreSettingsActivity
 import com.example.daxijizhang.util.BlurUtil
 import com.example.daxijizhang.util.ImagePickerUtil
+import com.example.daxijizhang.util.ThemeManager
 import com.example.daxijizhang.util.ViewUtil
 
 /**
  * 用户界面 - 作为一级导航界面
  * 包含用户头像、昵称展示和设置功能入口
  */
-class UserFragment : Fragment() {
+class UserFragment : Fragment(), ThemeManager.OnThemeColorChangeListener {
 
     private var _binding: FragmentUserBinding? = null
     private val binding get() = _binding!!
@@ -48,11 +49,35 @@ class UserFragment : Fragment() {
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
-        
+
         setupStatusBarPadding()
         initViews()
         setupClickListeners()
         loadUserData()
+        applyThemeColor()
+
+        // 注册主题颜色变化监听器
+        ThemeManager.addThemeColorChangeListener(this)
+    }
+
+    /**
+     * 主题颜色变化回调
+     */
+    override fun onThemeColorChanged(color: Int) {
+        // 实时更新图标颜色
+        applyThemeColor()
+    }
+
+    /**
+     * 应用主题颜色到图标
+     */
+    private fun applyThemeColor() {
+        val themeColor = ThemeManager.getThemeColor()
+        // 设置四个设置图标颜色
+        binding.ivInfoSettings.setColorFilter(themeColor)
+        binding.ivDisplaySettings.setColorFilter(themeColor)
+        binding.ivDataMigration.setColorFilter(themeColor)
+        binding.ivRemoteSync.setColorFilter(themeColor)
     }
 
     private fun setupStatusBarPadding() {
@@ -135,33 +160,31 @@ class UserFragment : Fragment() {
     }
 
     private fun showFeedbackDialog() {
-        AlertDialog.Builder(requireContext())
+        val themeColor = ThemeManager.getThemeColor()
+        val dialog = AlertDialog.Builder(requireContext())
             .setMessage(R.string.feedback_message)
             .setPositiveButton(R.string.confirm) { dialog, _ ->
                 dialog.dismiss()
             }
-            .show()
-            .apply {
-                // 设置确认按钮颜色为主题色
-                getButton(AlertDialog.BUTTON_POSITIVE)?.setTextColor(
-                    ContextCompat.getColor(requireContext(), R.color.primary)
-                )
-            }
+            .create()
+        dialog.window?.setBackgroundDrawableResource(R.drawable.bg_dialog_rounded)
+        dialog.show()
+        // 设置确认按钮颜色为主题色
+        dialog.getButton(AlertDialog.BUTTON_POSITIVE)?.setTextColor(themeColor)
     }
 
     private fun showDonationDialog() {
-        AlertDialog.Builder(requireContext())
+        val themeColor = ThemeManager.getThemeColor()
+        val dialog = AlertDialog.Builder(requireContext())
             .setMessage(R.string.donation_message)
             .setPositiveButton(R.string.confirm) { dialog, _ ->
                 dialog.dismiss()
             }
-            .show()
-            .apply {
-                // 设置确认按钮颜色为主题色
-                getButton(AlertDialog.BUTTON_POSITIVE)?.setTextColor(
-                    ContextCompat.getColor(requireContext(), R.color.primary)
-                )
-            }
+            .create()
+        dialog.window?.setBackgroundDrawableResource(R.drawable.bg_dialog_rounded)
+        dialog.show()
+        // 设置确认按钮颜色为主题色
+        dialog.getButton(AlertDialog.BUTTON_POSITIVE)?.setTextColor(themeColor)
     }
 
     private fun loadUserData() {
@@ -306,6 +329,8 @@ class UserFragment : Fragment() {
 
     override fun onDestroyView() {
         super.onDestroyView()
+        // 注销主题颜色变化监听器
+        ThemeManager.removeThemeColorChangeListener(this)
         // 回收原始背景图片
         originalBackgroundBitmap?.recycle()
         originalBackgroundBitmap = null

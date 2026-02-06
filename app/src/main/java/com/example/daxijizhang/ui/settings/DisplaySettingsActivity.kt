@@ -22,10 +22,12 @@ class DisplaySettingsActivity : BaseActivity(), ColorPickerDialogListener {
     private lateinit var binding: ActivityDisplaySettingsBinding
     private lateinit var prefs: SharedPreferences
 
-    private var currentFontSize = 16f
+    private var currentFontSizePercent = 100f // 字体大小百分比 (50-150)
     private var currentHue = 210f // 默认蓝色色相
     private var selectedColor = Color.parseColor("#FF2196F3") // 默认蓝色
     private var tempSelectedColor = selectedColor // 临时选择的颜色
+    private var fontSizeChangeHandler: android.os.Handler? = null
+    private var fontSizeChangeRunnable: Runnable? = null
 
     // 深色模式选项
     private val darkModeOptions = listOf("始终关闭", "始终开启", "跟随系统")
@@ -42,8 +44,10 @@ class DisplaySettingsActivity : BaseActivity(), ColorPickerDialogListener {
         private const val KEY_THEME_COLOR_HUE = "theme_color_hue"
         private const val KEY_DARK_MODE = "dark_mode"
         private const val KEY_FONT_SIZE = "font_size"
+        private const val KEY_FONT_SIZE_PERCENT = "font_size_percent"
         private const val DEFAULT_HUE = 210f
         private const val DEFAULT_FONT_SIZE = 16f
+        private const val DEFAULT_FONT_SIZE_PERCENT = 100f // 默认100%
         private const val DEFAULT_COLOR = 0xFF2196F3.toInt()
         private const val COLOR_PICKER_DIALOG_ID = 0
 
@@ -90,14 +94,38 @@ class DisplaySettingsActivity : BaseActivity(), ColorPickerDialogListener {
             onBackPressedDispatcher.onBackPressed()
         }
 
-        // 设置字体大小滑动条监听
-        binding.sliderFontSize.addOnChangeListener { _, value, _ ->
-            currentFontSize = value
-            updateFontSizeDisplay(value)
+        // 设置字体大小滑动条监听 - 延迟1秒后保存
+        binding.sliderFontSize.addOnChangeListener { _, value, fromUser ->
+            if (fromUser) {
+                currentFontSizePercent = value
+                // 实时更新百分比显示
+                binding.tvFontSizePercent.text = "${value.toInt()}%"
+                // 取消之前的延迟任务
+                fontSizeChangeRunnable?.let { fontSizeChangeHandler?.removeCallbacks(it) }
+                // 创建新的延迟任务
+                fontSizeChangeRunnable = Runnable {
+                    applyFontSizePercent()
+                }
+                fontSizeChangeHandler = android.os.Handler(android.os.Looper.getMainLooper())
+                fontSizeChangeHandler?.postDelayed(fontSizeChangeRunnable!!, 1000)
+            }
         }
 
         // 设置深色模式下拉框
         setupDarkModeSpinner()
+
+        // 应用主题颜色到字体大小滑动条
+        applyThemeColorToFontSlider()
+    }
+
+    /**
+     * 应用主题颜色到字体大小滑动条
+     */
+    private fun applyThemeColorToFontSlider() {
+        val themeColor = ThemeManager.getThemeColor()
+        binding.sliderFontSize.trackActiveTintList = android.content.res.ColorStateList.valueOf(themeColor)
+        binding.sliderFontSize.thumbTintList = android.content.res.ColorStateList.valueOf(themeColor)
+        binding.sliderFontSize.tickTintList = android.content.res.ColorStateList.valueOf(themeColor)
     }
 
     private fun setupClickListeners() {
@@ -134,12 +162,6 @@ class DisplaySettingsActivity : BaseActivity(), ColorPickerDialogListener {
             }
         }
 
-        // 应用字体大小
-        binding.btnApplyFontSize.setOnClickListener {
-            ViewUtil.applyClickAnimation(it) {
-                applyFontSize()
-            }
-        }
     }
 
     private fun showColorPickerDialog() {
@@ -175,6 +197,10 @@ class DisplaySettingsActivity : BaseActivity(), ColorPickerDialogListener {
             currentHue = colorToHue(color)
             saveThemeColor(selectedColor, currentHue)
             updateThemeColorPreview(selectedColor)
+
+            // 通知MainActivity更新底部导航栏颜色
+            (application as? com.example.daxijizhang.DaxiApplication)?.notifyThemeColorChanged(color)
+
             Toast.makeText(this, R.string.theme_color_applied, Toast.LENGTH_SHORT).show()
         }
     }
@@ -204,14 +230,14 @@ class DisplaySettingsActivity : BaseActivity(), ColorPickerDialogListener {
         val darkModeIndex = darkModeValues.indexOf(darkMode).takeIf { it >= 0 } ?: 0
         binding.spinnerDarkMode.setText(darkModeOptions[darkModeIndex], false)
 
-        // 加载字体大小
-        currentFontSize = try {
-            prefs.getFloat(KEY_FONT_SIZE, DEFAULT_FONT_SIZE)
+        // 加载字体大小百分比 (50-150)
+        currentFontSizePercent = try {
+            prefs.getFloat(KEY_FONT_SIZE_PERCENT, DEFAULT_FONT_SIZE_PERCENT)
         } catch (e: Exception) {
-            DEFAULT_FONT_SIZE
+            DEFAULT_FONT_SIZE_PERCENT
         }
-        binding.sliderFontSize.value = currentFontSize
-        updateFontSizeDisplay(currentFontSize)
+        binding.sliderFontSize.value = currentFontSizePercent
+        binding.tvFontSizePercent.text = "${currentFontSizePercent.toInt()}%"
 
         // 设置页面标题栏跟随深色模式
         updateToolbarForDarkMode()
@@ -321,16 +347,33 @@ class DisplaySettingsActivity : BaseActivity(), ColorPickerDialogListener {
         AppCompatDelegate.setDefaultNightMode(mode)
     }
 
-    private fun updateFontSizeDisplay(size: Float) {
-        binding.tvCurrentFontSize.text = "${size.toInt()}sp"
-        binding.tvPreviewText.textSize = size
+    /**
+     * 应用字体大小百分比设置
+     */
+    private fun applyFontSizePercent() {
+        // 将百分比转换为缩放比例 (50-150 -> 0.5-1.5)
+        val scale = currentFontSizePercent / 100f
+
+        // 保存字体大小百分比
+        prefs.edit().putFloat(KEY_FONT_SIZE_PERCENT, currentFontSizePercent).apply()
+        // 同时保存缩放比例
+        prefs.edit().putFloat("font_scale", scale).apply()
+        // 同时保存到原字体大小变量中（转换为sp值）
+        val fontSizeSp = 16f * scale
+        prefs.edit().putFloat(KEY_FONT_SIZE, fontSizeSp).apply()
+
+        // 更新ThemeManager中的字体缩放比例
+        ThemeManager.setFontScale(scale)
+
+        Toast.makeText(this, "字体大小已更新: ${currentFontSizePercent.toInt()}%", Toast.LENGTH_SHORT).show()
+
+        // 通知所有Activity刷新字体大小（通过recreate重新创建Activity）
+        (application as? com.example.daxijizhang.DaxiApplication)?.notifyFontScaleChanged(scale)
     }
 
-    private fun applyFontSize() {
-        prefs.edit().putFloat(KEY_FONT_SIZE, currentFontSize).apply()
-        Toast.makeText(this, R.string.font_size_applied, Toast.LENGTH_SHORT).show()
-
-        // 立即应用字体大小到当前Activity
-        ThemeManager.applyFontSizeToActivity(this)
+    override fun onDestroy() {
+        super.onDestroy()
+        // 取消未执行的延迟任务
+        fontSizeChangeRunnable?.let { fontSizeChangeHandler?.removeCallbacks(it) }
     }
 }
