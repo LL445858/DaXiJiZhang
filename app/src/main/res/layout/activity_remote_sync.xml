@@ -76,7 +76,7 @@
                             <TextView
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
-                                android:text="@string/project_dictionary"
+                                android:text="项目词典"
                                 android:textColor="@color/text_primary"
                                 android:textSize="16sp" />
 

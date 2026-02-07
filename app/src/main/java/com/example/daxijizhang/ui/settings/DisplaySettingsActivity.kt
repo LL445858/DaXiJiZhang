@@ -217,6 +217,9 @@ class DisplaySettingsActivity : BaseActivity(), ColorPickerDialogListener {
             saveThemeColor(selectedColor, currentHue)
             updateThemeColorPreview(selectedColor)
 
+            // 立即更新滑动条颜色以反映新的主题色
+            applyThemeColorToFontSlider()
+
             // 通知MainActivity更新底部导航栏颜色
             (application as? com.example.daxijizhang.DaxiApplication)?.notifyThemeColorChanged(color)
 

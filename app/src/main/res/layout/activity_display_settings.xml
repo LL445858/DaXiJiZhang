@@ -186,7 +186,7 @@
                         <TextView
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:text="大小"
+                            android:text="大小比例"
                             android:textColor="@color/text_primary"
                             android:textSize="14sp"
                             android:textStyle="bold" />
@@ -199,8 +199,8 @@
                             android:layout_weight="1"
                             android:layout_marginStart="16dp"
                             android:layout_marginEnd="8dp"
-                            android:valueFrom="50"
-                            android:valueTo="150"
+                            android:valueFrom="60"
+                            android:valueTo="140"
                             android:stepSize="5"
                             android:value="100"
                             app:trackHeight="2dp"

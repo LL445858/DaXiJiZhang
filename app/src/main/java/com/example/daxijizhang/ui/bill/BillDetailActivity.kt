@@ -454,10 +454,15 @@ class BillDetailActivity : BaseActivity() {
     private fun syncEditToView() {
         binding.tvStartDate.text = binding.etStartDate.text.toString()
         binding.tvEndDate.text = binding.etEndDate.text.toString()
-        binding.tvCommunity.text = binding.etCommunity.text.toString()
-        binding.tvPhase.text = binding.etPhase.text.toString()
-        binding.tvBuilding.text = binding.etBuilding.text.toString()
-        binding.tvRoom.text = binding.etRoom.text.toString()
+        
+        // 构建小区信息字符串
+        val communityInfo = buildCommunityInfo(
+            binding.etCommunity.text.toString(),
+            binding.etPhase.text.toString(),
+            binding.etBuilding.text.toString(),
+            binding.etRoom.text.toString()
+        )
+        binding.tvCommunityInfo.text = communityInfo
         
         val remark = binding.etRemark.text.toString()
         if (remark.isNotEmpty()) {
@@ -474,6 +479,42 @@ class BillDetailActivity : BaseActivity() {
     private fun syncViewToEdit() {
         // 编辑模式的数据已经保存在EditText中，不需要额外同步
         // 这个方法用于确保数据一致性
+    }
+    
+    /**
+     * 构建小区信息字符串
+     * 格式：{小区名} {期数}期 {楼栋号}栋{门牌号}
+     * 空字段自动跳过
+     */
+    private fun buildCommunityInfo(
+        communityName: String,
+        phase: String?,
+        buildingNumber: String?,
+        roomNumber: String?
+    ): String {
+        val sb = StringBuilder()
+        
+        // 小区名
+        sb.append(communityName)
+        
+        // 期数
+        if (!phase.isNullOrBlank()) {
+            if (sb.isNotEmpty()) sb.append(" ")
+            sb.append(phase).append("期")
+        }
+        
+        // 楼栋号
+        if (!buildingNumber.isNullOrBlank()) {
+            if (sb.isNotEmpty()) sb.append(" ")
+            sb.append(buildingNumber).append("栋")
+        }
+        
+        // 门牌号
+        if (!roomNumber.isNullOrBlank()) {
+            sb.append(roomNumber)
+        }
+        
+        return sb.toString()
     }
 
     private fun isFieldEditable(field: android.widget.EditText): Boolean {
@@ -522,10 +563,16 @@ class BillDetailActivity : BaseActivity() {
                 // 初始化查看模式的文本
                 binding.tvStartDate.text = dateFormat.format(bill.startDate)
                 binding.tvEndDate.text = dateFormat.format(bill.endDate)
-                binding.tvCommunity.text = bill.communityName
-                binding.tvPhase.text = bill.phase ?: ""
-                binding.tvBuilding.text = bill.buildingNumber ?: ""
-                binding.tvRoom.text = bill.roomNumber ?: ""
+                
+                // 构建小区信息字符串：{小区名} {期数}期 {楼栋号}栋{门牌号}
+                val communityInfo = buildCommunityInfo(
+                    bill.communityName,
+                    bill.phase,
+                    bill.buildingNumber,
+                    bill.roomNumber
+                )
+                binding.tvCommunityInfo.text = communityInfo
+                
                 val remark = bill.remark ?: ""
                 if (remark.isNotEmpty()) {
                     binding.layoutRemarkView.visibility = View.VISIBLE
