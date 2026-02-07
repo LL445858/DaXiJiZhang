@@ -31,7 +31,7 @@
             android:orientation="vertical"
             android:padding="16dp">
 
-            <!-- 项目词典模块 -->
+            <!-- 项目填写模块 -->
             <com.google.android.material.card.MaterialCardView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
@@ -45,7 +45,7 @@
                     android:orientation="vertical"
                     android:padding="16dp">
 
-                    <!-- 模块标题 -->
+                    <!-- 模块标题：与数据备份页面"本地备份"标题样式一致 -->
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
@@ -54,7 +54,7 @@
                         android:textSize="16sp"
                         android:textStyle="bold" />
 
-                    <!-- 项目词典条目 -->
+                    <!-- 项目词典条目：与数据备份页面"导出数据"条目样式一致 -->
                     <LinearLayout
                         android:id="@+id/item_project_dictionary"
                         android:layout_width="match_parent"
@@ -73,13 +73,16 @@
                             android:layout_weight="1"
                             android:orientation="vertical">
 
+                            <!-- 条目标题：14sp, bold, text_primary -->
                             <TextView
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
                                 android:text="项目词典"
                                 android:textColor="@color/text_primary"
-                                android:textSize="16sp" />
+                                android:textSize="14sp"
+                                android:textStyle="bold" />
 
+                            <!-- 条目描述：12sp, text_secondary -->
                             <TextView
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
@@ -90,10 +93,11 @@
 
                         </LinearLayout>
 
+                        <!-- 箭头按钮：16dp x 16dp, ic_arrow_right_small, text_hint -->
                         <ImageView
-                            android:layout_width="24dp"
-                            android:layout_height="24dp"
-                            android:src="@drawable/ic_arrow_right"
+                            android:layout_width="16dp"
+                            android:layout_height="16dp"
+                            android:src="@drawable/ic_arrow_right_small"
                             app:tint="@color/text_hint"
                             android:contentDescription="@null" />
 
