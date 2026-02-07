@@ -47,7 +47,7 @@ class DisplaySettingsActivity : BaseActivity(), ColorPickerDialogListener {
         private const val KEY_FONT_SIZE_PERCENT = "font_size_percent"
         private const val DEFAULT_HUE = 210f
         private const val DEFAULT_FONT_SIZE = 16f
-        private const val DEFAULT_FONT_SIZE_PERCENT = 100f // 默认100%
+        private const val DEFAULT_FONT_SIZE_PERCENT = 90f // 默认90%
         private const val DEFAULT_COLOR = 0xFF2196F3.toInt()
         private const val COLOR_PICKER_DIALOG_ID = 0
 
@@ -145,6 +145,8 @@ class DisplaySettingsActivity : BaseActivity(), ColorPickerDialogListener {
         binding.sliderFontSize.trackActiveTintList = android.content.res.ColorStateList.valueOf(themeColor)
         binding.sliderFontSize.thumbTintList = android.content.res.ColorStateList.valueOf(themeColor)
         binding.sliderFontSize.tickTintList = android.content.res.ColorStateList.valueOf(themeColor)
+        // 应用主题色到百分比预览文字
+        binding.tvFontSizePercent.setTextColor(themeColor)
     }
 
     private fun setupClickListeners() {

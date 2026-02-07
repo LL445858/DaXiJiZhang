@@ -76,7 +76,9 @@
             android:textSize="14sp"
             android:textColor="@android:color/white"
             app:cornerRadius="8dp"
-            app:backgroundTint="?attr/colorPrimary" />
+            app:backgroundTint="?attr/colorPrimary"
+            app:elevation="0dp"
+            android:stateListAnimator="@null" />
 
         <com.google.android.material.button.MaterialButton
             android:id="@+id/btn_save"
@@ -88,7 +90,9 @@
             android:textSize="14sp"
             android:textColor="@android:color/white"
             app:cornerRadius="8dp"
-            app:backgroundTint="?attr/colorPrimary" />
+            app:backgroundTint="?attr/colorPrimary"
+            app:elevation="0dp"
+            android:stateListAnimator="@null" />
 
     </LinearLayout>
 

@@ -91,6 +91,13 @@
             android:parentActivityName=".MainActivity"
             android:theme="@style/Theme.Daxijizhang.Secondary" />
 
+        <!-- 项目词典管理页面 -->
+        <activity
+            android:name=".ui.settings.ProjectDictionaryActivity"
+            android:label="项目词典"
+            android:parentActivityName=".ui.settings.MoreSettingsActivity"
+            android:theme="@style/Theme.Daxijizhang.Secondary" />
+
     </application>
 
 </manifest>

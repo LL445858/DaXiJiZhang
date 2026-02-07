@@ -227,13 +227,13 @@ class MainActivity : BaseActivity() {
     
     /**
      * 递归查找并更新所有TextView的字体大小
-     * 使用固定基准值12sp，确保字体大小正确应用
+     * 使用固定基准值13.8sp（12sp的1.15倍），确保字体大小正确应用
      */
     private fun findAndUpdateTextViews(view: View, scale: Float) {
         when (view) {
             is android.widget.TextView -> {
-                // 使用固定基准值12sp，这是底部导航栏的标准字体大小
-                val baseSize = 12f
+                // 使用基准值13.8sp（12sp的1.15倍），这是底部导航栏调整后的字体大小
+                val baseSize = 13.8f
                 // 应用新的缩放比例
                 view.textSize = baseSize * scale
             }

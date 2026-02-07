@@ -150,7 +150,9 @@
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
-                android:text="@string/cancel" />
+                android:text="@string/cancel"
+                app:elevation="0dp"
+                android:stateListAnimator="@null" />
 
             <com.google.android.material.button.MaterialButton
                 android:id="@+id/btn_export"
@@ -159,7 +161,9 @@
                 android:layout_marginStart="8dp"
                 android:layout_weight="1"
                 android:enabled="false"
-                android:text="@string/export" />
+                android:text="@string/export"
+                app:elevation="0dp"
+                android:stateListAnimator="@null" />
 
         </LinearLayout>
 

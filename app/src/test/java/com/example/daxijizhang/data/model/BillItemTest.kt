@@ -33,8 +33,6 @@ class BillItemTest {
         val item = BillItem(
             id = 1,
             billId = 1,
-            startDate = Date(),
-            endDate = Date(),
             projectName = "地砖",
             unitPrice = 80.0,
             quantity = 50.0
@@ -48,8 +46,6 @@ class BillItemTest {
         val item = BillItem(
             id = 1,
             billId = 1,
-            startDate = Date(),
-            endDate = Date(),
             projectName = "地砖",
             unitPrice = 80.0,
             quantity = 0.0
@@ -63,8 +59,6 @@ class BillItemTest {
         val item = BillItem(
             id = 1,
             billId = 1,
-            startDate = Date(),
-            endDate = Date(),
             projectName = "地砖",
             unitPrice = 0.0,
             quantity = 50.0

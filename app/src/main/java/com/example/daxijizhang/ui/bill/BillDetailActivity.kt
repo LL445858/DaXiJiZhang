@@ -7,6 +7,7 @@ import android.text.TextWatcher
 import android.view.LayoutInflater
 import android.view.View
 import android.view.inputmethod.InputMethodManager
+import android.widget.EditText
 import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
 import androidx.core.content.ContextCompat
@@ -20,11 +21,13 @@ import com.example.daxijizhang.data.model.Bill
 import com.example.daxijizhang.data.model.BillItem
 import com.example.daxijizhang.data.model.PaymentRecord
 import com.example.daxijizhang.data.repository.BillRepository
+import com.example.daxijizhang.data.repository.ProjectDictionaryRepository
 import com.example.daxijizhang.databinding.ActivityBillDetailBinding
 import com.example.daxijizhang.databinding.DialogAddPaymentBinding
 import com.example.daxijizhang.databinding.DialogAddProjectBinding
 import com.example.daxijizhang.databinding.DialogExportBillBinding
 import com.example.daxijizhang.ui.base.BaseActivity
+import com.example.daxijizhang.ui.view.ProjectAutoCompleteView
 import com.example.daxijizhang.util.BillExportUtil
 import com.example.daxijizhang.util.ThemeManager
 import com.example.daxijizhang.util.ViewUtil.setOnOptimizedClickListener
@@ -40,6 +43,7 @@ class BillDetailActivity : BaseActivity() {
     private lateinit var binding: ActivityBillDetailBinding
     private lateinit var billItemAdapter: BillItemAdapter
     private lateinit var paymentRecordAdapter: PaymentRecordAdapter
+    private lateinit var projectDictionaryRepository: ProjectDictionaryRepository
 
     private val items = mutableListOf<BillItem>()
     private val paymentRecords = mutableListOf<PaymentRecord>()
@@ -76,6 +80,9 @@ class BillDetailActivity : BaseActivity() {
 
     private lateinit var viewModel: BillViewModel
 
+    // 智能提示相关
+    private var projectAutoCompleteView: ProjectAutoCompleteView? = null
+
     companion object {
         const val EXTRA_BILL_ID = "extra_bill_id"
     }
@@ -95,6 +102,12 @@ class BillDetailActivity : BaseActivity() {
         val database = AppDatabase.getDatabase(this)
         val repository = BillRepository(database.billDao(), database.billItemDao(), database.paymentRecordDao())
         viewModel = BillViewModel(repository)
+        projectDictionaryRepository = ProjectDictionaryRepository(database.projectDictionaryDao())
+
+        // 初始化默认项目词典数据
+        lifecycleScope.launch {
+            projectDictionaryRepository.initializeDefaultProjects()
+        }
 
         setupToolbar()
         setupRecyclerViews()
@@ -757,6 +770,10 @@ class BillDetailActivity : BaseActivity() {
         isAddProjectDialogShowing = true
 
         val dialogBinding = DialogAddProjectBinding.inflate(LayoutInflater.from(this))
+        val themeColor = ThemeManager.getThemeColor()
+
+        // 设置项目名称输入框的智能提示
+        setupProjectAutoComplete(dialogBinding.etProjectName)
 
         val textWatcher = object : TextWatcher {
             override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
@@ -773,12 +790,14 @@ class BillDetailActivity : BaseActivity() {
             .setView(dialogBinding.root)
             .create()
 
-        // 设置透明背景以显示圆角
-        dialog.window?.setBackgroundDrawableResource(android.R.color.transparent)
+        // 设置圆角背景
+        dialog.window?.setBackgroundDrawableResource(R.drawable.bg_dialog_rounded)
 
         // 对话框关闭时重置标记
         dialog.setOnDismissListener {
             isAddProjectDialogShowing = false
+            // 隐藏智能提示
+            projectAutoCompleteView?.hideSuggestions()
         }
 
         dialogBinding.btnCancel.setOnClickListener {
@@ -787,18 +806,54 @@ class BillDetailActivity : BaseActivity() {
 
         dialogBinding.btnSave.setOnClickListener {
             if (validateProjectInput(dialogBinding)) {
+                val projectName = dialogBinding.etProjectName.text.toString().trim()
                 val item = BillItem(
                     billId = billId,
-                    projectName = dialogBinding.etProjectName.text.toString().trim(),
+                    projectName = projectName,
                     unitPrice = dialogBinding.etUnitPrice.text.toString().toDouble(),
                     quantity = dialogBinding.etQuantity.text.toString().toDouble()
                 )
                 handleAddBillItem(item)
+
+                // 更新项目词典使用频率
+                lifecycleScope.launch {
+                    projectDictionaryRepository.incrementUsageCountByName(projectName)
+                }
+
                 dialog.dismiss()
             }
         }
 
         dialog.show()
+
+        // 应用主题色到弹窗元素
+        applyThemeColorToProjectDialog(dialogBinding, themeColor)
+    }
+
+    /**
+     * 应用主题色到添加项目弹窗
+     */
+    private fun applyThemeColorToProjectDialog(dialogBinding: DialogAddProjectBinding, themeColor: Int) {
+        // 取消按钮文字颜色
+        dialogBinding.btnCancel.setTextColor(themeColor)
+        // 保存按钮背景颜色
+        dialogBinding.btnSave.backgroundTintList = android.content.res.ColorStateList.valueOf(themeColor)
+        // 输入框边框颜色
+        applyInputLayoutThemeColor(dialogBinding.tilProjectName, themeColor)
+        applyInputLayoutThemeColor(dialogBinding.tilUnitPrice, themeColor)
+        applyInputLayoutThemeColor(dialogBinding.tilQuantity, themeColor)
+        applyInputLayoutThemeColor(dialogBinding.tilTotalPrice, themeColor)
+    }
+
+    /**
+     * 设置项目名称输入框的智能提示
+     */
+    private fun setupProjectAutoComplete(editText: EditText) {
+        projectAutoCompleteView = ProjectAutoCompleteView(this)
+        projectAutoCompleteView?.attachToEditText(editText, projectDictionaryRepository)
+        projectAutoCompleteView?.setOnSuggestionSelectedListener { projectName ->
+            // 候选词被选中时的回调
+        }
     }
 
     private fun showAddPaymentDialog() {
@@ -807,6 +862,7 @@ class BillDetailActivity : BaseActivity() {
         isAddPaymentDialogShowing = true
 
         val dialogBinding = DialogAddPaymentBinding.inflate(LayoutInflater.from(this))
+        val themeColor = ThemeManager.getThemeColor()
 
         var paymentDate: Date? = null
 
@@ -821,8 +877,8 @@ class BillDetailActivity : BaseActivity() {
             .setView(dialogBinding.root)
             .create()
 
-        // 设置透明背景以显示圆角
-        dialog.window?.setBackgroundDrawableResource(android.R.color.transparent)
+        // 设置圆角背景
+        dialog.window?.setBackgroundDrawableResource(R.drawable.bg_dialog_rounded)
 
         // 对话框关闭时重置标记
         dialog.setOnDismissListener {
@@ -847,6 +903,22 @@ class BillDetailActivity : BaseActivity() {
         }
 
         dialog.show()
+
+        // 应用主题色到弹窗元素
+        applyThemeColorToPaymentDialog(dialogBinding, themeColor)
+    }
+
+    /**
+     * 应用主题色到添加记录弹窗
+     */
+    private fun applyThemeColorToPaymentDialog(dialogBinding: DialogAddPaymentBinding, themeColor: Int) {
+        // 取消按钮文字颜色
+        dialogBinding.btnCancel.setTextColor(themeColor)
+        // 保存按钮背景颜色
+        dialogBinding.btnSave.backgroundTintList = android.content.res.ColorStateList.valueOf(themeColor)
+        // 输入框边框颜色
+        applyInputLayoutThemeColor(dialogBinding.tilPaymentDate, themeColor)
+        applyInputLayoutThemeColor(dialogBinding.tilPaymentAmount, themeColor)
     }
 
     private fun calculateTotal(dialogBinding: DialogAddProjectBinding) {
@@ -1113,6 +1185,7 @@ class BillDetailActivity : BaseActivity() {
             }
             else -> {
                 // 3.3.3 已结清或多收状态，显示提示
+                val themeColor = ThemeManager.getThemeColor()
                 val dialog = AlertDialog.Builder(this)
                     .setTitle(R.string.already_paid_title)
                     .setMessage(R.string.already_paid_message)
@@ -1122,6 +1195,8 @@ class BillDetailActivity : BaseActivity() {
                     .create()
                 dialog.window?.setBackgroundDrawableResource(R.drawable.bg_dialog_rounded)
                 dialog.show()
+                // 设置确认按钮颜色为主题色
+                dialog.getButton(AlertDialog.BUTTON_POSITIVE).setTextColor(themeColor)
             }
         }
     }

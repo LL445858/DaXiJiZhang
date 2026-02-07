@@ -19,8 +19,6 @@ class BillWithItemsTest {
             BillItem(
                 id = 1,
                 billId = 1,
-                startDate = Date(),
-                endDate = Date(),
                 projectName = "地砖",
                 unitPrice = 100.0,
                 quantity = 10.0,
@@ -29,8 +27,6 @@ class BillWithItemsTest {
             BillItem(
                 id = 2,
                 billId = 1,
-                startDate = Date(),
-                endDate = Date(),
                 projectName = "墙面漆",
                 unitPrice = 50.0,
                 quantity = 20.0,
@@ -39,8 +35,6 @@ class BillWithItemsTest {
             BillItem(
                 id = 3,
                 billId = 1,
-                startDate = Date(),
-                endDate = Date(),
                 projectName = "吊顶",
                 unitPrice = 200.0,
                 quantity = 5.0,
@@ -80,8 +74,6 @@ class BillWithItemsTest {
             BillItem(
                 id = 1,
                 billId = 1,
-                startDate = Date(),
-                endDate = Date(),
                 projectName = "地砖",
                 unitPrice = 150.0,
                 quantity = 10.0,
