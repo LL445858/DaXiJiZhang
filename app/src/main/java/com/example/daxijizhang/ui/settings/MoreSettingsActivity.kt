@@ -18,14 +18,14 @@ import androidx.appcompat.app.AlertDialog
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.example.daxijizhang.R
-import com.example.daxijizhang.databinding.ActivityRemoteSyncBinding
+import com.example.daxijizhang.databinding.ActivityMoreSettingsBinding
 import com.example.daxijizhang.ui.base.BaseActivity
 import com.example.daxijizhang.util.ViewUtil
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 
 class MoreSettingsActivity : BaseActivity() {
 
-    private lateinit var binding: ActivityRemoteSyncBinding
+    private lateinit var binding: ActivityMoreSettingsBinding
     
     // 项目词典数据
     private val projectList = mutableListOf<String>()
@@ -34,7 +34,7 @@ class MoreSettingsActivity : BaseActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        binding = ActivityRemoteSyncBinding.inflate(layoutInflater)
+        binding = ActivityMoreSettingsBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
         initViews()
