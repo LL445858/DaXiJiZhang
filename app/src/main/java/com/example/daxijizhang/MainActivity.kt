@@ -4,6 +4,7 @@ import android.content.SharedPreferences
 import android.graphics.Color
 import android.os.Bundle
 import android.view.View
+import android.view.ViewGroup
 import android.view.WindowManager
 import androidx.activity.OnBackPressedCallback
 import androidx.appcompat.app.AppCompatDelegate
@@ -184,6 +185,69 @@ class MainActivity : BaseActivity() {
      */
     fun reapplyThemeColor() {
         applyBottomNavThemeColor()
+    }
+    
+    /**
+     * 字体缩放变化回调
+     * 显式重写以确保底部导航栏字体正确响应变化
+     * 注意：先应用字体缩放，再调用super.recreate()进行重建
+     */
+    override fun onFontScaleChanged(scale: Float) {
+        // 先应用底部导航栏字体缩放，然后再重建Activity
+        applyBottomNavFontScale(scale)
+        // 延迟一点时间再重建，确保字体缩放已应用
+        binding.root.postDelayed({
+            super.onFontScaleChanged(scale)
+        }, 100)
+    }
+    
+    /**
+     * 应用底部导航栏字体缩放
+     * Material Design的BottomNavigationView需要特殊处理才能正确响应字体缩放
+     */
+    private fun applyBottomNavFontScale(scale: Float) {
+        binding.bottomNav.post {
+            try {
+                // 强制刷新底部导航栏的文字大小
+                val menuView = binding.bottomNav.getChildAt(0) as? ViewGroup
+                menuView?.let { menu ->
+                    for (i in 0 until menu.childCount) {
+                        val item = menu.getChildAt(i)
+                        // 查找并更新文字视图
+                        findAndUpdateTextViews(item, scale)
+                    }
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }
+    }
+    
+    /**
+     * 递归查找并更新所有TextView的字体大小
+     */
+    private fun findAndUpdateTextViews(view: View, scale: Float) {
+        when (view) {
+            is android.widget.TextView -> {
+                // 获取原始字体大小并应用缩放
+                val originalSize = view.textSize / view.resources.displayMetrics.scaledDensity
+                view.textSize = originalSize * scale
+            }
+            is ViewGroup -> {
+                for (i in 0 until view.childCount) {
+                    findAndUpdateTextViews(view.getChildAt(i), scale)
+                }
+            }
+        }
+    }
+    
+    override fun onResume() {
+        super.onResume()
+        // 确保每次恢复时都应用最新的字体缩放
+        val scale = ThemeManager.getFontScale()
+        if (scale != 1.0f) {
+            applyBottomNavFontScale(scale)
+        }
     }
     
     /**

@@ -27,9 +27,11 @@
     </style>
 
     <!-- BottomNavigationView文字样式 -->
-    <style name="TextAppearance.Daxijizhang.BottomNavigation" parent="TextAppearance.AppCompat.Caption">
+    <style name="TextAppearance.Daxijizhang.BottomNavigation" parent="TextAppearance.MaterialComponents.Caption">
         <!-- 使用sp单位，确保响应字体缩放 -->
         <item name="android:textSize">12sp</item>
+        <!-- 确保字体缩放生效 -->
+        <item name="android:textStyle">normal</item>
     </style>
 
     <!-- Theme for activities to ensure light mode -->

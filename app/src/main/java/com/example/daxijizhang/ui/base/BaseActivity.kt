@@ -28,20 +28,30 @@ abstract class BaseActivity : AppCompatActivity(), DaxiApplication.OnFontScaleCh
 
     /**
      * 应用字体缩放到Context
+     * 关键：必须在attachBaseContext中应用，确保所有视图都能正确获取字体缩放
      */
     private fun applyFontScaleToContext(context: Context): Context {
-        // 从SharedPreferences读取字体缩放值
+        // 从SharedPreferences读取字体缩放值（存储的是百分比值，如100.0）
         val prefs = context.getSharedPreferences("user_settings", Context.MODE_PRIVATE)
         val scale = try {
-            prefs.getFloat("font_size_percent", 100f) / 100f
+            val percent = prefs.getFloat("font_size_percent", 100f)
+            // 将百分比转换为缩放比例 (100% -> 1.0f)
+            (percent / 100f).coerceIn(0.5f, 1.5f)
         } catch (e: Exception) {
             1.0f
         }
 
-        // 始终创建新的Configuration，确保字体缩放正确应用
+        // 创建新的Configuration并应用字体缩放
         val configuration = Configuration(context.resources.configuration)
         configuration.fontScale = scale
-        return context.createConfigurationContext(configuration)
+        
+        // 创建新的Context配置
+        val newContext = context.createConfigurationContext(configuration)
+        
+        // 同时更新ThemeManager中的字体缩放值，确保一致性
+        ThemeManager.setFontScale(scale)
+        
+        return newContext
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {

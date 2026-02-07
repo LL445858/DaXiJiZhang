@@ -109,10 +109,13 @@ object ThemeManager {
      * 安全地加载字体缩放比例
      * 处理可能的类型不兼容问题
      * 默认值为1.0f (100%)
+     * 注意：存储的是百分比值(50-150)，需要转换为缩放比例(0.5-1.5)
      */
     private fun loadFontScaleSafely(prefs: SharedPreferences): Float {
         return try {
-            prefs.getFloat(KEY_FONT_SIZE_PERCENT, DEFAULT_FONT_SIZE_PERCENT)
+            val percent = prefs.getFloat(KEY_FONT_SIZE_PERCENT, DEFAULT_FONT_SIZE_PERCENT * 100)
+            // 将百分比转换为缩放比例
+            (percent / 100f).coerceIn(0.5f, 1.5f)
         } catch (e: Exception) {
             Log.e(TAG, "读取字体缩放比例失败，使用默认值", e)
             DEFAULT_FONT_SIZE_PERCENT

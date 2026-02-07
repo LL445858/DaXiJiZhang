@@ -94,28 +94,47 @@ class DisplaySettingsActivity : BaseActivity(), ColorPickerDialogListener {
             onBackPressedDispatcher.onBackPressed()
         }
 
-        // 设置字体大小滑动条监听 - 延迟1秒后保存
-        binding.sliderFontSize.addOnChangeListener { _, value, fromUser ->
-            if (fromUser) {
-                currentFontSizePercent = value
-                // 实时更新百分比显示
-                binding.tvFontSizePercent.text = "${value.toInt()}%"
-                // 取消之前的延迟任务
-                fontSizeChangeRunnable?.let { fontSizeChangeHandler?.removeCallbacks(it) }
-                // 创建新的延迟任务
-                fontSizeChangeRunnable = Runnable {
-                    applyFontSizePercent()
-                }
-                fontSizeChangeHandler = android.os.Handler(android.os.Looper.getMainLooper())
-                fontSizeChangeHandler?.postDelayed(fontSizeChangeRunnable!!, 1000)
-            }
-        }
+        // 设置字体大小滑动条监听 - 松手后1秒生效
+        setupFontSizeSlider()
 
         // 设置深色模式下拉框
         setupDarkModeSpinner()
 
         // 应用主题颜色到字体大小滑动条
         applyThemeColorToFontSlider()
+    }
+    
+    /**
+     * 设置字体大小滑动条
+     * 修复：松手后1秒生效，避免拖动过程中突然生效
+     * 修复：防止长按跳变到50%的问题
+     */
+    private fun setupFontSizeSlider() {
+        // 值变化监听 - 仅更新显示，不应用
+        binding.sliderFontSize.addOnChangeListener { _, value, fromUser ->
+            if (fromUser) {
+                currentFontSizePercent = value
+                // 实时更新百分比显示
+                binding.tvFontSizePercent.text = "${value.toInt()}%"
+            }
+        }
+        
+        // 触摸监听 - 松手后延迟1秒生效
+        binding.sliderFontSize.addOnSliderTouchListener(object : com.google.android.material.slider.Slider.OnSliderTouchListener {
+            override fun onStartTrackingTouch(slider: com.google.android.material.slider.Slider) {
+                // 开始拖动时取消之前的延迟任务
+                fontSizeChangeRunnable?.let { fontSizeChangeHandler?.removeCallbacks(it) }
+            }
+            
+            override fun onStopTrackingTouch(slider: com.google.android.material.slider.Slider) {
+                // 松手后延迟1秒应用
+                fontSizeChangeRunnable = Runnable {
+                    applyFontSizePercent()
+                }
+                fontSizeChangeHandler = android.os.Handler(android.os.Looper.getMainLooper())
+                fontSizeChangeHandler?.postDelayed(fontSizeChangeRunnable!!, 1000)
+            }
+        })
     }
 
     /**
