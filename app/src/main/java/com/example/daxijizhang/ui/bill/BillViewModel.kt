@@ -95,28 +95,34 @@ class BillViewModel(val repository: BillRepository) : ViewModel() {
     }
 
     private fun applySorting(bills: List<Bill>): List<Bill> {
-        val primarySortComparator = when (_sortType.value) {
+        return when (_sortType.value) {
             SortType.COMMUNITY_ASC -> {
                 // 使用拼音工具进行小区名排序
-                compareBy<Bill> { bill ->
-                    PinyinUtil.compareForSort(bill.communityName, "")
-                }
+                // 规则：中文转拼音全拼 -> 字母转小写 -> 数字保持原样 -> 逐个字符比较ASCII码
+                bills.sortedWith(
+                    compareBy<Bill> { PinyinUtil.getPinyin(it.communityName) }
+                        .thenByDescending { it.startDate }
+                )
             }
-            SortType.AMOUNT_ASC -> compareBy { it.totalAmount }
-            SortType.AMOUNT_DESC -> compareByDescending { it.totalAmount }
-            SortType.START_DATE_ASC -> compareBy { it.startDate }
-            SortType.START_DATE_DESC -> compareByDescending { it.startDate }
-            SortType.END_DATE_ASC -> compareBy { it.endDate }
-            SortType.END_DATE_DESC -> compareByDescending { it.endDate }
-            else -> null
-        }
-
-        return if (primarySortComparator != null) {
-            // 二级排序：当主排序条件相同时，按开始时间降序排序
-            val secondarySortComparator = compareByDescending<Bill> { it.startDate }
-            bills.sortedWith(primarySortComparator.then(secondarySortComparator))
-        } else {
-            bills
+            SortType.AMOUNT_ASC -> bills.sortedWith(
+                compareBy<Bill> { it.totalAmount }.thenByDescending { it.startDate }
+            )
+            SortType.AMOUNT_DESC -> bills.sortedWith(
+                compareByDescending<Bill> { it.totalAmount }.thenByDescending { it.startDate }
+            )
+            SortType.START_DATE_ASC -> bills.sortedWith(
+                compareBy<Bill> { it.startDate }.thenByDescending { it.startDate }
+            )
+            SortType.START_DATE_DESC -> bills.sortedWith(
+                compareByDescending<Bill> { it.startDate }.thenByDescending { it.startDate }
+            )
+            SortType.END_DATE_ASC -> bills.sortedWith(
+                compareBy<Bill> { it.endDate }.thenByDescending { it.startDate }
+            )
+            SortType.END_DATE_DESC -> bills.sortedWith(
+                compareByDescending<Bill> { it.endDate }.thenByDescending { it.startDate }
+            )
+            else -> bills
         }
     }
 

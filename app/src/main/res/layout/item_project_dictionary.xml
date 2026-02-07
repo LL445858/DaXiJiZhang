@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="horizontal"
+    android:gravity="center_vertical"
+    android:paddingVertical="8dp"
+    android:background="?attr/selectableItemBackground">
+
+    <!-- 项目名称显示/编辑 -->
+    <TextView
+        android:id="@+id/tv_project_name"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="1"
+        android:textColor="@color/text_primary"
+        android:textSize="14sp"
+        android:ellipsize="end"
+        android:maxLines="1" />
+
+    <!-- 编辑状态下的输入框 -->
+    <EditText
+        android:id="@+id/et_project_name"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="1"
+        android:textColor="@color/text_primary"
+        android:textSize="14sp"
+        android:background="@null"
+        android:hint="请输入项目名称"
+        android:textColorHint="@color/text_hint"
+        android:visibility="gone"
+        android:singleLine="true"
+        android:maxLines="1" />
+
+    <!-- 保存按钮（编辑状态显示） -->
+    <ImageButton
+        android:id="@+id/btn_save"
+        android:layout_width="36dp"
+        android:layout_height="36dp"
+        android:layout_marginStart="8dp"
+        android:background="?attr/selectableItemBackgroundBorderless"
+        android:src="@drawable/ic_check"
+        app:tint="@color/primary"
+        android:contentDescription="保存"
+        android:visibility="gone" />
+
+    <!-- 删除按钮 -->
+    <ImageButton
+        android:id="@+id/btn_delete"
+        android:layout_width="36dp"
+        android:layout_height="36dp"
+        android:layout_marginStart="8dp"
+        android:background="?attr/selectableItemBackgroundBorderless"
+        android:src="@drawable/ic_delete"
+        app:tint="@color/error"
+        android:contentDescription="删除" />
+
+</LinearLayout>

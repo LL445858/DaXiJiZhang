@@ -106,25 +106,71 @@
                         android:layout_height="wrap_content"
                         android:orientation="vertical">
 
-                        <!-- 日期选择区域 - 开始日期和结束日期在同一行 -->
+                        <!-- 编辑模式：输入框容器 -->
                         <LinearLayout
+                            android:id="@+id/layout_edit_mode"
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
-                            android:layout_marginTop="16dp"
-                            android:orientation="horizontal">
+                            android:orientation="vertical">
 
-                            <!-- 开始日期 -->
-                            <com.google.android.material.textfield.TextInputLayout
-                                android:id="@+id/til_start_date"
-                                style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
-                                android:layout_width="0dp"
+                            <!-- 日期选择区域 - 开始日期和结束日期在同一行 -->
+                            <LinearLayout
+                                android:layout_width="match_parent"
                                 android:layout_height="wrap_content"
-                                android:layout_marginEnd="8dp"
-                                android:layout_weight="1"
-                                android:hint="@string/start_date">
+                                android:layout_marginTop="16dp"
+                                android:orientation="horizontal">
+
+                                <!-- 开始日期 -->
+                                <com.google.android.material.textfield.TextInputLayout
+                                    android:id="@+id/til_start_date"
+                                    style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
+                                    android:layout_width="0dp"
+                                    android:layout_height="wrap_content"
+                                    android:layout_marginEnd="8dp"
+                                    android:layout_weight="1"
+                                    android:hint="@string/start_date">
+
+                                    <com.google.android.material.textfield.TextInputEditText
+                                        android:id="@+id/et_start_date"
+                                        android:layout_width="match_parent"
+                                        android:layout_height="wrap_content"
+                                        android:focusable="false"
+                                        android:inputType="none" />
+
+                                </com.google.android.material.textfield.TextInputLayout>
+
+                                <!-- 结束日期 -->
+                                <com.google.android.material.textfield.TextInputLayout
+                                    android:id="@+id/til_end_date"
+                                    style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
+                                    android:layout_width="0dp"
+                                    android:layout_height="wrap_content"
+                                    android:layout_marginStart="8dp"
+                                    android:layout_weight="1"
+                                    android:hint="@string/end_date">
+
+                                    <com.google.android.material.textfield.TextInputEditText
+                                        android:id="@+id/et_end_date"
+                                        android:layout_width="match_parent"
+                                        android:layout_height="wrap_content"
+                                        android:focusable="false"
+                                        android:inputType="none" />
+
+                                </com.google.android.material.textfield.TextInputLayout>
+
+                            </LinearLayout>
+
+                            <!-- 小区名 -->
+                            <com.google.android.material.textfield.TextInputLayout
+                                android:id="@+id/til_community"
+                                style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:layout_marginTop="8dp"
+                                android:hint="@string/community_name">
 
                                 <com.google.android.material.textfield.TextInputEditText
-                                    android:id="@+id/et_start_date"
+                                    android:id="@+id/et_community"
                                     android:layout_width="match_parent"
                                     android:layout_height="wrap_content"
                                     android:focusable="false"
@@ -132,132 +178,289 @@
 
                             </com.google.android.material.textfield.TextInputLayout>
 
-                            <!-- 结束日期 -->
-                            <com.google.android.material.textfield.TextInputLayout
-                                android:id="@+id/til_end_date"
-                                style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
-                                android:layout_width="0dp"
+                            <!-- 期数、楼栋号、门牌号 -->
+                            <LinearLayout
+                                android:layout_width="match_parent"
                                 android:layout_height="wrap_content"
-                                android:layout_marginStart="8dp"
-                                android:layout_weight="1"
-                                android:hint="@string/end_date">
+                                android:layout_marginTop="8dp"
+                                android:orientation="horizontal">
+
+                                <com.google.android.material.textfield.TextInputLayout
+                                    android:id="@+id/til_phase"
+                                    style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
+                                    android:layout_width="0dp"
+                                    android:layout_height="wrap_content"
+                                    android:layout_marginEnd="4dp"
+                                    android:layout_weight="1"
+                                    android:hint="@string/phase">
+
+                                    <com.google.android.material.textfield.TextInputEditText
+                                        android:id="@+id/et_phase"
+                                        android:layout_width="match_parent"
+                                        android:layout_height="wrap_content"
+                                        android:focusable="false"
+                                        android:inputType="textVisiblePassword|number"
+                                        android:digits="0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ-#_" />
+
+                                </com.google.android.material.textfield.TextInputLayout>
+
+                                <com.google.android.material.textfield.TextInputLayout
+                                    android:id="@+id/til_building"
+                                    style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
+                                    android:layout_width="0dp"
+                                    android:layout_height="wrap_content"
+                                    android:layout_marginHorizontal="4dp"
+                                    android:layout_weight="1"
+                                    android:hint="@string/building_number">
+
+                                    <com.google.android.material.textfield.TextInputEditText
+                                        android:id="@+id/et_building"
+                                        android:layout_width="match_parent"
+                                        android:layout_height="wrap_content"
+                                        android:focusable="false"
+                                        android:inputType="textVisiblePassword|number"
+                                        android:digits="0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ-#_" />
+
+                                </com.google.android.material.textfield.TextInputLayout>
+
+                                <com.google.android.material.textfield.TextInputLayout
+                                    android:id="@+id/til_room"
+                                    style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
+                                    android:layout_width="0dp"
+                                    android:layout_height="wrap_content"
+                                    android:layout_marginStart="4dp"
+                                    android:layout_weight="1"
+                                    android:hint="@string/room_number">
+
+                                    <com.google.android.material.textfield.TextInputEditText
+                                        android:id="@+id/et_room"
+                                        android:layout_width="match_parent"
+                                        android:layout_height="wrap_content"
+                                        android:focusable="false"
+                                        android:inputType="textVisiblePassword|number"
+                                        android:digits="0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ-#_" />
+
+                                </com.google.android.material.textfield.TextInputLayout>
+
+                            </LinearLayout>
+
+                            <!-- 备注 -->
+                            <com.google.android.material.textfield.TextInputLayout
+                                android:id="@+id/til_remark"
+                                style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:layout_marginTop="8dp"
+                                android:hint="@string/remark">
 
                                 <com.google.android.material.textfield.TextInputEditText
-                                    android:id="@+id/et_end_date"
+                                    android:id="@+id/et_remark"
                                     android:layout_width="match_parent"
                                     android:layout_height="wrap_content"
                                     android:focusable="false"
-                                    android:inputType="none" />
+                                    android:gravity="top|start"
+                                    android:inputType="textMultiLine"
+                                    android:minLines="1"
+                                    android:maxLines="10"
+                                    android:scrollHorizontally="false" />
 
                             </com.google.android.material.textfield.TextInputLayout>
 
                         </LinearLayout>
 
-                        <!-- 小区名 -->
-                        <com.google.android.material.textfield.TextInputLayout
-                            android:id="@+id/til_community"
-                            style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:layout_marginTop="8dp"
-                            android:hint="@string/community_name">
-
-                            <com.google.android.material.textfield.TextInputEditText
-                                android:id="@+id/et_community"
-                                android:layout_width="match_parent"
-                                android:layout_height="wrap_content"
-                                android:focusable="false"
-                                android:inputType="none" />
-
-                        </com.google.android.material.textfield.TextInputLayout>
-
-                        <!-- 期数、楼栋号、门牌号 -->
+                        <!-- 查看模式：纯文本展示 -->
                         <LinearLayout
+                            android:id="@+id/layout_view_mode"
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
-                            android:layout_marginTop="8dp"
-                            android:orientation="horizontal">
+                            android:orientation="vertical"
+                            android:visibility="gone">
 
-                            <com.google.android.material.textfield.TextInputLayout
-                                android:id="@+id/til_phase"
-                                style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
-                                android:layout_width="0dp"
-                                android:layout_height="wrap_content"
-                                android:layout_marginEnd="4dp"
-                                android:layout_weight="1"
-                                android:hint="@string/phase">
-
-                                <com.google.android.material.textfield.TextInputEditText
-                                    android:id="@+id/et_phase"
-                                    android:layout_width="match_parent"
-                                    android:layout_height="wrap_content"
-                                    android:focusable="false"
-                                    android:inputType="textVisiblePassword|number"
-                                    android:digits="0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ-#_" />
-
-                            </com.google.android.material.textfield.TextInputLayout>
-
-                            <com.google.android.material.textfield.TextInputLayout
-                                android:id="@+id/til_building"
-                                style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
-                                android:layout_width="0dp"
-                                android:layout_height="wrap_content"
-                                android:layout_marginHorizontal="4dp"
-                                android:layout_weight="1"
-                                android:hint="@string/building_number">
-
-                                <com.google.android.material.textfield.TextInputEditText
-                                    android:id="@+id/et_building"
-                                    android:layout_width="match_parent"
-                                    android:layout_height="wrap_content"
-                                    android:focusable="false"
-                                    android:inputType="textVisiblePassword|number"
-                                    android:digits="0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ-#_" />
-
-                            </com.google.android.material.textfield.TextInputLayout>
-
-                            <com.google.android.material.textfield.TextInputLayout
-                                android:id="@+id/til_room"
-                                style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
-                                android:layout_width="0dp"
-                                android:layout_height="wrap_content"
-                                android:layout_marginStart="4dp"
-                                android:layout_weight="1"
-                                android:hint="@string/room_number">
-
-                                <com.google.android.material.textfield.TextInputEditText
-                                    android:id="@+id/et_room"
-                                    android:layout_width="match_parent"
-                                    android:layout_height="wrap_content"
-                                    android:focusable="false"
-                                    android:inputType="textVisiblePassword|number"
-                                    android:digits="0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ-#_" />
-
-                            </com.google.android.material.textfield.TextInputLayout>
-
-                        </LinearLayout>
-
-                        <!-- 备注 -->
-                        <com.google.android.material.textfield.TextInputLayout
-                            android:id="@+id/til_remark"
-                            style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:layout_marginTop="8dp"
-                            android:hint="@string/remark">
-
-                            <com.google.android.material.textfield.TextInputEditText
-                                android:id="@+id/et_remark"
+                            <!-- 日期信息 -->
+                            <LinearLayout
                                 android:layout_width="match_parent"
                                 android:layout_height="wrap_content"
-                                android:focusable="false"
-                                android:gravity="top|start"
-                                android:inputType="textMultiLine"
-                                android:minLines="1"
-                                android:maxLines="10"
-                                android:scrollHorizontally="false" />
+                                android:layout_marginTop="16dp"
+                                android:orientation="horizontal">
 
-                        </com.google.android.material.textfield.TextInputLayout>
+                                <LinearLayout
+                                    android:layout_width="0dp"
+                                    android:layout_height="wrap_content"
+                                    android:layout_weight="1"
+                                    android:orientation="vertical">
+
+                                    <TextView
+                                        android:layout_width="wrap_content"
+                                        android:layout_height="wrap_content"
+                                        android:text="@string/start_date"
+                                        android:textColor="@color/text_secondary"
+                                        android:textSize="12sp" />
+
+                                    <TextView
+                                        android:id="@+id/tv_start_date"
+                                        android:layout_width="wrap_content"
+                                        android:layout_height="wrap_content"
+                                        android:layout_marginTop="4dp"
+                                        android:textColor="@color/text_primary"
+                                        android:textSize="16sp" />
+
+                                </LinearLayout>
+
+                                <LinearLayout
+                                    android:layout_width="0dp"
+                                    android:layout_height="wrap_content"
+                                    android:layout_weight="1"
+                                    android:orientation="vertical">
+
+                                    <TextView
+                                        android:layout_width="wrap_content"
+                                        android:layout_height="wrap_content"
+                                        android:text="@string/end_date"
+                                        android:textColor="@color/text_secondary"
+                                        android:textSize="12sp" />
+
+                                    <TextView
+                                        android:id="@+id/tv_end_date"
+                                        android:layout_width="wrap_content"
+                                        android:layout_height="wrap_content"
+                                        android:layout_marginTop="4dp"
+                                        android:textColor="@color/text_primary"
+                                        android:textSize="16sp" />
+
+                                </LinearLayout>
+
+                            </LinearLayout>
+
+                            <!-- 小区名 -->
+                            <LinearLayout
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:layout_marginTop="16dp"
+                                android:orientation="vertical">
+
+                                <TextView
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:text="@string/community_name"
+                                    android:textColor="@color/text_secondary"
+                                    android:textSize="12sp" />
+
+                                <TextView
+                                    android:id="@+id/tv_community"
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:layout_marginTop="4dp"
+                                    android:textColor="@color/text_primary"
+                                    android:textSize="18sp"
+                                    android:textStyle="bold" />
+
+                            </LinearLayout>
+
+                            <!-- 期数、楼栋号、门牌号 -->
+                            <LinearLayout
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:layout_marginTop="16dp"
+                                android:orientation="horizontal">
+
+                                <LinearLayout
+                                    android:layout_width="0dp"
+                                    android:layout_height="wrap_content"
+                                    android:layout_weight="1"
+                                    android:orientation="vertical">
+
+                                    <TextView
+                                        android:layout_width="wrap_content"
+                                        android:layout_height="wrap_content"
+                                        android:text="@string/phase"
+                                        android:textColor="@color/text_secondary"
+                                        android:textSize="12sp" />
+
+                                    <TextView
+                                        android:id="@+id/tv_phase"
+                                        android:layout_width="wrap_content"
+                                        android:layout_height="wrap_content"
+                                        android:layout_marginTop="4dp"
+                                        android:textColor="@color/text_primary"
+                                        android:textSize="16sp" />
+
+                                </LinearLayout>
+
+                                <LinearLayout
+                                    android:layout_width="0dp"
+                                    android:layout_height="wrap_content"
+                                    android:layout_weight="1"
+                                    android:orientation="vertical">
+
+                                    <TextView
+                                        android:layout_width="wrap_content"
+                                        android:layout_height="wrap_content"
+                                        android:text="@string/building_number"
+                                        android:textColor="@color/text_secondary"
+                                        android:textSize="12sp" />
+
+                                    <TextView
+                                        android:id="@+id/tv_building"
+                                        android:layout_width="wrap_content"
+                                        android:layout_height="wrap_content"
+                                        android:layout_marginTop="4dp"
+                                        android:textColor="@color/text_primary"
+                                        android:textSize="16sp" />
+
+                                </LinearLayout>
+
+                                <LinearLayout
+                                    android:layout_width="0dp"
+                                    android:layout_height="wrap_content"
+                                    android:layout_weight="1"
+                                    android:orientation="vertical">
+
+                                    <TextView
+                                        android:layout_width="wrap_content"
+                                        android:layout_height="wrap_content"
+                                        android:text="@string/room_number"
+                                        android:textColor="@color/text_secondary"
+                                        android:textSize="12sp" />
+
+                                    <TextView
+                                        android:id="@+id/tv_room"
+                                        android:layout_width="wrap_content"
+                                        android:layout_height="wrap_content"
+                                        android:layout_marginTop="4dp"
+                                        android:textColor="@color/text_primary"
+                                        android:textSize="16sp" />
+
+                                </LinearLayout>
+
+                            </LinearLayout>
+
+                            <!-- 备注 -->
+                            <LinearLayout
+                                android:id="@+id/layout_remark_view"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:layout_marginTop="16dp"
+                                android:orientation="vertical"
+                                android:visibility="gone">
+
+                                <TextView
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:text="@string/remark"
+                                    android:textColor="@color/text_secondary"
+                                    android:textSize="12sp" />
+
+                                <TextView
+                                    android:id="@+id/tv_remark"
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:layout_marginTop="4dp"
+                                    android:textColor="@color/text_primary"
+                                    android:textSize="14sp" />
+
+                            </LinearLayout>
+
+                        </LinearLayout>
 
                     </LinearLayout>
 

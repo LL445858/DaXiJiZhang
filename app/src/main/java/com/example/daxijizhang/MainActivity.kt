@@ -190,63 +190,58 @@ class MainActivity : BaseActivity() {
     /**
      * 字体缩放变化回调
      * 显式重写以确保底部导航栏字体正确响应变化
-     * 注意：先应用字体缩放，再调用super.recreate()进行重建
      */
     override fun onFontScaleChanged(scale: Float) {
-        // 先应用底部导航栏字体缩放，然后再重建Activity
-        applyBottomNavFontScale(scale)
-        // 延迟一点时间再重建，确保字体缩放已应用
-        binding.root.postDelayed({
-            super.onFontScaleChanged(scale)
-        }, 100)
+        // 直接调用父类方法重建Activity，重建后会自动应用新的字体缩放
+        super.onFontScaleChanged(scale)
+    }
+    
+    override fun onResume() {
+        super.onResume()
+        // 确保每次恢复时都应用最新的字体缩放
+        // 延迟执行以确保BottomNavigationView已完成布局
+        binding.bottomNav.post {
+            applyBottomNavFontScale(ThemeManager.getFontScale())
+        }
     }
     
     /**
      * 应用底部导航栏字体缩放
-     * Material Design的BottomNavigationView需要特殊处理才能正确响应字体缩放
+     * 使用标准基准值12sp，避免累积效应
      */
     private fun applyBottomNavFontScale(scale: Float) {
-        binding.bottomNav.post {
-            try {
-                // 强制刷新底部导航栏的文字大小
-                val menuView = binding.bottomNav.getChildAt(0) as? ViewGroup
-                menuView?.let { menu ->
-                    for (i in 0 until menu.childCount) {
-                        val item = menu.getChildAt(i)
-                        // 查找并更新文字视图
-                        findAndUpdateTextViews(item, scale)
-                    }
+        try {
+            // 强制刷新底部导航栏的文字大小
+            val menuView = binding.bottomNav.getChildAt(0) as? ViewGroup
+            menuView?.let { menu ->
+                for (i in 0 until menu.childCount) {
+                    val item = menu.getChildAt(i)
+                    // 查找并更新文字视图
+                    findAndUpdateTextViews(item, scale)
                 }
-            } catch (e: Exception) {
-                e.printStackTrace()
             }
+        } catch (e: Exception) {
+            e.printStackTrace()
         }
     }
     
     /**
      * 递归查找并更新所有TextView的字体大小
+     * 使用固定基准值12sp，确保字体大小正确应用
      */
     private fun findAndUpdateTextViews(view: View, scale: Float) {
         when (view) {
             is android.widget.TextView -> {
-                // 获取原始字体大小并应用缩放
-                val originalSize = view.textSize / view.resources.displayMetrics.scaledDensity
-                view.textSize = originalSize * scale
+                // 使用固定基准值12sp，这是底部导航栏的标准字体大小
+                val baseSize = 12f
+                // 应用新的缩放比例
+                view.textSize = baseSize * scale
             }
             is ViewGroup -> {
                 for (i in 0 until view.childCount) {
                     findAndUpdateTextViews(view.getChildAt(i), scale)
                 }
             }
-        }
-    }
-    
-    override fun onResume() {
-        super.onResume()
-        // 确保每次恢复时都应用最新的字体缩放
-        val scale = ThemeManager.getFontScale()
-        if (scale != 1.0f) {
-            applyBottomNavFontScale(scale)
         }
     }
     

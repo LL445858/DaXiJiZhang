@@ -179,8 +179,8 @@
     <string name="auto_local_backup">自动本地备份</string>
     <string name="auto_local_backup_description">软件正常退出后自动本地备份一次</string>
 
-    <!-- 项目词典 -->
-    <string name="project_dictionary">项目词典</string>
+    <!-- 项目填写 -->
+    <string name="project_dictionary">项目填写</string>
     <string name="project_dictionary_description">管理常用的装修项目名称</string>
 
     <!-- 同步相关 -->

@@ -378,6 +378,10 @@ class BillDetailActivity : BaseActivity() {
     }
 
     private fun enableAllFieldsEdit() {
+        // 显示编辑模式布局，隐藏查看模式布局
+        binding.layoutEditMode.visibility = View.VISIBLE
+        binding.layoutViewMode.visibility = View.GONE
+        
         enableFieldEdit(binding.etCommunity)
         enableFieldEdit(binding.etPhase)
         enableFieldEdit(binding.etBuilding)
@@ -386,6 +390,9 @@ class BillDetailActivity : BaseActivity() {
         // 日期字段启用编辑 - 设置为可点击并启用焦点
         enableDateFieldEdit(binding.etStartDate)
         enableDateFieldEdit(binding.etEndDate)
+        
+        // 从查看模式同步数据到编辑模式
+        syncViewToEdit()
     }
 
     private fun enableDateFieldEdit(field: android.widget.EditText) {
@@ -396,6 +403,10 @@ class BillDetailActivity : BaseActivity() {
     }
 
     private fun disableAllFieldsEdit() {
+        // 隐藏编辑模式布局，显示查看模式布局
+        binding.layoutEditMode.visibility = View.GONE
+        binding.layoutViewMode.visibility = View.VISIBLE
+        
         disableFieldEdit(binding.etCommunity)
         disableFieldEdit(binding.etPhase)
         disableFieldEdit(binding.etBuilding)
@@ -404,6 +415,9 @@ class BillDetailActivity : BaseActivity() {
         // 禁用日期字段
         disableDateFieldEdit(binding.etStartDate)
         disableDateFieldEdit(binding.etEndDate)
+        
+        // 从编辑模式同步数据到查看模式
+        syncEditToView()
     }
 
     private fun disableDateFieldEdit(field: android.widget.EditText) {
@@ -432,6 +446,34 @@ class BillDetailActivity : BaseActivity() {
         field.isFocusableInTouchMode = false
         field.isFocusable = false
         field.isClickable = false
+    }
+    
+    /**
+     * 从编辑模式同步数据到查看模式
+     */
+    private fun syncEditToView() {
+        binding.tvStartDate.text = binding.etStartDate.text.toString()
+        binding.tvEndDate.text = binding.etEndDate.text.toString()
+        binding.tvCommunity.text = binding.etCommunity.text.toString()
+        binding.tvPhase.text = binding.etPhase.text.toString()
+        binding.tvBuilding.text = binding.etBuilding.text.toString()
+        binding.tvRoom.text = binding.etRoom.text.toString()
+        
+        val remark = binding.etRemark.text.toString()
+        if (remark.isNotEmpty()) {
+            binding.layoutRemarkView.visibility = View.VISIBLE
+            binding.tvRemark.text = remark
+        } else {
+            binding.layoutRemarkView.visibility = View.GONE
+        }
+    }
+    
+    /**
+     * 从查看模式同步数据到编辑模式
+     */
+    private fun syncViewToEdit() {
+        // 编辑模式的数据已经保存在EditText中，不需要额外同步
+        // 这个方法用于确保数据一致性
     }
 
     private fun isFieldEditable(field: android.widget.EditText): Boolean {
@@ -476,6 +518,21 @@ class BillDetailActivity : BaseActivity() {
                 binding.etBuilding.setText(bill.buildingNumber ?: "")
                 binding.etRoom.setText(bill.roomNumber ?: "")
                 binding.etRemark.setText(bill.remark ?: "")
+                
+                // 初始化查看模式的文本
+                binding.tvStartDate.text = dateFormat.format(bill.startDate)
+                binding.tvEndDate.text = dateFormat.format(bill.endDate)
+                binding.tvCommunity.text = bill.communityName
+                binding.tvPhase.text = bill.phase ?: ""
+                binding.tvBuilding.text = bill.buildingNumber ?: ""
+                binding.tvRoom.text = bill.roomNumber ?: ""
+                val remark = bill.remark ?: ""
+                if (remark.isNotEmpty()) {
+                    binding.layoutRemarkView.visibility = View.VISIBLE
+                    binding.tvRemark.text = remark
+                } else {
+                    binding.layoutRemarkView.visibility = View.GONE
+                }
 
                 // 加载装修项目
                 val billItems = viewModel.repository.getBillWithItems(billId)?.items ?: emptyList()
