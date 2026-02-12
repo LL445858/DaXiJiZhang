@@ -1,10 +1,14 @@
 package com.example.daxijizhang.ui.view
 
 import android.content.Context
+import android.graphics.Color
 import android.os.Handler
 import android.os.Looper
 import android.text.Editable
+import android.text.Spannable
+import android.text.SpannableStringBuilder
 import android.text.TextWatcher
+import android.text.style.ForegroundColorSpan
 import android.util.AttributeSet
 import android.view.KeyEvent
 import android.view.LayoutInflater
@@ -20,6 +24,7 @@ import androidx.recyclerview.widget.RecyclerView
 import com.example.daxijizhang.R
 import com.example.daxijizhang.data.model.ProjectDictionary
 import com.example.daxijizhang.data.repository.ProjectDictionaryRepository
+import com.example.daxijizhang.util.PinyinUtil
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -40,6 +45,7 @@ class ProjectAutoCompleteView @JvmOverloads constructor(
     private lateinit var repository: ProjectDictionaryRepository
     private var popupWindow: PopupWindow? = null
     private var recyclerView: RecyclerView? = null
+    private var cardView: com.google.android.material.card.MaterialCardView? = null
     private var adapter: SuggestionAdapter? = null
     private var suggestions = mutableListOf<ProjectDictionary>()
 
@@ -152,6 +158,7 @@ class ProjectAutoCompleteView @JvmOverloads constructor(
     private fun initPopupWindow() {
         val popupView = LayoutInflater.from(context).inflate(R.layout.popup_project_suggestions, null)
         recyclerView = popupView.findViewById(R.id.recycler_suggestions)
+        cardView = popupView.findViewById(R.id.card_suggestions)
 
         adapter = SuggestionAdapter(suggestions) { position ->
             selectSuggestion(suggestions[position])
@@ -184,13 +191,17 @@ class ProjectAutoCompleteView @JvmOverloads constructor(
         searchJob = CoroutineScope(Dispatchers.IO).launch {
             try {
                 val results = repository.searchProjects(query)
+                    .sortedWith { p1, p2 ->
+                        // 按项目名称拼音排序
+                        PinyinUtil.compareForSort(p1.name, p2.name)
+                    }
                     .take(MAX_SUGGESTIONS)
 
                 withContext(Dispatchers.Main) {
                     if (results.isEmpty()) {
                         hideSuggestions()
                     } else {
-                        showSuggestions(results)
+                        showSuggestions(results, query)
                     }
                 }
             } catch (e: Exception) {
@@ -202,11 +213,19 @@ class ProjectAutoCompleteView @JvmOverloads constructor(
     /**
      * 显示候选词列表
      */
-    private fun showSuggestions(results: List<ProjectDictionary>) {
+    private fun showSuggestions(results: List<ProjectDictionary>, query: String = "") {
+        // 保存当前查询文本用于高亮显示
+        currentQuery = query
         suggestions.clear()
         suggestions.addAll(results)
         selectedPosition = -1
         adapter?.notifyDataSetChanged()
+
+        // 根据当前主题模式设置弹窗背景色
+        // 浅色模式：浅灰色(#F5F5F5)，深色模式：纯黑色(#000000)
+        val isDarkMode = isDarkModeEnabled()
+        val backgroundColor = if (isDarkMode) Color.BLACK else Color.parseColor("#F5F5F5")
+        cardView?.setCardBackgroundColor(backgroundColor)
 
         if (popupWindow?.isShowing == true) {
             popupWindow?.update()
@@ -214,11 +233,11 @@ class ProjectAutoCompleteView @JvmOverloads constructor(
             // 计算弹出窗口位置，使其左侧与输入框左侧对齐
             val location = IntArray(2)
             editText.getLocationOnScreen(location)
-            
+
             // 获取输入框在窗口中的位置
             val editTextLocation = IntArray(2)
             editText.getLocationInWindow(editTextLocation)
-            
+
             // 计算x偏移量，使弹窗左侧与输入框左侧对齐
             // 由于PopupWindow默认与anchorView左对齐，这里不需要额外偏移
             // 但需要确保宽度正确
@@ -249,11 +268,6 @@ class ProjectAutoCompleteView @JvmOverloads constructor(
         editText.setText(project.name)
         editText.setSelection(project.name.length)
         hideSuggestions()
-
-        // 增加使用频率
-        CoroutineScope(Dispatchers.IO).launch {
-            repository.incrementUsageCount(project.id)
-        }
 
         onSuggestionSelectedListener?.invoke(project.name)
 
@@ -291,6 +305,16 @@ class ProjectAutoCompleteView @JvmOverloads constructor(
         editText.setSelection(text.length)
     }
 
+    // 当前查询文本，用于高亮显示
+    private var currentQuery: String = ""
+
+    /**
+     * 设置当前查询文本
+     */
+    fun setCurrentQuery(query: String) {
+        currentQuery = query
+    }
+
     /**
      * 候选词适配器
      */
@@ -303,7 +327,6 @@ class ProjectAutoCompleteView @JvmOverloads constructor(
 
         inner class ViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
             val tvName: TextView = itemView.findViewById(R.id.tv_suggestion_name)
-            val tvCount: TextView = itemView.findViewById(R.id.tv_usage_count)
         }
 
         override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewHolder {
@@ -314,8 +337,8 @@ class ProjectAutoCompleteView @JvmOverloads constructor(
 
         override fun onBindViewHolder(holder: ViewHolder, position: Int) {
             val item = items[position]
-            holder.tvName.text = item.name
-            holder.tvCount.text = "使用${item.usageCount}次"
+            // 设置高亮文本
+            holder.tvName.text = buildHighlightedText(item.name, currentQuery)
 
             // 设置选中状态背景
             if (position == selectedPos) {
@@ -337,5 +360,84 @@ class ProjectAutoCompleteView @JvmOverloads constructor(
             notifyItemChanged(previousPos)
             notifyItemChanged(selectedPos)
         }
+
+        /**
+         * 构建高亮文本
+         * 浅色模式：匹配部分黑色(#000000)，非匹配部分灰色(#909090)
+         * 深色模式：匹配部分白色(#FFFFFF)，非匹配部分浅白色(#A0A0A0)
+         */
+        private fun buildHighlightedText(fullText: String, query: String): SpannableStringBuilder {
+            val builder = SpannableStringBuilder(fullText)
+
+            // 判断当前是否为深色模式
+            val isDarkMode = this@ProjectAutoCompleteView.isDarkModeEnabled()
+
+            // 定义颜色
+            val matchColor = if (isDarkMode) Color.WHITE else Color.BLACK
+            val nonMatchColor = if (isDarkMode) Color.parseColor("#A0A0A0") else Color.parseColor("#909090")
+            
+            if (query.isEmpty()) {
+                // 没有查询文本，全部显示为非匹配颜色
+                builder.setSpan(
+                    ForegroundColorSpan(nonMatchColor),
+                    0,
+                    fullText.length,
+                    Spannable.SPAN_EXCLUSIVE_EXCLUSIVE
+                )
+                return builder
+            }
+
+            // 查找匹配位置（不区分大小写）
+            val lowerFullText = fullText.lowercase()
+            val lowerQuery = query.lowercase()
+            var startIndex = 0
+
+            while (true) {
+                val matchIndex = lowerFullText.indexOf(lowerQuery, startIndex)
+                if (matchIndex == -1) {
+                    // 剩余部分设置为非匹配颜色
+                    if (startIndex < fullText.length) {
+                        builder.setSpan(
+                            ForegroundColorSpan(nonMatchColor),
+                            startIndex,
+                            fullText.length,
+                            Spannable.SPAN_EXCLUSIVE_EXCLUSIVE
+                        )
+                    }
+                    break
+                }
+
+                // 匹配前的部分设置为非匹配颜色
+                if (matchIndex > startIndex) {
+                    builder.setSpan(
+                        ForegroundColorSpan(nonMatchColor),
+                        startIndex,
+                        matchIndex,
+                        Spannable.SPAN_EXCLUSIVE_EXCLUSIVE
+                    )
+                }
+
+                // 匹配部分设置为匹配颜色（黑色/白色）
+                val matchEnd = matchIndex + query.length
+                builder.setSpan(
+                    ForegroundColorSpan(matchColor),
+                    matchIndex,
+                    matchEnd,
+                    Spannable.SPAN_EXCLUSIVE_EXCLUSIVE
+                )
+
+                startIndex = matchEnd
+            }
+
+            return builder
+        }
+    }
+
+    /**
+     * 判断当前是否为深色模式
+     */
+    private fun isDarkModeEnabled(): Boolean {
+        val nightModeFlags = context.resources.configuration.uiMode and android.content.res.Configuration.UI_MODE_NIGHT_MASK
+        return nightModeFlags == android.content.res.Configuration.UI_MODE_NIGHT_YES
     }
 }

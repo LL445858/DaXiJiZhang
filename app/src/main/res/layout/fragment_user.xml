@@ -122,7 +122,6 @@
                         android:layout_weight="1"
                         android:gravity="center"
                         android:orientation="vertical"
-                        android:background="?attr/selectableItemBackground"
                         android:clickable="true"
                         android:focusable="true"
                         android:padding="8dp">
@@ -153,7 +152,6 @@
                         android:layout_weight="1"
                         android:gravity="center"
                         android:orientation="vertical"
-                        android:background="?attr/selectableItemBackground"
                         android:clickable="true"
                         android:focusable="true"
                         android:padding="8dp">
@@ -184,7 +182,6 @@
                         android:layout_weight="1"
                         android:gravity="center"
                         android:orientation="vertical"
-                        android:background="?attr/selectableItemBackground"
                         android:clickable="true"
                         android:focusable="true"
                         android:padding="8dp">
@@ -215,7 +212,6 @@
                         android:layout_weight="1"
                         android:gravity="center"
                         android:orientation="vertical"
-                        android:background="?attr/selectableItemBackground"
                         android:clickable="true"
                         android:focusable="true"
                         android:padding="8dp">

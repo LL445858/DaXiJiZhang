@@ -125,8 +125,7 @@
                             app:boxCornerRadiusTopEnd="8dp"
                             app:boxCornerRadiusBottomStart="8dp"
                             app:boxCornerRadiusBottomEnd="8dp"
-                            app:boxStrokeWidth="1dp"
-                            app:boxStrokeColor="@color/divider"
+                            app:boxStrokeWidth="0dp"
                             app:hintEnabled="false"
                             app:endIconTint="@color/text_primary">
 
@@ -136,7 +135,7 @@
                                 android:layout_height="match_parent"
                                 android:inputType="none"
                                 android:textSize="13sp"
-                                android:gravity="center"
+                                android:gravity="end|center_vertical"
                                 android:paddingHorizontal="8dp"
                                 android:paddingVertical="8dp"
                                 android:textColor="@color/text_primary"

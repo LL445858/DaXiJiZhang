@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="horizontal"
+    android:gravity="center_vertical"
+    android:paddingVertical="8dp">
+
+    <!-- 日期（居左） -->
+    <TextView
+        android:id="@+id/tv_payment_date"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="1"
+        android:text="2026-02-08"
+        android:textColor="@color/text_primary"
+        android:textSize="14sp"
+        android:textStyle="bold" />
+
+    <!-- 金额（居中） -->
+    <TextView
+        android:id="@+id/tv_payment_amount"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="1"
+        android:gravity="center"
+        android:text="¥1,234.56"
+        android:textColor="@color/primary"
+        android:textSize="14sp"
+        android:textStyle="bold" />
+
+    <!-- 小区信息（居右） -->
+    <TextView
+        android:id="@+id/tv_payment_address"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="1.5"
+        android:gravity="end"
+        android:text="阳光花园 1期 3栋501"
+        android:textColor="@color/text_primary"
+        android:textSize="14sp"
+        android:textStyle="bold"
+        android:maxLines="1"
+        android:ellipsize="end" />
+
+</LinearLayout>

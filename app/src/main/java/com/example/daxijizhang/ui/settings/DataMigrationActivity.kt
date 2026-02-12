@@ -88,6 +88,7 @@ class DataMigrationActivity : BaseActivity() {
         loadSettings()
         updateAccountStatus()
         applyThemeColor()
+        applyImportPreviewThemeColor()
     }
 
     /**
@@ -112,6 +113,17 @@ class DataMigrationActivity : BaseActivity() {
         // 设置光标颜色
         textInputLayout.editText?.textCursorDrawable = null
         textInputLayout.editText?.highlightColor = color
+    }
+
+    /**
+     * 应用主题颜色到导入预览窗口的按钮
+     */
+    private fun applyImportPreviewThemeColor() {
+        val themeColor = ThemeManager.getThemeColor()
+        // 设置取消按钮的字体颜色为主题色
+        binding.btnCancelImport.setTextColor(themeColor)
+        // 设置确认按钮的背景颜色为主题色
+        binding.btnConfirmImport.backgroundTintList = android.content.res.ColorStateList.valueOf(themeColor)
     }
 
     private fun setupBackPressHandler() {

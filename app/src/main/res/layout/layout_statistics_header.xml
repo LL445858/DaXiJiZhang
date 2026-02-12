@@ -1,0 +1,112 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="56dp"
+    android:background="@color/surface"
+    android:gravity="center_vertical"
+    android:orientation="horizontal"
+    android:paddingHorizontal="16dp">
+
+    <!-- 左侧：统计周期选择 -->
+    <LinearLayout
+        android:id="@+id/ll_period_selector"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:background="?attr/selectableItemBackground"
+        android:clickable="true"
+        android:focusable="true"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:padding="8dp">
+
+        <TextView
+            android:id="@+id/tv_period_type"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="月统计"
+            android:textColor="@color/text_primary"
+            android:textSize="16sp" />
+
+        <ImageView
+            android:id="@+id/iv_period_arrow"
+            android:layout_width="20dp"
+            android:layout_height="20dp"
+            android:layout_marginStart="4dp"
+            android:src="@drawable/ic_arrow_down"
+            app:tint="@color/text_secondary" />
+
+    </LinearLayout>
+
+    <View
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        android:layout_weight="1" />
+
+    <!-- 右侧：日期选择区域 -->
+    <LinearLayout
+        android:id="@+id/ll_date_selector"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:background="?attr/selectableItemBackground"
+        android:clickable="true"
+        android:focusable="true"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:padding="8dp">
+
+        <!-- 月统计/年统计模式下的日期显示 -->
+        <TextView
+            android:id="@+id/tv_date_display"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="2026年02月"
+            android:textColor="@color/primary"
+            android:textSize="16sp" />
+
+        <!-- 自定义模式下的日期范围显示 -->
+        <LinearLayout
+            android:id="@+id/ll_custom_date_range"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
+            android:visibility="gone">
+
+            <TextView
+                android:id="@+id/tv_start_date"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:background="?attr/selectableItemBackground"
+                android:clickable="true"
+                android:focusable="true"
+                android:padding="4dp"
+                android:text="2026年02月08日"
+                android:textColor="@color/primary"
+                android:textSize="14sp" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginHorizontal="4dp"
+                android:text="-"
+                android:textColor="@color/text_secondary"
+                android:textSize="14sp" />
+
+            <TextView
+                android:id="@+id/tv_end_date"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:background="?attr/selectableItemBackground"
+                android:clickable="true"
+                android:focusable="true"
+                android:padding="4dp"
+                android:text="2026年02月08日"
+                android:textColor="@color/primary"
+                android:textSize="14sp" />
+
+        </LinearLayout>
+
+    </LinearLayout>
+
+</LinearLayout>
