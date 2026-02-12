@@ -97,10 +97,7 @@ class YearlyIncomeChartView @JvmOverloads constructor(
     override fun onDraw(canvas: Canvas) {
         super.onDraw(canvas)
         
-        val chartData = data ?: return
-        
-        val maxIncome = max(1.0, chartData.maxIncome)
-        
+        val chartData = data
         val chartHeight = height - topPaddingPx - bottomPaddingPx
         val chartWidth = width - paddingLeft - paddingRight
         
@@ -112,10 +109,16 @@ class YearlyIncomeChartView @JvmOverloads constructor(
         val totalWidth = totalBarWidth + 11 * actualSpacing
         val startX = paddingLeft + (chartWidth - totalWidth) / 2
         
+        val maxIncome = if (chartData != null && chartData.maxIncome > 0) {
+            chartData.maxIncome
+        } else {
+            1.0
+        }
+        
         barPaint.color = themeColor
         
         for (month in 1..12) {
-            val income = chartData.getIncome(month)
+            val income = chartData?.getIncome(month) ?: 0.0
             
             val barHeight = if (income > 0) {
                 (income / maxIncome * chartHeight).toFloat()

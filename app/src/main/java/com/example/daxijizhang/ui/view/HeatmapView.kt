@@ -65,11 +65,9 @@ class HeatmapView @JvmOverloads constructor(
         val desiredWidth = MeasureSpec.getSize(widthMeasureSpec)
         
         val data = heatmapData
-        val rowsNeeded = if (data != null) {
-            calculateRowsNeeded(data.year, data.month)
-        } else {
-            0
-        }
+        val year = data?.year ?: Calendar.getInstance().get(Calendar.YEAR)
+        val month = data?.month ?: (Calendar.getInstance().get(Calendar.MONTH) + 1)
+        val rowsNeeded = calculateRowsNeeded(year, month)
         
         val totalDotHeight = rowsNeeded * dotSizePx
         val totalSpacingHeight = if (rowsNeeded > 1) (rowsNeeded - 1) * verticalSpacingPx else 0f
@@ -109,10 +107,13 @@ class HeatmapView @JvmOverloads constructor(
     override fun onDraw(canvas: Canvas) {
         super.onDraw(canvas)
         
-        val data = heatmapData ?: return
+        val data = heatmapData
+        
+        val year = data?.year ?: Calendar.getInstance().get(Calendar.YEAR)
+        val month = data?.month ?: (Calendar.getInstance().get(Calendar.MONTH) + 1)
         
         val calendar = Calendar.getInstance()
-        calendar.set(data.year, data.month - 1, 1)
+        calendar.set(year, month - 1, 1)
         
         val daysInMonth = calendar.getActualMaximum(Calendar.DAY_OF_MONTH)
         val firstDayOfWeek = getMondayFirstDayOfWeek(calendar)
@@ -122,10 +123,10 @@ class HeatmapView @JvmOverloads constructor(
         val totalSpacingWidth = 6 * horizontalSpacingPx
         val startX = paddingLeft + horizontalPaddingPx + (availableWidth - totalDotWidth - totalSpacingWidth) / 2
         
-        val maxCount = max(1, data.maxCount)
+        val maxCount = max(1, data?.maxCount ?: 1)
         
         for (day in 1..daysInMonth) {
-            calendar.set(data.year, data.month - 1, day)
+            calendar.set(year, month - 1, day)
             val dayOfWeek = getMondayFirstDayOfWeek(calendar)
             
             val position = firstDayOfWeek + day - 1
@@ -137,7 +138,7 @@ class HeatmapView @JvmOverloads constructor(
             val right = left + dotSizePx
             val bottom = top + dotSizePx
             
-            val count = data.getCount(day)
+            val count = data?.getCount(day) ?: 0
             
             val color = if (count > 0) {
                 val ratio = count.toFloat() / maxCount.toFloat()

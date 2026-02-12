@@ -123,7 +123,7 @@ class YearlyHeatmapView @JvmOverloads constructor(
     override fun onDraw(canvas: Canvas) {
         super.onDraw(canvas)
         
-        val chartData = data ?: return
+        val chartData = data
         
         val availableWidth = width - paddingLeft - paddingRight
         val totalMonthSpacing = 3 * monthHorizontalSpacingPx
@@ -133,7 +133,9 @@ class YearlyHeatmapView @JvmOverloads constructor(
         
         val startX = paddingLeft
         
-        val globalMaxCount = calculateGlobalMaxCount(chartData)
+        val globalMaxCount = if (chartData != null) calculateGlobalMaxCount(chartData) else 1
+        
+        val year = chartData?.year ?: Calendar.getInstance().get(Calendar.YEAR)
         
         for (month in 1..12) {
             val row = (month - 1) / 4
@@ -144,10 +146,8 @@ class YearlyHeatmapView @JvmOverloads constructor(
             
             canvas.drawText("${month}月", monthLeft + monthPaddingPx, monthTop + monthPaddingPx + monthLabelSizePx, monthLabelPaint)
             
-            val monthData = chartData.getMonthData(month)
-            if (monthData != null) {
-                drawMonthHeatmap(canvas, monthData, monthLeft, monthTop, monthWidth, globalMaxCount)
-            }
+            val monthData = chartData?.getMonthData(month)
+            drawMonthHeatmap(canvas, year, month, monthLeft, monthTop, monthData, globalMaxCount)
         }
     }
     
@@ -162,9 +162,9 @@ class YearlyHeatmapView @JvmOverloads constructor(
         return max(1, maxCount)
     }
     
-    private fun drawMonthHeatmap(canvas: Canvas, monthData: HeatmapData, monthLeft: Float, monthTop: Float, monthWidth: Float, globalMaxCount: Int) {
+    private fun drawMonthHeatmap(canvas: Canvas, year: Int, month: Int, monthLeft: Float, monthTop: Float, monthData: HeatmapData?, globalMaxCount: Int) {
         val calendar = Calendar.getInstance()
-        calendar.set(monthData.year, monthData.month - 1, 1)
+        calendar.set(year, month - 1, 1)
         
         val daysInMonth = calendar.getActualMaximum(Calendar.DAY_OF_MONTH)
         val firstDayOfWeek = getMondayFirstDayOfWeek(calendar)
@@ -173,7 +173,7 @@ class YearlyHeatmapView @JvmOverloads constructor(
         val dotsStartY = monthTop + monthPaddingPx + monthLabelSizePx + labelToDotsGapPx
         
         for (day in 1..daysInMonth) {
-            calendar.set(monthData.year, monthData.month - 1, day)
+            calendar.set(year, month - 1, day)
             val dayOfWeek = getMondayFirstDayOfWeek(calendar)
             
             val position = firstDayOfWeek + day - 1
@@ -183,7 +183,7 @@ class YearlyHeatmapView @JvmOverloads constructor(
             val dotLeft = dotsStartX + col * (dotSizePx + dotHorizontalSpacingPx)
             val dotTop = dotsStartY + row * (dotSizePx + dotVerticalSpacingPx)
             
-            val count = monthData.getCount(day)
+            val count = monthData?.getCount(day) ?: 0
             
             val color = if (count > 0) {
                 val ratio = count.toFloat() / globalMaxCount.toFloat()

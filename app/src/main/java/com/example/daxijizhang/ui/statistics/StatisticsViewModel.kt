@@ -36,6 +36,11 @@ class StatisticsViewModel(private val repository: StatisticsRepository) : ViewMo
     private val _yearlyHeatmapData = MutableLiveData<YearlyHeatmapData?>()
     val yearlyHeatmapData: LiveData<YearlyHeatmapData?> = _yearlyHeatmapData
 
+    private enum class CacheType {
+        NONE, MONTH, YEAR, CUSTOM
+    }
+    
+    private var cacheType: CacheType = CacheType.NONE
     private var cachedYear: Int? = null
     private var cachedMonth: Int? = null
     private var cachedCustomStart: Date? = null
@@ -47,7 +52,7 @@ class StatisticsViewModel(private val repository: StatisticsRepository) : ViewMo
     private var cachedYearlyHeatmapData: YearlyHeatmapData? = null
 
     fun loadYearStatistics(year: Int, forceRefresh: Boolean = false) {
-        if (!forceRefresh && cachedYear == year && cachedStatisticsData != null) {
+        if (!forceRefresh && cacheType == CacheType.YEAR && cachedYear == year && cachedStatisticsData != null) {
             _statisticsData.value = cachedStatisticsData!!
             _yearlyIncomeData.value = cachedYearlyIncomeData
             _yearlyHeatmapData.value = cachedYearlyHeatmapData
@@ -71,6 +76,7 @@ class StatisticsViewModel(private val repository: StatisticsRepository) : ViewMo
                 val yearlyHeatmap = repository.getYearlyHeatmapData(year)
                 _yearlyHeatmapData.value = yearlyHeatmap
                 
+                cacheType = CacheType.YEAR
                 cachedYear = year
                 cachedMonth = null
                 cachedCustomStart = null
@@ -89,7 +95,7 @@ class StatisticsViewModel(private val repository: StatisticsRepository) : ViewMo
     }
 
     fun loadMonthStatistics(year: Int, month: Int, forceRefresh: Boolean = false) {
-        if (!forceRefresh && cachedYear == year && cachedMonth == month && cachedStatisticsData != null) {
+        if (!forceRefresh && cacheType == CacheType.MONTH && cachedYear == year && cachedMonth == month && cachedStatisticsData != null) {
             _statisticsData.value = cachedStatisticsData!!
             _heatmapData.value = cachedHeatmapData
             _yearlyIncomeData.value = null
@@ -111,6 +117,7 @@ class StatisticsViewModel(private val repository: StatisticsRepository) : ViewMo
                 val heatmap = repository.getHeatmapData(year, month)
                 _heatmapData.value = heatmap
                 
+                cacheType = CacheType.MONTH
                 cachedYear = year
                 cachedMonth = month
                 cachedCustomStart = null
@@ -129,7 +136,7 @@ class StatisticsViewModel(private val repository: StatisticsRepository) : ViewMo
     }
 
     fun loadCustomStatistics(startDate: Date, endDate: Date, forceRefresh: Boolean = false) {
-        if (!forceRefresh && cachedCustomStart == startDate && cachedCustomEnd == endDate && cachedStatisticsData != null) {
+        if (!forceRefresh && cacheType == CacheType.CUSTOM && cachedCustomStart == startDate && cachedCustomEnd == endDate && cachedStatisticsData != null) {
             _statisticsData.value = cachedStatisticsData!!
             _heatmapData.value = null
             _yearlyIncomeData.value = null
@@ -149,6 +156,7 @@ class StatisticsViewModel(private val repository: StatisticsRepository) : ViewMo
                 _statisticsData.value = data
                 _isEmpty.value = isDataEmpty(data)
                 
+                cacheType = CacheType.CUSTOM
                 cachedYear = null
                 cachedMonth = null
                 cachedCustomStart = startDate
@@ -179,6 +187,7 @@ class StatisticsViewModel(private val repository: StatisticsRepository) : ViewMo
     }
     
     fun clearCache() {
+        cacheType = CacheType.NONE
         cachedYear = null
         cachedMonth = null
         cachedCustomStart = null
