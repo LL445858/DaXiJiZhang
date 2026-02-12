@@ -29,6 +29,9 @@ import com.example.daxijizhang.data.model.StatisticsData
 import com.example.daxijizhang.data.repository.StatisticsRepository
 import com.example.daxijizhang.databinding.FragmentStatisticsBinding
 import com.example.daxijizhang.ui.view.CustomNumberPicker
+import com.example.daxijizhang.ui.view.HeatmapView
+import com.example.daxijizhang.ui.view.YearlyHeatmapView
+import com.example.daxijizhang.ui.view.YearlyIncomeChartView
 import com.example.daxijizhang.util.StatisticsStateManager
 import com.example.daxijizhang.util.ThemeManager
 import com.google.android.material.button.MaterialButton
@@ -78,12 +81,17 @@ class StatisticsFragment : Fragment() {
 
     // 视图引用 - 内容区域
     private lateinit var progressBar: ProgressBar
-    private lateinit var tvEmptyHint: TextView
     private lateinit var scrollContent: View
     private lateinit var tvWorkStatsLine1: TextView
     private lateinit var tvWorkStatsLine2: TextView
     private lateinit var tvWorkStatsLine3: TextView
     private lateinit var llPaymentList: LinearLayout
+    private lateinit var cardHeatmap: View
+    private lateinit var heatmapView: HeatmapView
+    private lateinit var cardYearlyIncome: View
+    private lateinit var yearlyIncomeChart: YearlyIncomeChartView
+    private lateinit var cardYearlyHeatmap: View
+    private lateinit var yearlyHeatmapView: YearlyHeatmapView
 
     // 日期格式化
     private val dateFormat = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
@@ -172,18 +180,26 @@ class StatisticsFragment : Fragment() {
         // 获取内容区域视图引用
         val contentView = binding.root.findViewById<View>(R.id.statistics_content)
         progressBar = contentView.findViewById(R.id.progress_bar)
-        tvEmptyHint = contentView.findViewById(R.id.tv_empty_hint)
         scrollContent = contentView.findViewById(R.id.scroll_content)
         tvWorkStatsLine1 = contentView.findViewById(R.id.tv_work_stats_line1)
         tvWorkStatsLine2 = contentView.findViewById(R.id.tv_work_stats_line2)
         tvWorkStatsLine3 = contentView.findViewById(R.id.tv_work_stats_line3)
         llPaymentList = contentView.findViewById(R.id.ll_payment_list)
+        cardHeatmap = contentView.findViewById(R.id.card_heatmap)
+        heatmapView = contentView.findViewById(R.id.heatmap_view)
+        cardYearlyIncome = contentView.findViewById(R.id.card_yearly_income)
+        yearlyIncomeChart = contentView.findViewById(R.id.yearly_income_chart)
+        cardYearlyHeatmap = contentView.findViewById(R.id.card_yearly_heatmap)
+        yearlyHeatmapView = contentView.findViewById(R.id.yearly_heatmap_view)
 
         // 应用主题颜色到标题栏日期文本
         applyHeaderThemeColor()
 
         // 更新周期类型显示（从状态管理器恢复后）
         updatePeriodTypeDisplay()
+        
+        // 更新热力图可见性
+        updateHeatmapVisibility()
     }
 
     /**
@@ -208,33 +224,37 @@ class StatisticsFragment : Fragment() {
     }
 
     private fun setupObservers() {
-        // 观察统计数据
         viewModel.statisticsData.observe(viewLifecycleOwner) { data ->
             updateStatisticsUI(data)
         }
 
-        // 观察加载状态
         viewModel.isLoading.observe(viewLifecycleOwner) { isLoading ->
             progressBar.visibility = if (isLoading) View.VISIBLE else View.GONE
-        }
-
-        // 观察空数据状态
-        viewModel.isEmpty.observe(viewLifecycleOwner) { isEmpty ->
-            if (isEmpty && !viewModel.isLoading.value!!) {
-                tvEmptyHint.visibility = View.VISIBLE
-                scrollContent.visibility = View.GONE
-            } else {
-                tvEmptyHint.visibility = View.GONE
+            if (!isLoading) {
                 scrollContent.visibility = View.VISIBLE
             }
         }
 
-        // 观察错误信息
         viewModel.errorMessage.observe(viewLifecycleOwner) { errorMsg ->
             errorMsg?.let {
                 showSnackbar(it)
                 viewModel.clearError()
             }
+        }
+        
+        viewModel.heatmapData.observe(viewLifecycleOwner) { data ->
+            heatmapView.setThemeColor(ThemeManager.getThemeColor())
+            heatmapView.setData(data)
+        }
+        
+        viewModel.yearlyIncomeData.observe(viewLifecycleOwner) { data ->
+            yearlyIncomeChart.setThemeColor(ThemeManager.getThemeColor())
+            yearlyIncomeChart.setData(data)
+        }
+        
+        viewModel.yearlyHeatmapData.observe(viewLifecycleOwner) { data ->
+            yearlyHeatmapView.setThemeColor(ThemeManager.getThemeColor())
+            yearlyHeatmapView.setData(data)
         }
     }
 
@@ -673,9 +693,39 @@ class StatisticsFragment : Fragment() {
             PeriodType.YEAR -> "年统计"
             PeriodType.CUSTOM -> "自定义"
         }
+        
+        if (type == PeriodType.CUSTOM) {
+            StatisticsStateManager.ensureCustomDateInitialized()
+            customStartDate.timeInMillis = StatisticsStateManager.customStartDate.timeInMillis
+            customEndDate.timeInMillis = StatisticsStateManager.customEndDate.timeInMillis
+            tempStartDate.timeInMillis = customStartDate.timeInMillis
+            tempEndDate.timeInMillis = customEndDate.timeInMillis
+        }
+        
+        updateHeatmapVisibility()
         saveStateToManager()
         updateDateDisplay()
         loadStatisticsData()
+    }
+    
+    private fun updateHeatmapVisibility() {
+        cardHeatmap.visibility = if (currentPeriodType == PeriodType.MONTH) {
+            View.VISIBLE
+        } else {
+            View.GONE
+        }
+        
+        cardYearlyIncome.visibility = if (currentPeriodType == PeriodType.YEAR) {
+            View.VISIBLE
+        } else {
+            View.GONE
+        }
+        
+        cardYearlyHeatmap.visibility = if (currentPeriodType == PeriodType.YEAR) {
+            View.VISIBLE
+        } else {
+            View.GONE
+        }
     }
 
     /**

@@ -4,41 +4,81 @@ import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.daxijizhang.data.model.HeatmapData
 import com.example.daxijizhang.data.model.StatisticsData
 import com.example.daxijizhang.data.repository.StatisticsRepository
+import com.example.daxijizhang.ui.view.YearlyHeatmapData
+import com.example.daxijizhang.ui.view.YearlyIncomeData
 import kotlinx.coroutines.launch
 import java.util.Calendar
 import java.util.Date
 
 class StatisticsViewModel(private val repository: StatisticsRepository) : ViewModel() {
 
-    // 统计数据
     private val _statisticsData = MutableLiveData<StatisticsData>()
     val statisticsData: LiveData<StatisticsData> = _statisticsData
 
-    // 加载状态
     private val _isLoading = MutableLiveData<Boolean>()
     val isLoading: LiveData<Boolean> = _isLoading
 
-    // 空数据状态
     private val _isEmpty = MutableLiveData<Boolean>()
     val isEmpty: LiveData<Boolean> = _isEmpty
 
-    // 错误信息
     private val _errorMessage = MutableLiveData<String?>()
     val errorMessage: LiveData<String?> = _errorMessage
 
-    /**
-     * 加载年份统计数据
-     */
-    fun loadYearStatistics(year: Int) {
+    private val _heatmapData = MutableLiveData<HeatmapData?>()
+    val heatmapData: LiveData<HeatmapData?> = _heatmapData
+
+    private val _yearlyIncomeData = MutableLiveData<YearlyIncomeData?>()
+    val yearlyIncomeData: LiveData<YearlyIncomeData?> = _yearlyIncomeData
+
+    private val _yearlyHeatmapData = MutableLiveData<YearlyHeatmapData?>()
+    val yearlyHeatmapData: LiveData<YearlyHeatmapData?> = _yearlyHeatmapData
+
+    private var cachedYear: Int? = null
+    private var cachedMonth: Int? = null
+    private var cachedCustomStart: Date? = null
+    private var cachedCustomEnd: Date? = null
+    
+    private var cachedStatisticsData: StatisticsData? = null
+    private var cachedHeatmapData: HeatmapData? = null
+    private var cachedYearlyIncomeData: YearlyIncomeData? = null
+    private var cachedYearlyHeatmapData: YearlyHeatmapData? = null
+
+    fun loadYearStatistics(year: Int, forceRefresh: Boolean = false) {
+        if (!forceRefresh && cachedYear == year && cachedStatisticsData != null) {
+            _statisticsData.value = cachedStatisticsData!!
+            _yearlyIncomeData.value = cachedYearlyIncomeData
+            _yearlyHeatmapData.value = cachedYearlyHeatmapData
+            _heatmapData.value = null
+            _isEmpty.value = isDataEmpty(cachedStatisticsData!!)
+            return
+        }
+        
         viewModelScope.launch {
             _isLoading.value = true
             _errorMessage.value = null
+            _heatmapData.value = null
             try {
                 val data = repository.getStatisticsByYear(year)
                 _statisticsData.value = data
                 _isEmpty.value = isDataEmpty(data)
+                
+                val yearlyIncome = repository.getYearlyIncomeData(year)
+                _yearlyIncomeData.value = yearlyIncome
+                
+                val yearlyHeatmap = repository.getYearlyHeatmapData(year)
+                _yearlyHeatmapData.value = yearlyHeatmap
+                
+                cachedYear = year
+                cachedMonth = null
+                cachedCustomStart = null
+                cachedCustomEnd = null
+                cachedStatisticsData = data
+                cachedHeatmapData = null
+                cachedYearlyIncomeData = yearlyIncome
+                cachedYearlyHeatmapData = yearlyHeatmap
             } catch (e: Exception) {
                 _errorMessage.value = "加载统计数据失败：${e.message}"
                 _isEmpty.value = true
@@ -48,17 +88,37 @@ class StatisticsViewModel(private val repository: StatisticsRepository) : ViewMo
         }
     }
 
-    /**
-     * 加载月份统计数据
-     */
-    fun loadMonthStatistics(year: Int, month: Int) {
+    fun loadMonthStatistics(year: Int, month: Int, forceRefresh: Boolean = false) {
+        if (!forceRefresh && cachedYear == year && cachedMonth == month && cachedStatisticsData != null) {
+            _statisticsData.value = cachedStatisticsData!!
+            _heatmapData.value = cachedHeatmapData
+            _yearlyIncomeData.value = null
+            _yearlyHeatmapData.value = null
+            _isEmpty.value = isDataEmpty(cachedStatisticsData!!)
+            return
+        }
+        
         viewModelScope.launch {
             _isLoading.value = true
             _errorMessage.value = null
+            _yearlyIncomeData.value = null
+            _yearlyHeatmapData.value = null
             try {
                 val data = repository.getStatisticsByMonth(year, month)
                 _statisticsData.value = data
                 _isEmpty.value = isDataEmpty(data)
+                
+                val heatmap = repository.getHeatmapData(year, month)
+                _heatmapData.value = heatmap
+                
+                cachedYear = year
+                cachedMonth = month
+                cachedCustomStart = null
+                cachedCustomEnd = null
+                cachedStatisticsData = data
+                cachedHeatmapData = heatmap
+                cachedYearlyIncomeData = null
+                cachedYearlyHeatmapData = null
             } catch (e: Exception) {
                 _errorMessage.value = "加载统计数据失败：${e.message}"
                 _isEmpty.value = true
@@ -68,17 +128,35 @@ class StatisticsViewModel(private val repository: StatisticsRepository) : ViewMo
         }
     }
 
-    /**
-     * 加载自定义日期范围统计数据
-     */
-    fun loadCustomStatistics(startDate: Date, endDate: Date) {
+    fun loadCustomStatistics(startDate: Date, endDate: Date, forceRefresh: Boolean = false) {
+        if (!forceRefresh && cachedCustomStart == startDate && cachedCustomEnd == endDate && cachedStatisticsData != null) {
+            _statisticsData.value = cachedStatisticsData!!
+            _heatmapData.value = null
+            _yearlyIncomeData.value = null
+            _yearlyHeatmapData.value = null
+            _isEmpty.value = isDataEmpty(cachedStatisticsData!!)
+            return
+        }
+        
         viewModelScope.launch {
             _isLoading.value = true
             _errorMessage.value = null
+            _heatmapData.value = null
+            _yearlyIncomeData.value = null
+            _yearlyHeatmapData.value = null
             try {
                 val data = repository.getStatisticsByDateRange(startDate, endDate)
                 _statisticsData.value = data
                 _isEmpty.value = isDataEmpty(data)
+                
+                cachedYear = null
+                cachedMonth = null
+                cachedCustomStart = startDate
+                cachedCustomEnd = endDate
+                cachedStatisticsData = data
+                cachedHeatmapData = null
+                cachedYearlyIncomeData = null
+                cachedYearlyHeatmapData = null
             } catch (e: Exception) {
                 _errorMessage.value = "加载统计数据失败：${e.message}"
                 _isEmpty.value = true
@@ -88,9 +166,6 @@ class StatisticsViewModel(private val repository: StatisticsRepository) : ViewMo
         }
     }
 
-    /**
-     * 判断数据是否为空
-     */
     private fun isDataEmpty(data: StatisticsData): Boolean {
         return data.startedProjects == 0 &&
                 data.endedProjects == 0 &&
@@ -99,10 +174,18 @@ class StatisticsViewModel(private val repository: StatisticsRepository) : ViewMo
                 data.topPayments.isEmpty()
     }
 
-    /**
-     * 清除错误信息
-     */
     fun clearError() {
         _errorMessage.value = null
+    }
+    
+    fun clearCache() {
+        cachedYear = null
+        cachedMonth = null
+        cachedCustomStart = null
+        cachedCustomEnd = null
+        cachedStatisticsData = null
+        cachedHeatmapData = null
+        cachedYearlyIncomeData = null
+        cachedYearlyHeatmapData = null
     }
 }

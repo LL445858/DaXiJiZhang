@@ -6,7 +6,6 @@
     android:orientation="vertical"
     android:padding="16dp">
 
-    <!-- 加载状态 -->
     <ProgressBar
         android:id="@+id/progress_bar"
         android:layout_width="wrap_content"
@@ -14,19 +13,6 @@
         android:layout_gravity="center"
         android:visibility="gone" />
 
-    <!-- 空数据提示 -->
-    <TextView
-        android:id="@+id/tv_empty_hint"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:gravity="center"
-        android:padding="32dp"
-        android:text="暂无统计数据"
-        android:textColor="@color/text_hint"
-        android:textSize="16sp"
-        android:visibility="gone" />
-
-    <!-- 统计内容区域 -->
     <androidx.core.widget.NestedScrollView
         android:id="@+id/scroll_content"
         android:layout_width="match_parent"
@@ -38,7 +24,6 @@
             android:layout_height="wrap_content"
             android:orientation="vertical">
 
-            <!-- 干活统计模块 -->
             <com.google.android.material.card.MaterialCardView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
@@ -52,16 +37,14 @@
                     android:orientation="vertical"
                     android:padding="16dp">
 
-                    <!-- 模块标题 -->
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="干活统计"
+                        android:text="数据总览"
                         android:textColor="@color/text_primary"
                         android:textSize="16sp"
                         android:textStyle="bold" />
 
-                    <!-- 第一行：开始和结束的项目数 -->
                     <TextView
                         android:id="@+id/tv_work_stats_line1"
                         android:layout_width="wrap_content"
@@ -72,7 +55,6 @@
                         android:textSize="14sp"
                         android:textStyle="bold" />
 
-                    <!-- 第二行：完成数和平均用时 -->
                     <TextView
                         android:id="@+id/tv_work_stats_line2"
                         android:layout_width="wrap_content"
@@ -83,7 +65,6 @@
                         android:textSize="14sp"
                         android:textStyle="bold" />
 
-                    <!-- 第三行：支付统计 -->
                     <TextView
                         android:id="@+id/tv_work_stats_line3"
                         android:layout_width="wrap_content"
@@ -98,7 +79,108 @@
 
             </com.google.android.material.card.MaterialCardView>
 
-            <!-- 支付列表模块 -->
+            <com.google.android.material.card.MaterialCardView
+                android:id="@+id/card_yearly_income"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="16dp"
+                android:visibility="gone"
+                app:cardCornerRadius="12dp"
+                app:cardElevation="0dp"
+                app:cardBackgroundColor="@color/surface">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:padding="16dp">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="收入统计"
+                        android:textColor="@color/text_primary"
+                        android:textSize="16sp"
+                        android:textStyle="bold" />
+
+                    <com.example.daxijizhang.ui.view.YearlyIncomeChartView
+                        android:id="@+id/yearly_income_chart"
+                        android:layout_width="match_parent"
+                        android:layout_height="144dp"
+                        android:layout_marginTop="16dp" />
+
+                </LinearLayout>
+
+            </com.google.android.material.card.MaterialCardView>
+
+            <com.google.android.material.card.MaterialCardView
+                android:id="@+id/card_heatmap"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="16dp"
+                android:visibility="gone"
+                app:cardCornerRadius="12dp"
+                app:cardElevation="0dp"
+                app:cardBackgroundColor="@color/surface">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:padding="16dp">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="干活热力"
+                        android:textColor="@color/text_primary"
+                        android:textSize="16sp"
+                        android:textStyle="bold" />
+
+                    <com.example.daxijizhang.ui.view.HeatmapView
+                        android:id="@+id/heatmap_view"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="16dp" />
+
+                </LinearLayout>
+
+            </com.google.android.material.card.MaterialCardView>
+
+            <com.google.android.material.card.MaterialCardView
+                android:id="@+id/card_yearly_heatmap"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="16dp"
+                android:visibility="gone"
+                app:cardCornerRadius="12dp"
+                app:cardElevation="0dp"
+                app:cardBackgroundColor="@color/surface">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:padding="16dp">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="干活热力"
+                        android:textColor="@color/text_primary"
+                        android:textSize="16sp"
+                        android:textStyle="bold" />
+
+                    <com.example.daxijizhang.ui.view.YearlyHeatmapView
+                        android:id="@+id/yearly_heatmap_view"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="16dp" />
+
+                </LinearLayout>
+
+            </com.google.android.material.card.MaterialCardView>
+
             <com.google.android.material.card.MaterialCardView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
@@ -113,7 +195,6 @@
                     android:orientation="vertical"
                     android:padding="16dp">
 
-                    <!-- 模块标题行 -->
                     <LinearLayout
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
@@ -124,7 +205,7 @@
                             android:layout_width="0dp"
                             android:layout_height="wrap_content"
                             android:layout_weight="1"
-                            android:text="支付记录"
+                            android:text="收入记录"
                             android:textColor="@color/text_primary"
                             android:textSize="16sp"
                             android:textStyle="bold" />
@@ -138,15 +219,12 @@
 
                     </LinearLayout>
 
-                    <!-- 支付列表容器 -->
                     <LinearLayout
                         android:id="@+id/ll_payment_list"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:layout_marginTop="16dp"
                         android:orientation="vertical">
-
-                        <!-- 支付列表项将动态添加到这里 -->
 
                     </LinearLayout>
 

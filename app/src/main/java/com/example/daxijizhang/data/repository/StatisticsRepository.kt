@@ -1,8 +1,11 @@
 package com.example.daxijizhang.data.repository
 
 import com.example.daxijizhang.data.database.AppDatabase
+import com.example.daxijizhang.data.model.HeatmapData
 import com.example.daxijizhang.data.model.PaymentWithBillInfo
 import com.example.daxijizhang.data.model.StatisticsData
+import com.example.daxijizhang.ui.view.YearlyHeatmapData
+import com.example.daxijizhang.ui.view.YearlyIncomeData
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.util.Calendar
@@ -157,16 +160,106 @@ class StatisticsRepository(private val database: AppDatabase) {
     suspend fun getStatisticsByMonth(year: Int, month: Int): StatisticsData {
         val calendar = Calendar.getInstance()
 
-        // 设置开始日期为当月1日
         calendar.set(year, month - 1, 1, 0, 0, 0)
         calendar.set(Calendar.MILLISECOND, 0)
         val startDate = calendar.time
 
-        // 设置结束日期为当月最后一日
         calendar.set(year, month - 1, calendar.getActualMaximum(Calendar.DAY_OF_MONTH), 23, 59, 59)
         calendar.set(Calendar.MILLISECOND, 999)
         val endDate = calendar.time
 
         return getStatisticsByDateRange(startDate, endDate)
+    }
+
+    suspend fun getHeatmapData(year: Int, month: Int): HeatmapData = withContext(Dispatchers.IO) {
+        val billDao = database.billDao()
+        val allBills = billDao.getAllList()
+
+        val calendar = Calendar.getInstance()
+        calendar.set(year, month - 1, 1, 0, 0, 0)
+        calendar.set(Calendar.MILLISECOND, 0)
+        val monthStart = calendar.time
+
+        val daysInMonth = calendar.getActualMaximum(Calendar.DAY_OF_MONTH)
+
+        val dayCounts = mutableMapOf<Int, Int>()
+
+        for (day in 1..daysInMonth) {
+            calendar.set(year, month - 1, day, 0, 0, 0)
+            calendar.set(Calendar.MILLISECOND, 0)
+            val dayStart = calendar.time
+
+            calendar.set(Calendar.HOUR_OF_DAY, 23)
+            calendar.set(Calendar.MINUTE, 59)
+            calendar.set(Calendar.SECOND, 59)
+            calendar.set(Calendar.MILLISECOND, 999)
+            val dayEnd = calendar.time
+
+            val count = allBills.count { bill ->
+                !bill.startDate.after(dayEnd) && !bill.endDate.before(dayStart)
+            }
+
+            if (count > 0) {
+                dayCounts[day] = count
+            }
+        }
+
+        val maxCount = if (dayCounts.isNotEmpty()) dayCounts.values.maxOrNull() ?: 0 else 0
+
+        HeatmapData(
+            year = year,
+            month = month,
+            dayCounts = dayCounts,
+            maxCount = maxCount
+        )
+    }
+
+    suspend fun getYearlyIncomeData(year: Int): YearlyIncomeData = withContext(Dispatchers.IO) {
+        val paymentDao = database.paymentRecordDao()
+        val billDao = database.billDao()
+        
+        val allBills = billDao.getAllList()
+        val monthlyIncomes = mutableMapOf<Int, Double>()
+        
+        for (month in 1..12) {
+            val calendar = Calendar.getInstance()
+            calendar.set(year, month - 1, 1, 0, 0, 0)
+            calendar.set(Calendar.MILLISECOND, 0)
+            val monthStart = calendar.time
+            
+            calendar.set(Calendar.DAY_OF_MONTH, calendar.getActualMaximum(Calendar.DAY_OF_MONTH))
+            calendar.set(Calendar.HOUR_OF_DAY, 23)
+            calendar.set(Calendar.MINUTE, 59)
+            calendar.set(Calendar.SECOND, 59)
+            calendar.set(Calendar.MILLISECOND, 999)
+            val monthEnd = calendar.time
+            
+            var monthTotal = 0.0
+            
+            allBills.forEach { bill ->
+                val payments = paymentDao.getByBillIdList(bill.id)
+                payments.forEach { payment ->
+                    if (!payment.paymentDate.before(monthStart) && !payment.paymentDate.after(monthEnd)) {
+                        monthTotal += payment.amount
+                    }
+                }
+            }
+            
+            if (monthTotal > 0) {
+                monthlyIncomes[month] = monthTotal
+            }
+        }
+        
+        YearlyIncomeData(year = year, monthlyIncomes = monthlyIncomes)
+    }
+
+    suspend fun getYearlyHeatmapData(year: Int): YearlyHeatmapData = withContext(Dispatchers.IO) {
+        val monthlyHeatmaps = mutableMapOf<Int, HeatmapData>()
+        
+        for (month in 1..12) {
+            monthlyHeatmaps[month] = getHeatmapData(year, month)
+        }
+        
+        YearlyHeatmapData(year = year, monthlyHeatmaps = monthlyHeatmaps)
     }
 }
