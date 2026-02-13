@@ -1,43 +1,56 @@
 package com.example.daxijizhang.ui.bill
 
+import android.util.Log
 import androidx.lifecycle.*
+import com.example.daxijizhang.data.cache.DataCacheManager
 import com.example.daxijizhang.data.model.Bill
 import com.example.daxijizhang.data.model.BillItem
 import com.example.daxijizhang.data.model.BillWithItems
 import com.example.daxijizhang.data.model.PaymentRecord
 import com.example.daxijizhang.data.repository.BillRepository
+import com.example.daxijizhang.util.CrashHandler
 import com.example.daxijizhang.util.PinyinUtil
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.util.Date
 
 class BillViewModel(val repository: BillRepository) : ViewModel() {
 
+    private val TAG = "BillViewModel"
+    private val cacheManager = DataCacheManager
+
     private val _sortType = MutableLiveData<SortType>(SortType.START_DATE_DESC)
     val sortType: LiveData<SortType> = _sortType
 
-    // 筛选条件
     private val _startDateRangeFilter = MutableLiveData<Pair<Date, Date>?>(null)
     private val _endDateRangeFilter = MutableLiveData<Pair<Date, Date>?>(null)
     private val _paymentStatusFilter = MutableLiveData<PaymentStatusFilter>(PaymentStatusFilter.ALL)
 
-    // 筛选状态
     private val _isFilterActive = MutableLiveData<Boolean>(false)
     val isFilterActive: LiveData<Boolean> = _isFilterActive
 
     private val _bills = MediatorLiveData<List<Bill>>()
     val bills: LiveData<List<Bill>> = _bills
 
+    private val _isLoading = MutableLiveData<Boolean>(false)
+    val isLoading: LiveData<Boolean> = _isLoading
+
+    private val _errorMessage = MutableLiveData<String?>()
+    val errorMessage: LiveData<String?> = _errorMessage
+
     val billsWithItems: LiveData<List<BillWithItems>> = repository.allBillsWithItems
 
+    private var cachedBillsList: List<Bill>? = null
+    private var lastSortType: SortType? = null
+
     init {
-        // 初始化时设置默认数据源
         updateBillsSource()
     }
 
     private fun updateBillsSource() {
         val sortType = _sortType.value ?: SortType.START_DATE_DESC
 
-        // 对于小区名排序，使用默认数据源然后在应用层排序
         val source = if (sortType == SortType.COMMUNITY_ASC) {
             repository.getBillsSortedByStartDateDesc()
         } else {
@@ -53,30 +66,36 @@ class BillViewModel(val repository: BillRepository) : ViewModel() {
         }
 
         _bills.addSource(source) { bills ->
-            val filteredBills = applyFilters(bills)
-            val sortedBills = applySorting(filteredBills)
-            _bills.value = sortedBills
+            viewModelScope.launch(Dispatchers.Default + CrashHandler.coroutineExceptionHandler) {
+                val filteredBills = applyFilters(bills)
+                val sortedBills = applySorting(filteredBills)
+                
+                if (sortedBills != cachedBillsList || sortType != lastSortType) {
+                    cachedBillsList = sortedBills
+                    lastSortType = sortType
+                    withContext(Dispatchers.Main) {
+                        _bills.value = sortedBills
+                    }
+                }
+            }
         }
     }
 
     private fun applyFilters(bills: List<Bill>): List<Bill> {
         var result = bills
 
-        // 应用开始日期筛选
         _startDateRangeFilter.value?.let { (start, end) ->
             result = result.filter { bill ->
                 bill.startDate in start..end
             }
         }
 
-        // 应用结束日期筛选
         _endDateRangeFilter.value?.let { (start, end) ->
             result = result.filter { bill ->
                 bill.endDate in start..end
             }
         }
 
-        // 应用结清状态筛选
         when (_paymentStatusFilter.value) {
             PaymentStatusFilter.PAID -> {
                 result = result.filter { bill ->
@@ -88,7 +107,7 @@ class BillViewModel(val repository: BillRepository) : ViewModel() {
                     (bill.paidAmount + bill.waivedAmount) < bill.totalAmount - 0.01
                 }
             }
-            else -> { /* ALL - 不过滤 */ }
+            else -> { }
         }
 
         return result
@@ -97,8 +116,6 @@ class BillViewModel(val repository: BillRepository) : ViewModel() {
     private fun applySorting(bills: List<Bill>): List<Bill> {
         return when (_sortType.value) {
             SortType.COMMUNITY_ASC -> {
-                // 使用拼音工具进行小区名排序
-                // 规则：中文转拼音全拼 -> 字母转小写 -> 数字保持原样 -> 逐个字符比较ASCII码
                 bills.sortedWith(
                     compareBy<Bill> { PinyinUtil.getPinyin(it.communityName) }
                         .thenByDescending { it.startDate }
@@ -127,11 +144,13 @@ class BillViewModel(val repository: BillRepository) : ViewModel() {
     }
 
     fun setSortType(type: SortType) {
-        _sortType.value = type
-        updateBillsSource()
+        if (_sortType.value != type) {
+            _sortType.value = type
+            cachedBillsList = null
+            updateBillsSource()
+        }
     }
 
-    // 设置开始日期范围筛选
     fun setStartDateRangeFilter(startDate: Date?, endDate: Date?) {
         _startDateRangeFilter.value = if (startDate != null && endDate != null) {
             Pair(startDate, endDate)
@@ -139,10 +158,10 @@ class BillViewModel(val repository: BillRepository) : ViewModel() {
             null
         }
         updateFilterStatus()
+        cachedBillsList = null
         updateBillsSource()
     }
 
-    // 设置结束日期范围筛选
     fun setEndDateRangeFilter(startDate: Date?, endDate: Date?) {
         _endDateRangeFilter.value = if (startDate != null && endDate != null) {
             Pair(startDate, endDate)
@@ -150,22 +169,23 @@ class BillViewModel(val repository: BillRepository) : ViewModel() {
             null
         }
         updateFilterStatus()
+        cachedBillsList = null
         updateBillsSource()
     }
 
-    // 设置结清状态筛选
     fun setPaymentStatusFilter(status: PaymentStatusFilter) {
         _paymentStatusFilter.value = status
         updateFilterStatus()
+        cachedBillsList = null
         updateBillsSource()
     }
 
-    // 清除所有筛选
     fun clearAllFilters() {
         _startDateRangeFilter.value = null
         _endDateRangeFilter.value = null
         _paymentStatusFilter.value = PaymentStatusFilter.ALL
         _isFilterActive.value = false
+        cachedBillsList = null
         updateBillsSource()
     }
 
@@ -175,7 +195,6 @@ class BillViewModel(val repository: BillRepository) : ViewModel() {
                 _paymentStatusFilter.value != PaymentStatusFilter.ALL
     }
 
-    // 获取当前筛选条件描述
     fun getCurrentFilterDescription(): String {
         val filters = mutableListOf<String>()
 
@@ -202,16 +221,37 @@ class BillViewModel(val repository: BillRepository) : ViewModel() {
     }
 
     suspend fun saveBillWithItems(bill: Bill, items: List<BillItem>): Long {
-        return repository.saveBillWithItems(bill, items)
-    }
-
-    fun deleteBill(bill: Bill) {
-        viewModelScope.launch {
-            repository.deleteBill(bill)
+        return try {
+            _isLoading.value = true
+            val result = repository.saveBillWithItems(bill, items)
+            cacheManager.clearAllCaches()
+            Log.d(TAG, "Bill saved successfully with id: $result")
+            result
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to save bill", e)
+            _errorMessage.value = "保存账单失败：${e.message}"
+            -1L
+        } finally {
+            _isLoading.value = false
         }
     }
 
-    // 结付记录相关方法
+    fun deleteBill(bill: Bill) {
+        viewModelScope.launch(CrashHandler.coroutineExceptionHandler) {
+            try {
+                _isLoading.value = true
+                repository.deleteBill(bill)
+                cacheManager.clearAllCaches()
+                Log.d(TAG, "Bill deleted: ${bill.id}")
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to delete bill", e)
+                _errorMessage.value = "删除账单失败：${e.message}"
+            } finally {
+                _isLoading.value = false
+            }
+        }
+    }
+
     fun getPaymentRecordsByBillId(billId: Long): LiveData<List<PaymentRecord>> {
         return repository.getPaymentRecordsByBillId(billId)
     }
@@ -221,21 +261,43 @@ class BillViewModel(val repository: BillRepository) : ViewModel() {
     }
 
     fun insertPaymentRecord(paymentRecord: PaymentRecord) {
-        viewModelScope.launch {
-            repository.insertPaymentRecord(paymentRecord)
+        viewModelScope.launch(CrashHandler.coroutineExceptionHandler) {
+            try {
+                repository.insertPaymentRecord(paymentRecord)
+                Log.d(TAG, "Payment record inserted")
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to insert payment record", e)
+                _errorMessage.value = "添加支付记录失败：${e.message}"
+            }
         }
     }
 
     fun updatePaymentRecord(paymentRecord: PaymentRecord) {
-        viewModelScope.launch {
-            repository.updatePaymentRecord(paymentRecord)
+        viewModelScope.launch(CrashHandler.coroutineExceptionHandler) {
+            try {
+                repository.updatePaymentRecord(paymentRecord)
+                Log.d(TAG, "Payment record updated")
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to update payment record", e)
+                _errorMessage.value = "更新支付记录失败：${e.message}"
+            }
         }
     }
 
     fun deletePaymentRecord(paymentRecord: PaymentRecord) {
-        viewModelScope.launch {
-            repository.deletePaymentRecord(paymentRecord)
+        viewModelScope.launch(CrashHandler.coroutineExceptionHandler) {
+            try {
+                repository.deletePaymentRecord(paymentRecord)
+                Log.d(TAG, "Payment record deleted")
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to delete payment record", e)
+                _errorMessage.value = "删除支付记录失败：${e.message}"
+            }
         }
+    }
+
+    fun clearError() {
+        _errorMessage.value = null
     }
 
     enum class SortType {

@@ -7,7 +7,6 @@ import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import android.widget.FrameLayout
 import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
 import androidx.core.app.ActivityOptionsCompat
@@ -288,33 +287,27 @@ class UserFragment : Fragment(), ThemeManager.OnThemeColorChangeListener {
     /**
      * 应用遮罩效果
      * 0 = 完全透明（无遮罩，完全显示原图）
-     * 100 = 完全不透明（完全遮罩）
+     * 100 = 完全不透明（完全遮罩，显示灰色）
      */
     private fun applyOverlayEffect(overlayValue: Int) {
         try {
-            // 计算遮罩透明度：0值对应0透明度（完全透明），100值对应200透明度（半透明黑色）
-            val maxOverlayAlpha = 180 // 最大遮罩透明度（0-255）
-            val alpha = (overlayValue * maxOverlayAlpha / 100)
+            val overlayView = binding.viewOverlayMask
             
-            // 获取MaterialCardView内部的FrameLayout
-            val innerFrameLayout = binding.userHeaderContainer.getChildAt(0) as? FrameLayout
-            
-            if (innerFrameLayout != null) {
-                // 查找或创建遮罩层
-                var overlayView = innerFrameLayout.findViewById<View>(R.id.view_overlay)
+            if (overlayValue <= 0) {
+                // 浓度为0，隐藏遮罩层，完全显示原图
+                overlayView.visibility = View.GONE
+            } else {
+                // 显示遮罩层
+                overlayView.visibility = View.VISIBLE
                 
-                if (overlayView == null) {
-                    // 创建遮罩层
-                    overlayView = View(requireContext()).apply {
-                        id = R.id.view_overlay
-                    }
-                    // 插入到背景图片之后（索引2，因为索引0是ImageView，索引1是渐变遮罩）
-                    innerFrameLayout.addView(overlayView, 2)
-                }
+                // 计算透明度：overlayValue范围0-100，映射到alpha范围0-255
+                // 0 = 完全透明，100 = 完全不透明
+                val alpha = (overlayValue * 255 / 100)
                 
-                // 设置遮罩颜色和透明度
-                val overlayColor = (alpha shl 24) or 0x000000
-                overlayView.setBackgroundColor(overlayColor)
+                // 设置深灰色遮罩，颜色为深灰色#303030，更接近黑色但不是纯黑色
+                // 透明度由alpha控制
+                val darkGrayColor = (alpha shl 24) or 0x00303030
+                overlayView.setBackgroundColor(darkGrayColor)
             }
         } catch (e: Exception) {
             e.printStackTrace()

@@ -17,9 +17,10 @@ import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.updateLayoutParams
 import androidx.fragment.app.Fragment
-import androidx.fragment.app.viewModels
+import androidx.fragment.app.activityViewModels
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.example.daxijizhang.R
+import com.example.daxijizhang.DaxiApplication
 import com.example.daxijizhang.data.database.AppDatabase
 import com.example.daxijizhang.data.model.Bill
 import com.example.daxijizhang.data.repository.BillRepository
@@ -41,22 +42,22 @@ class BillsFragment : Fragment() {
 
     private lateinit var billAdapter: BillAdapter
 
-    private val viewModel: BillViewModel by viewModels {
+    private val viewModel: BillViewModel by activityViewModels {
+        val app = requireActivity().application as DaxiApplication
+        val database = AppDatabase.getDatabase(app)
         BillViewModel.Factory(
             BillRepository(
-                AppDatabase.getDatabase(requireActivity().applicationContext).billDao(),
-                AppDatabase.getDatabase(requireActivity().applicationContext).billItemDao(),
-                AppDatabase.getDatabase(requireActivity().applicationContext).paymentRecordDao()
+                database.billDao(),
+                database.billItemDao(),
+                database.paymentRecordDao()
             )
         )
     }
 
     private val dateFormat = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
 
-    // 跟踪筛选对话框状态
     private var filterDialog: AlertDialog? = null
 
-    // 当前筛选条件状态
     private var currentStartDateFrom: Date? = null
     private var currentStartDateTo: Date? = null
     private var currentEndDateFrom: Date? = null
@@ -82,12 +83,8 @@ class BillsFragment : Fragment() {
         applyThemeColor()
     }
 
-    /**
-     * 应用主题颜色到视图
-     */
     private fun applyThemeColor() {
         val themeColor = ThemeManager.getThemeColor()
-        // 设置加号按钮背景颜色
         binding.fabAddBill.backgroundTintList = android.content.res.ColorStateList.valueOf(themeColor)
     }
 
@@ -103,11 +100,9 @@ class BillsFragment : Fragment() {
 
     private fun setupRecyclerView() {
         billAdapter = BillAdapter { bill ->
-            // 跳转到账单详情页
             val intent = Intent(requireContext(), BillDetailActivity::class.java).apply {
                 putExtra(BillDetailActivity.EXTRA_BILL_ID, bill.id)
             }
-            // 使用AndroidX ActivityOptions添加切换动画
             val options = ActivityOptionsCompat.makeCustomAnimation(
                 requireContext(),
                 R.anim.slide_in_right,
@@ -118,9 +113,7 @@ class BillsFragment : Fragment() {
         binding.recyclerBills.apply {
             layoutManager = LinearLayoutManager(requireContext())
             adapter = billAdapter
-            // 设置固定高度优化性能
             setHasFixedSize(true)
-            // 设置默认动画
             itemAnimator = androidx.recyclerview.widget.DefaultItemAnimator().apply {
                 addDuration = 200
                 removeDuration = 200
@@ -146,17 +139,21 @@ class BillsFragment : Fragment() {
         viewModel.isFilterActive.observe(viewLifecycleOwner) { isActive ->
             updateFilterButtonState(isActive)
         }
+        
+        viewModel.errorMessage.observe(viewLifecycleOwner) { errorMessage ->
+            errorMessage?.let {
+                Toast.makeText(requireContext(), it, Toast.LENGTH_SHORT).show()
+                viewModel.clearError()
+            }
+        }
     }
 
     private fun setupListeners() {
-        // 排序按钮 - 使用优化点击监听器
         binding.btnSort.setOnOptimizedClickListener(debounceTime = 200) {
             showSortMenu()
         }
 
-        // 筛选按钮 - 使用优化点击监听器
         binding.btnFilter.setOnOptimizedClickListener(debounceTime = 200) {
-            // 如果筛选面板已打开且有筛选条件，直接关闭
             if (filterDialog?.isShowing == true && viewModel.isFilterActive.value == true) {
                 filterDialog?.dismiss()
                 filterDialog = null
@@ -165,7 +162,6 @@ class BillsFragment : Fragment() {
             }
         }
 
-        // 查找按钮 - 使用优化点击监听器
         binding.btnSearch.setOnOptimizedClickListener(debounceTime = 200) {
             val intent = Intent(requireContext(), SearchActivity::class.java)
             val options = ActivityOptionsCompat.makeCustomAnimation(
@@ -176,7 +172,6 @@ class BillsFragment : Fragment() {
             startActivity(intent, options.toBundle())
         }
 
-        // 添加账单按钮 - 使用优化点击监听器
         binding.fabAddBill.setOnOptimizedClickListener(debounceTime = 300) {
             val intent = Intent(requireContext(), AddBillActivity::class.java)
             val options = ActivityOptionsCompat.makeCustomAnimation(
@@ -195,7 +190,6 @@ class BillsFragment : Fragment() {
             .setView(dialogBinding.root)
             .create()
 
-        // 设置排序选项点击事件
         dialogBinding.btnSortStartDateDesc.setOnClickListener {
             viewModel.setSortType(BillViewModel.SortType.START_DATE_DESC)
             sortDialog.dismiss()
@@ -227,10 +221,8 @@ class BillsFragment : Fragment() {
 
         sortDialog.show()
 
-        // 在show()之后设置弹窗圆角背景和宽度为屏幕的70%
         sortDialog.window?.apply {
             setBackgroundDrawable(ContextCompat.getDrawable(requireContext(), R.drawable.bg_dialog_rounded))
-            // 设置弹窗宽度为屏幕宽度的70%
             val displayMetrics = resources.displayMetrics
             val width = (displayMetrics.widthPixels * 0.7).toInt()
             setLayout(width, android.view.WindowManager.LayoutParams.WRAP_CONTENT)
@@ -238,12 +230,10 @@ class BillsFragment : Fragment() {
     }
 
     private fun showFilterDialog() {
-        // 关闭已存在的对话框
         filterDialog?.dismiss()
 
         val dialogBinding = DialogFilterBinding.inflate(LayoutInflater.from(requireContext()))
 
-        // 结付状态下拉选项
         val paymentStatusOptions = arrayOf("全部", "已结清", "未结清")
         val paymentStatusAdapter = ArrayAdapter(
             requireContext(),
@@ -252,13 +242,11 @@ class BillsFragment : Fragment() {
         )
         dialogBinding.spinnerPaymentStatus.setAdapter(paymentStatusAdapter)
 
-        // 恢复当前筛选条件到输入框
         currentStartDateFrom?.let { dialogBinding.etStartDateFrom.setText(dateFormat.format(it)) }
         currentStartDateTo?.let { dialogBinding.etStartDateTo.setText(dateFormat.format(it)) }
         currentEndDateFrom?.let { dialogBinding.etEndDateFrom.setText(dateFormat.format(it)) }
         currentEndDateTo?.let { dialogBinding.etEndDateTo.setText(dateFormat.format(it)) }
 
-        // 恢复结付状态选择
         val statusText = when (currentPaymentStatus) {
             BillViewModel.PaymentStatusFilter.PAID -> "已结清"
             BillViewModel.PaymentStatusFilter.UNPAID -> "未结清"
@@ -266,7 +254,6 @@ class BillsFragment : Fragment() {
         }
         dialogBinding.spinnerPaymentStatus.setText(statusText, false)
 
-        // 日期选择器
         dialogBinding.etStartDateFrom.setOnClickListener {
             showDatePicker { date ->
                 currentStartDateFrom = date
@@ -299,19 +286,15 @@ class BillsFragment : Fragment() {
             .setView(dialogBinding.root)
             .create()
 
-        // 设置弹窗圆角背景
         filterDialog?.window?.apply {
             setBackgroundDrawable(ContextCompat.getDrawable(requireContext(), R.drawable.bg_dialog_rounded))
         }
 
-        // 应用主题颜色到按钮
         val themeColor = ThemeManager.getThemeColor()
         dialogBinding.btnApplyFilter.backgroundTintList = android.content.res.ColorStateList.valueOf(themeColor)
         dialogBinding.btnClearFilter.setTextColor(themeColor)
 
-        // 应用筛选按钮
         dialogBinding.btnApplyFilter.setOnClickListener {
-            // 验证并应用开始日期筛选
             if (currentStartDateFrom != null && currentStartDateTo != null) {
                 if (currentStartDateFrom!!.after(currentStartDateTo)) {
                     Toast.makeText(requireContext(), "开始日期的起始时间不能晚于结束时间", Toast.LENGTH_SHORT).show()
@@ -319,7 +302,6 @@ class BillsFragment : Fragment() {
                 }
             }
 
-            // 验证并应用结束日期筛选
             if (currentEndDateFrom != null && currentEndDateTo != null) {
                 if (currentEndDateFrom!!.after(currentEndDateTo)) {
                     Toast.makeText(requireContext(), "结束日期的起始时间不能晚于结束时间", Toast.LENGTH_SHORT).show()
@@ -327,11 +309,9 @@ class BillsFragment : Fragment() {
                 }
             }
 
-            // 应用筛选
             viewModel.setStartDateRangeFilter(currentStartDateFrom, currentStartDateTo)
             viewModel.setEndDateRangeFilter(currentEndDateFrom, currentEndDateTo)
 
-            // 应用结付状态筛选
             currentPaymentStatus = when (dialogBinding.spinnerPaymentStatus.text.toString()) {
                 "已结清" -> BillViewModel.PaymentStatusFilter.PAID
                 "未结清" -> BillViewModel.PaymentStatusFilter.UNPAID
@@ -343,23 +323,19 @@ class BillsFragment : Fragment() {
             filterDialog = null
         }
 
-        // 清除筛选按钮
         dialogBinding.btnClearFilter.setOnClickListener {
-            // 清除本地状态
             currentStartDateFrom = null
             currentStartDateTo = null
             currentEndDateFrom = null
             currentEndDateTo = null
             currentPaymentStatus = BillViewModel.PaymentStatusFilter.ALL
 
-            // 清除输入框
             dialogBinding.etStartDateFrom.text?.clear()
             dialogBinding.etStartDateTo.text?.clear()
             dialogBinding.etEndDateFrom.text?.clear()
             dialogBinding.etEndDateTo.text?.clear()
             dialogBinding.spinnerPaymentStatus.setText("全部", false)
 
-            // 应用清除
             viewModel.clearAllFilters()
         }
 
@@ -412,7 +388,6 @@ class BillsFragment : Fragment() {
     private fun updateEmptyView(isEmpty: Boolean) {
         binding.emptyView.visibility = if (isEmpty) View.VISIBLE else View.GONE
         binding.recyclerBills.visibility = if (isEmpty) View.GONE else View.VISIBLE
-        // 空状态下也显示账单数量提示
         binding.tvBillCount.visibility = View.VISIBLE
     }
 

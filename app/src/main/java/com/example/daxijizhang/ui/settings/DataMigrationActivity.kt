@@ -26,6 +26,7 @@ import com.example.daxijizhang.data.model.Bill
 import com.example.daxijizhang.data.model.BillItem
 import com.example.daxijizhang.data.model.BillWithItems
 import com.example.daxijizhang.data.model.PaymentRecord
+import com.example.daxijizhang.data.notification.DataChangeNotifier
 import com.example.daxijizhang.data.repository.BillRepository
 import com.example.daxijizhang.databinding.ActivityDataMigrationBinding
 import com.example.daxijizhang.databinding.DialogJianguoyunAccountBinding
@@ -1134,6 +1135,7 @@ class DataMigrationActivity : BaseActivity() {
             }
 
             return if (importedCount > 0) {
+                DataChangeNotifier.notifyDataImported()
                 val errorMsg = when {
                     duplicateCount > 0 && failedCount > 0 -> "成功导入 $importedCount 条，重复 $duplicateCount 条，失败 $failedCount 条"
                     duplicateCount > 0 -> "成功导入 $importedCount 条，重复 $duplicateCount 条"

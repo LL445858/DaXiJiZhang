@@ -1,6 +1,8 @@
 package com.example.daxijizhang.data.repository
 
+import android.util.Log
 import androidx.lifecycle.LiveData
+import com.example.daxijizhang.data.cache.DataCacheManager
 import com.example.daxijizhang.data.dao.BillDao
 import com.example.daxijizhang.data.dao.BillItemDao
 import com.example.daxijizhang.data.dao.PaymentRecordDao
@@ -8,6 +10,10 @@ import com.example.daxijizhang.data.model.Bill
 import com.example.daxijizhang.data.model.BillItem
 import com.example.daxijizhang.data.model.BillWithItems
 import com.example.daxijizhang.data.model.PaymentRecord
+import com.example.daxijizhang.data.notification.DataChangeNotifier
+import com.example.daxijizhang.util.InputValidator
+import com.example.daxijizhang.util.SafeExecutor
+import com.example.daxijizhang.util.MemoryGuard
 import java.util.Date
 
 class BillRepository(
@@ -15,51 +21,144 @@ class BillRepository(
     private val billItemDao: BillItemDao,
     private val paymentRecordDao: PaymentRecordDao
 ) {
+    private val TAG = "BillRepository"
+    
+    private val cacheManager = DataCacheManager
+    private val notifier = DataChangeNotifier
+    
     val allBills: LiveData<List<Bill>> = billDao.getAll()
     val allBillsWithItems: LiveData<List<BillWithItems>> = billDao.getAllBillsWithItems()
 
     suspend fun insertBill(bill: Bill): Long {
-        return billDao.insert(bill)
+        return SafeExecutor.runSafely("insertBill", -1L) {
+            validateBill(bill)
+            
+            if (MemoryGuard.isCriticalMemory()) {
+                Log.w(TAG, "Critical memory detected, clearing caches before insert")
+                cacheManager.clearAllCaches()
+            }
+            
+            val id = billDao.insert(bill)
+            val savedBill = bill.copy(id = id)
+            cacheManager.putBill(savedBill)
+            cacheManager.removeBill(id)
+            notifier.notifyBillAdded()
+            Log.d(TAG, "Bill inserted with id: $id")
+            id
+        }
     }
 
     suspend fun updateBill(bill: Bill) {
-        billDao.update(bill)
+        SafeExecutor.runSafely("updateBill") {
+            validateBill(bill)
+            
+            billDao.update(bill)
+            cacheManager.putBill(bill)
+            cacheManager.removeBill(bill.id)
+            notifier.notifyBillUpdated()
+            Log.d(TAG, "Bill updated: ${bill.id}")
+        }
     }
 
     suspend fun deleteBill(bill: Bill) {
-        billDao.delete(bill)
+        SafeExecutor.runSafely("deleteBill") {
+            billDao.delete(bill)
+            cacheManager.removeBill(bill.id)
+            notifier.notifyBillDeleted()
+            Log.d(TAG, "Bill deleted: ${bill.id}")
+        }
     }
 
     suspend fun getBillById(id: Long): Bill? {
-        return billDao.getById(id)
+        return SafeExecutor.runSafely("getBillById", null) {
+            if (id <= 0) {
+                Log.w(TAG, "Invalid bill id: $id")
+                return@runSafely null
+            }
+            
+            cacheManager.getBill(id) ?: run {
+                val bill = billDao.getById(id)
+                bill?.let { cacheManager.putBill(it) }
+                bill
+            }
+        }
     }
 
     suspend fun getBillWithItems(billId: Long): BillWithItems? {
-        return billDao.getBillWithItems(billId)
+        return SafeExecutor.runSafely("getBillWithItems", null) {
+            if (billId <= 0) {
+                Log.w(TAG, "Invalid bill id: $billId")
+                return@runSafely null
+            }
+            
+            cacheManager.getBillWithItems(billId) ?: run {
+                val billWithItems = billDao.getBillWithItems(billId)
+                billWithItems?.let { cacheManager.putBillWithItems(it) }
+                billWithItems
+            }
+        }
     }
 
     suspend fun getAllBillsWithItemsList(): List<BillWithItems> {
-        return billDao.getAllBillsWithItemsList()
+        return SafeExecutor.runSafely("getAllBillsWithItemsList", emptyList()) {
+            cacheManager.getBillsWithItemsList() ?: run {
+                val billsWithItems = billDao.getAllBillsWithItemsList()
+                cacheManager.putBillsWithItemsList(billsWithItems)
+                billsWithItems.forEach { cacheManager.putBillWithItems(it) }
+                billsWithItems
+            }
+        }
     }
 
     suspend fun insertBillItem(item: BillItem): Long {
-        return billItemDao.insert(item)
+        return SafeExecutor.runSafely("insertItem", -1L) {
+            validateBillItem(item)
+            val id = billItemDao.insert(item)
+            cacheManager.clearAllCaches()
+            notifier.notifyBillUpdated()
+            Log.d(TAG, "BillItem inserted with id: $id")
+            id
+        }
     }
 
     suspend fun insertBillItems(items: List<BillItem>): List<Long> {
-        return billItemDao.insertAll(items)
+        return SafeExecutor.runSafely("insertBillItems", emptyList()) {
+            if (items.isEmpty()) return@runSafely emptyList()
+            
+            items.forEach { validateBillItem(it) }
+            val ids = billItemDao.insertAll(items)
+            cacheManager.clearAllCaches()
+            notifier.notifyBillUpdated()
+            Log.d(TAG, "${ids.size} BillItems inserted")
+            ids
+        }
     }
 
     suspend fun updateBillItem(item: BillItem) {
-        billItemDao.update(item)
+        SafeExecutor.runSafely("updateBillItem") {
+            validateBillItem(item)
+            billItemDao.update(item)
+            cacheManager.clearAllCaches()
+            notifier.notifyBillUpdated()
+            Log.d(TAG, "BillItem updated: ${item.id}")
+        }
     }
 
     suspend fun deleteBillItem(item: BillItem) {
-        billItemDao.delete(item)
+        SafeExecutor.runSafely("deleteBillItem") {
+            billItemDao.delete(item)
+            cacheManager.clearAllCaches()
+            notifier.notifyBillUpdated()
+            Log.d(TAG, "BillItem deleted: ${item.id}")
+        }
     }
 
     suspend fun deleteBillItemsByBillId(billId: Long) {
-        billItemDao.deleteByBillId(billId)
+        SafeExecutor.runSafely("deleteBillItemsByBillId") {
+            billItemDao.deleteByBillId(billId)
+            cacheManager.clearAllCaches()
+            Log.d(TAG, "BillItems deleted for bill: $billId")
+        }
     }
 
     suspend fun saveBillWithItems(
@@ -68,58 +167,94 @@ class BillRepository(
         paymentRecords: List<PaymentRecord> = emptyList(),
         waivedAmount: Double = 0.0
     ): Long {
-        val totalAmount = items.sumOf { it.totalPrice }
-        val totalPaid = paymentRecords.sumOf { it.amount }
-        val billWithAmount = bill.copy(
-            totalAmount = totalAmount,
-            paidAmount = totalPaid,
-            waivedAmount = waivedAmount
-        )
-        val billId = billDao.insert(billWithAmount)
+        return SafeExecutor.runSafely("saveBillWithItems", -1L) {
+            validateBill(bill)
+            if (items.isEmpty()) {
+                throw IllegalArgumentException("账单项目不能为空")
+            }
+            items.forEach { validateBillItem(it) }
+            paymentRecords.forEach { validatePaymentRecord(it) }
+            
+            if (MemoryGuard.isCriticalMemory()) {
+                Log.w(TAG, "Critical memory detected, clearing caches")
+                cacheManager.clearAllCaches()
+            }
+            
+            val totalAmount = items.sumOf { it.totalPrice }
+            val totalPaid = paymentRecords.sumOf { it.amount }
+            val billWithAmount = bill.copy(
+                totalAmount = totalAmount,
+                paidAmount = totalPaid,
+                waivedAmount = waivedAmount.coerceAtLeast(0.0)
+            )
+            val billId = billDao.insert(billWithAmount)
 
-        val itemsWithBillId = items.map { it.copy(billId = billId) }
-        billItemDao.insertAll(itemsWithBillId)
+            val itemsWithBillId = items.map { it.copy(billId = billId) }
+            billItemDao.insertAll(itemsWithBillId)
 
-        // 保存结付记录（不包括抹零金额，因为抹零不创建虚拟记录）
-        if (paymentRecords.isNotEmpty()) {
-            val recordsWithBillId = paymentRecords.map { it.copy(billId = billId) }
-            recordsWithBillId.forEach { paymentRecordDao.insert(it) }
+            if (paymentRecords.isNotEmpty()) {
+                val recordsWithBillId = paymentRecords.map { it.copy(billId = billId) }
+                recordsWithBillId.forEach { paymentRecordDao.insert(it) }
+            }
+            
+            cacheManager.clearAllCaches()
+            notifier.notifyBillAdded()
+            
+            Log.d(TAG, "Bill saved with id: $billId, items: ${items.size}, payments: ${paymentRecords.size}")
+            billId
         }
-
-        return billId
     }
 
-    // 更新账单的已支付金额
     suspend fun updateBillPaidAmount(billId: Long) {
-        val totalPaid = paymentRecordDao.getTotalPaidByBillId(billId) ?: 0.0
-        val bill = billDao.getById(billId)
-        bill?.let {
-            billDao.update(it.copy(paidAmount = totalPaid))
+        SafeExecutor.runSafely("updateBillPaidAmount") {
+            val totalPaid = paymentRecordDao.getTotalPaidByBillId(billId) ?: 0.0
+            val bill = billDao.getById(billId)
+            bill?.let {
+                billDao.update(it.copy(paidAmount = totalPaid))
+                cacheManager.putBill(it.copy(paidAmount = totalPaid))
+            }
         }
     }
 
-    // 结付记录相关方法
     suspend fun insertPaymentRecord(paymentRecord: PaymentRecord): Long {
-        val id = paymentRecordDao.insert(paymentRecord)
-        // 更新账单的已支付金额
-        updateBillPaidAmount(paymentRecord.billId)
-        return id
+        return SafeExecutor.runSafely("insertPaymentRecord", -1L) {
+            validatePaymentRecord(paymentRecord)
+            val id = paymentRecordDao.insert(paymentRecord)
+            updateBillPaidAmount(paymentRecord.billId)
+            cacheManager.clearAllCaches()
+            notifier.notifyPaymentAdded()
+            Log.d(TAG, "PaymentRecord inserted with id: $id")
+            id
+        }
     }
 
     suspend fun updatePaymentRecord(paymentRecord: PaymentRecord) {
-        paymentRecordDao.update(paymentRecord)
-        // 更新账单的已支付金额
-        updateBillPaidAmount(paymentRecord.billId)
+        SafeExecutor.runSafely("updatePaymentRecord") {
+            validatePaymentRecord(paymentRecord)
+            paymentRecordDao.update(paymentRecord)
+            updateBillPaidAmount(paymentRecord.billId)
+            cacheManager.clearAllCaches()
+            notifier.notifyPaymentUpdated()
+            Log.d(TAG, "PaymentRecord updated: ${paymentRecord.id}")
+        }
     }
 
     suspend fun deletePaymentRecord(paymentRecord: PaymentRecord) {
-        paymentRecordDao.delete(paymentRecord)
-        // 更新账单的已支付金额
-        updateBillPaidAmount(paymentRecord.billId)
+        SafeExecutor.runSafely("deletePaymentRecord") {
+            paymentRecordDao.delete(paymentRecord)
+            updateBillPaidAmount(paymentRecord.billId)
+            cacheManager.clearAllCaches()
+            notifier.notifyPaymentDeleted()
+            Log.d(TAG, "PaymentRecord deleted: ${paymentRecord.id}")
+        }
     }
 
     suspend fun deletePaymentRecordsByBillId(billId: Long) {
-        paymentRecordDao.deleteByBillId(billId)
+        SafeExecutor.runSafely("deletePaymentRecordsByBillId") {
+            paymentRecordDao.deleteByBillId(billId)
+            cacheManager.clearAllCaches()
+            Log.d(TAG, "PaymentRecords deleted for bill: $billId")
+        }
     }
 
     fun getPaymentRecordsByBillId(billId: Long): LiveData<List<PaymentRecord>> {
@@ -127,14 +262,17 @@ class BillRepository(
     }
 
     suspend fun getPaymentRecordsByBillIdList(billId: Long): List<PaymentRecord> {
-        return paymentRecordDao.getByBillIdList(billId)
+        return SafeExecutor.runSafely("getPaymentRecordsByBillIdList", emptyList()) {
+            paymentRecordDao.getByBillIdList(billId)
+        }
     }
 
     suspend fun getTotalPaidByBillId(billId: Long): Double {
-        return paymentRecordDao.getTotalPaidByBillId(billId) ?: 0.0
+        return SafeExecutor.runSafely("getTotalPaidByBillId", 0.0) {
+            paymentRecordDao.getTotalPaidByBillId(billId) ?: 0.0
+        }
     }
 
-    // 排序方法
     fun getBillsSortedByStartDateAsc(): LiveData<List<Bill>> =
         billDao.getAllSortedByStartDateAsc()
 
@@ -158,4 +296,22 @@ class BillRepository(
 
     fun getBillsByDateRange(startDate: Date, endDate: Date): LiveData<List<Bill>> =
         billDao.getBillsByDateRange(startDate, endDate)
+    
+    private fun validateBill(bill: Bill) {
+        InputValidator.validateDate(bill.startDate, "开始日期").getOrThrow()
+        InputValidator.validateDate(bill.endDate, "结束日期").getOrThrow()
+        InputValidator.validateDateRange(bill.startDate, bill.endDate).getOrThrow()
+        InputValidator.validateString(bill.communityName, 100, "小区名").getOrThrow()
+    }
+    
+    private fun validateBillItem(item: BillItem) {
+        InputValidator.validateString(item.projectName, 100, "项目名").getOrThrow()
+        InputValidator.validateAmount(item.unitPrice, 0.0, 1_000_000.0, "单价").getOrThrow()
+        InputValidator.validateAmount(item.quantity, 0.0, 1_000_000.0, "数量").getOrThrow()
+    }
+    
+    private fun validatePaymentRecord(record: PaymentRecord) {
+        InputValidator.validateDate(record.paymentDate, "支付日期").getOrThrow()
+        InputValidator.validateAmount(record.amount, 0.0, 100_000_000.0, "支付金额").getOrThrow()
+    }
 }

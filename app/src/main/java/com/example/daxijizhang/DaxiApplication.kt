@@ -7,75 +7,86 @@ import android.util.Log
 import androidx.lifecycle.DefaultLifecycleObserver
 import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.ProcessLifecycleOwner
+import com.example.daxijizhang.data.cache.DataCacheManager
 import com.example.daxijizhang.util.AutoBackupManager
+import com.example.daxijizhang.util.CrashHandler
+import com.example.daxijizhang.util.MemoryGuard
 import com.example.daxijizhang.util.ThemeManager
 
 class DaxiApplication : Application() {
 
     private val TAG = "DaxiApplication"
 
-    // MainActivity弱引用，用于主题颜色变化时通知更新
     private var mainActivityRef: java.lang.ref.WeakReference<MainActivity>? = null
 
-    // 字体缩放变化监听器列表
     private val fontScaleListeners = mutableListOf<OnFontScaleChangeListener>()
 
-    // 字体缩放变化监听器接口
     interface OnFontScaleChangeListener {
         fun onFontScaleChanged(scale: Float)
     }
 
     override fun onCreate() {
         super.onCreate()
-        // 初始化主题管理器
+        
+        CrashHandler.initialize(this)
+        
         ThemeManager.init(this)
+        
+        DataCacheManager.initialize()
+        
         ProcessLifecycleOwner.get().lifecycle.addObserver(AppLifecycleObserver())
+        
+        logMemoryStatus("Application onCreate")
     }
 
-    // 注意：字体缩放通过BaseActivity.attachBaseContext统一处理
-    // 不在Application级别应用，避免重复缩放
+    override fun onLowMemory() {
+        super.onLowMemory()
+        Log.w(TAG, "onLowMemory called, clearing caches")
+        DataCacheManager.clearAllCaches()
+        MemoryGuard.triggerGC()
+    }
 
-    /**
-     * 注册MainActivity引用
-     */
+    override fun onTrimMemory(level: Int) {
+        super.onTrimMemory(level)
+        Log.d(TAG, "onTrimMemory called with level: $level")
+        when (level) {
+            TRIM_MEMORY_RUNNING_LOW, TRIM_MEMORY_RUNNING_CRITICAL -> {
+                DataCacheManager.clearStatisticsCaches()
+            }
+            TRIM_MEMORY_UI_HIDDEN, TRIM_MEMORY_BACKGROUND -> {
+                DataCacheManager.clearAllCaches()
+            }
+        }
+    }
+
+    private fun logMemoryStatus(tag: String) {
+        val memoryInfo = MemoryGuard.getMemoryInfo()
+        Log.d(TAG, "[$tag] Memory: ${memoryInfo.usedMemoryMB}MB / ${memoryInfo.maxMemoryMB}MB (${String.format("%.1f", memoryInfo.availableRatio * 100)}% available)")
+    }
+
     fun registerMainActivity(activity: MainActivity) {
         mainActivityRef = java.lang.ref.WeakReference(activity)
     }
 
-    /**
-     * 注销MainActivity引用
-     */
     fun unregisterMainActivity() {
         mainActivityRef?.clear()
         mainActivityRef = null
     }
 
-    /**
-     * 通知主题颜色变化
-     */
     fun notifyThemeColorChanged(color: Int) {
         mainActivityRef?.get()?.reapplyThemeColor()
     }
 
-    /**
-     * 添加字体缩放变化监听器
-     */
     fun addFontScaleListener(listener: OnFontScaleChangeListener) {
         if (!fontScaleListeners.contains(listener)) {
             fontScaleListeners.add(listener)
         }
     }
 
-    /**
-     * 移除字体缩放变化监听器
-     */
     fun removeFontScaleListener(listener: OnFontScaleChangeListener) {
         fontScaleListeners.remove(listener)
     }
 
-    /**
-     * 通知字体缩放变化
-     */
     fun notifyFontScaleChanged(scale: Float) {
         fontScaleListeners.forEach { listener ->
             try {
@@ -87,9 +98,18 @@ class DaxiApplication : Application() {
     }
 
     inner class AppLifecycleObserver : DefaultLifecycleObserver {
+        override fun onStart(owner: LifecycleOwner) {
+            Log.i(TAG, "应用进入前台")
+        }
+        
         override fun onStop(owner: LifecycleOwner) {
             Log.i(TAG, "应用进入后台，执行自动备份检查")
             performAutoBackup()
+        }
+        
+        override fun onDestroy(owner: LifecycleOwner) {
+            Log.i(TAG, "应用进程即将销毁")
+            DataCacheManager.shutdown()
         }
     }
 

@@ -1,11 +1,16 @@
 package com.example.daxijizhang.data.repository
 
+import android.util.Log
+import com.example.daxijizhang.data.cache.DataCacheManager
 import com.example.daxijizhang.data.database.AppDatabase
 import com.example.daxijizhang.data.model.HeatmapData
 import com.example.daxijizhang.data.model.PaymentWithBillInfo
 import com.example.daxijizhang.data.model.StatisticsData
 import com.example.daxijizhang.ui.view.YearlyHeatmapData
 import com.example.daxijizhang.ui.view.YearlyIncomeData
+import com.example.daxijizhang.util.InputValidator
+import com.example.daxijizhang.util.MemoryGuard
+import com.example.daxijizhang.util.SafeExecutor
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.util.Calendar
@@ -13,107 +18,114 @@ import java.util.Date
 import java.util.concurrent.TimeUnit
 
 class StatisticsRepository(private val database: AppDatabase) {
+    
+    private val TAG = "StatisticsRepository"
+    private val cacheManager = DataCacheManager
 
-    /**
-     * 获取指定日期范围内的统计数据
-     *
-     * @param startDate 开始日期（包含）
-     * @param endDate 结束日期（包含）
-     * @return 统计数据
-     */
     suspend fun getStatisticsByDateRange(startDate: Date, endDate: Date): StatisticsData =
         withContext(Dispatchers.IO) {
-            val billDao = database.billDao()
-            val paymentDao = database.paymentRecordDao()
-
-            // 获取所有账单
-            val allBills = billDao.getAllList()
-
-            // 计算统计期间天数（包含起始和结束当天）
-            val periodDays = calculateDaysBetween(startDate, endDate)
-
-            // 统计开始的项目（开始日期在范围内）
-            val startedProjects = allBills.count { bill ->
-                !bill.startDate.before(startDate) && !bill.startDate.after(endDate)
-            }
-
-            // 统计结束的项目（结束日期在范围内）
-            val endedProjects = allBills.count { bill ->
-                !bill.endDate.before(startDate) && !bill.endDate.after(endDate)
-            }
-
-            // 统计完成的项目（开始和结束都在范围内）
-            val completedProjects = allBills.count { bill ->
-                !bill.startDate.before(startDate) && !bill.startDate.after(endDate) &&
-                !bill.endDate.before(startDate) && !bill.endDate.after(endDate)
-            }
-
-            // 计算平均每家用时（针对完成的项目）
-            val completedBills = allBills.filter { bill ->
-                !bill.startDate.before(startDate) && !bill.startDate.after(endDate) &&
-                !bill.endDate.before(startDate) && !bill.endDate.after(endDate)
-            }
-
-            val averageDays = if (completedBills.isNotEmpty()) {
-                val totalDays = completedBills.sumOf { bill ->
-                    calculateDaysBetween(bill.startDate, bill.endDate).toDouble()
+            SafeExecutor.runSafely("getStatisticsByDateRange", StatisticsData.empty()) {
+                InputValidator.validateDateRange(startDate, endDate).getOrThrow()
+                
+                val cacheKey = cacheManager.generateStatisticsKey(startDate, endDate)
+                cacheManager.getStatistics(cacheKey)?.let { 
+                    Log.d(TAG, "Statistics cache hit for key: $cacheKey")
+                    return@runSafely it 
                 }
-                totalDays / completedBills.size
-            } else {
-                0.0
-            }
+                
+                if (MemoryGuard.isLowMemory()) {
+                    Log.w(TAG, "Low memory detected, clearing old caches")
+                    cacheManager.clearStatisticsCaches()
+                }
+                
+                val billDao = database.billDao()
+                val paymentDao = database.paymentRecordDao()
 
-            // 获取所有支付记录并关联账单信息
-            val allPaymentsWithBillInfo = mutableListOf<PaymentWithBillInfo>()
-            var totalPaymentAmount = 0.0
+                val allBills = billDao.getAllList()
 
-            allBills.forEach { bill ->
-                val payments = paymentDao.getByBillIdList(bill.id)
-                payments.forEach { payment ->
-                    // 检查支付日期是否在范围内
-                    if (!payment.paymentDate.before(startDate) && !payment.paymentDate.after(endDate)) {
-                        allPaymentsWithBillInfo.add(
-                            PaymentWithBillInfo(
-                                paymentId = payment.id,
-                                paymentDate = payment.paymentDate,
-                                amount = payment.amount,
-                                billId = bill.id,
-                                communityName = bill.communityName,
-                                phase = bill.phase,
-                                buildingNumber = bill.buildingNumber,
-                                roomNumber = bill.roomNumber
-                            )
-                        )
-                        totalPaymentAmount += payment.amount
+                val periodDays = calculateDaysBetween(startDate, endDate)
+
+                val startedProjects = allBills.count { bill ->
+                    !bill.startDate.before(startDate) && !bill.startDate.after(endDate)
+                }
+
+                val endedProjects = allBills.count { bill ->
+                    !bill.endDate.before(startDate) && !bill.endDate.after(endDate)
+                }
+
+                val completedProjects = allBills.count { bill ->
+                    !bill.startDate.before(startDate) && !bill.startDate.after(endDate) &&
+                    !bill.endDate.before(startDate) && !bill.endDate.after(endDate)
+                }
+
+                val completedBills = allBills.filter { bill ->
+                    !bill.startDate.before(startDate) && !bill.startDate.after(endDate) &&
+                    !bill.endDate.before(startDate) && !bill.endDate.after(endDate)
+                }
+
+                val averageDays = if (completedBills.isNotEmpty()) {
+                    val totalDays = completedBills.sumOf { bill ->
+                        calculateDaysBetween(bill.startDate, bill.endDate).toDouble()
+                    }
+                    totalDays / completedBills.size
+                } else {
+                    0.0
+                }
+
+                val allPaymentsWithBillInfo = mutableListOf<PaymentWithBillInfo>()
+                var totalPaymentAmount = 0.0
+
+                allBills.forEach { bill ->
+                    try {
+                        val payments = paymentDao.getByBillIdList(bill.id)
+                        payments.forEach { payment ->
+                            if (!payment.paymentDate.before(startDate) && !payment.paymentDate.after(endDate)) {
+                                allPaymentsWithBillInfo.add(
+                                    PaymentWithBillInfo(
+                                        paymentId = payment.id,
+                                        paymentDate = payment.paymentDate,
+                                        amount = payment.amount,
+                                        billId = bill.id,
+                                        communityName = bill.communityName,
+                                        phase = bill.phase,
+                                        buildingNumber = bill.buildingNumber,
+                                        roomNumber = bill.roomNumber
+                                    )
+                                )
+                                totalPaymentAmount += payment.amount
+                            }
+                        }
+                    } catch (e: Exception) {
+                        Log.e(TAG, "Error processing payments for bill ${bill.id}", e)
                     }
                 }
+
+                val topPayments = allPaymentsWithBillInfo
+                    .sortedByDescending { it.amount }
+                    .take(10)
+
+                val result = StatisticsData(
+                    periodDays = periodDays,
+                    startedProjects = startedProjects,
+                    endedProjects = endedProjects,
+                    completedProjects = completedProjects,
+                    averageDays = averageDays,
+                    totalPayments = allPaymentsWithBillInfo.size,
+                    totalPaymentAmount = totalPaymentAmount,
+                    topPayments = topPayments
+                )
+                
+                cacheManager.putStatistics(cacheKey, result)
+                Log.d(TAG, "Statistics cached for key: $cacheKey")
+                
+                result
             }
-
-            // 按金额降序排序，取前10条
-            val topPayments = allPaymentsWithBillInfo
-                .sortedByDescending { it.amount }
-                .take(10)
-
-            StatisticsData(
-                periodDays = periodDays,
-                startedProjects = startedProjects,
-                endedProjects = endedProjects,
-                completedProjects = completedProjects,
-                averageDays = averageDays,
-                totalPayments = allPaymentsWithBillInfo.size,
-                totalPaymentAmount = totalPaymentAmount,
-                topPayments = topPayments
-            )
         }
 
-    /**
-     * 计算两个日期之间的天数（包含起始和结束当天）
-     */
     private fun calculateDaysBetween(startDate: Date, endDate: Date): Int {
         val startCal = Calendar.getInstance().apply { time = startDate }
         val endCal = Calendar.getInstance().apply { time = endDate }
 
-        // 清除时间部分
         startCal.set(Calendar.HOUR_OF_DAY, 0)
         startCal.set(Calendar.MINUTE, 0)
         startCal.set(Calendar.SECOND, 0)
@@ -128,138 +140,194 @@ class StatisticsRepository(private val database: AppDatabase) {
         return TimeUnit.DAYS.convert(diffInMillis, TimeUnit.MILLISECONDS).toInt() + 1
     }
 
-    /**
-     * 获取年份统计数据
-     *
-     * @param year 年份
-     * @return 统计数据
-     */
     suspend fun getStatisticsByYear(year: Int): StatisticsData {
-        val calendar = Calendar.getInstance()
+        return SafeExecutor.runSafely("getStatisticsByYear", StatisticsData.empty()) {
+            if (year < 2000 || year > Calendar.getInstance().get(Calendar.YEAR) + 1) {
+                throw IllegalArgumentException("无效的年份: $year")
+            }
+            
+            val calendar = Calendar.getInstance()
 
-        // 设置开始日期为当年1月1日
-        calendar.set(year, Calendar.JANUARY, 1, 0, 0, 0)
-        calendar.set(Calendar.MILLISECOND, 0)
-        val startDate = calendar.time
+            calendar.set(year, Calendar.JANUARY, 1, 0, 0, 0)
+            calendar.set(Calendar.MILLISECOND, 0)
+            val startDate = calendar.time
 
-        // 设置结束日期为当年12月31日
-        calendar.set(year, Calendar.DECEMBER, 31, 23, 59, 59)
-        calendar.set(Calendar.MILLISECOND, 999)
-        val endDate = calendar.time
+            calendar.set(year, Calendar.DECEMBER, 31, 23, 59, 59)
+            calendar.set(Calendar.MILLISECOND, 999)
+            val endDate = calendar.time
 
-        return getStatisticsByDateRange(startDate, endDate)
+            getStatisticsByDateRange(startDate, endDate)
+        }
     }
 
-    /**
-     * 获取月份统计数据
-     *
-     * @param year 年份
-     * @param month 月份（1-12）
-     * @return 统计数据
-     */
     suspend fun getStatisticsByMonth(year: Int, month: Int): StatisticsData {
-        val calendar = Calendar.getInstance()
+        return SafeExecutor.runSafely("getStatisticsByMonth", StatisticsData.empty()) {
+            if (year < 2000 || year > Calendar.getInstance().get(Calendar.YEAR) + 1) {
+                throw IllegalArgumentException("无效的年份: $year")
+            }
+            if (month < 1 || month > 12) {
+                throw IllegalArgumentException("无效的月份: $month")
+            }
+            
+            val calendar = Calendar.getInstance()
 
-        calendar.set(year, month - 1, 1, 0, 0, 0)
-        calendar.set(Calendar.MILLISECOND, 0)
-        val startDate = calendar.time
+            calendar.set(year, month - 1, 1, 0, 0, 0)
+            calendar.set(Calendar.MILLISECOND, 0)
+            val startDate = calendar.time
 
-        calendar.set(year, month - 1, calendar.getActualMaximum(Calendar.DAY_OF_MONTH), 23, 59, 59)
-        calendar.set(Calendar.MILLISECOND, 999)
-        val endDate = calendar.time
+            calendar.set(year, month - 1, calendar.getActualMaximum(Calendar.DAY_OF_MONTH), 23, 59, 59)
+            calendar.set(Calendar.MILLISECOND, 999)
+            val endDate = calendar.time
 
-        return getStatisticsByDateRange(startDate, endDate)
+            getStatisticsByDateRange(startDate, endDate)
+        }
     }
 
     suspend fun getHeatmapData(year: Int, month: Int): HeatmapData = withContext(Dispatchers.IO) {
-        val billDao = database.billDao()
-        val allBills = billDao.getAllList()
-
-        val calendar = Calendar.getInstance()
-        calendar.set(year, month - 1, 1, 0, 0, 0)
-        calendar.set(Calendar.MILLISECOND, 0)
-        val monthStart = calendar.time
-
-        val daysInMonth = calendar.getActualMaximum(Calendar.DAY_OF_MONTH)
-
-        val dayCounts = mutableMapOf<Int, Int>()
-
-        for (day in 1..daysInMonth) {
-            calendar.set(year, month - 1, day, 0, 0, 0)
-            calendar.set(Calendar.MILLISECOND, 0)
-            val dayStart = calendar.time
-
-            calendar.set(Calendar.HOUR_OF_DAY, 23)
-            calendar.set(Calendar.MINUTE, 59)
-            calendar.set(Calendar.SECOND, 59)
-            calendar.set(Calendar.MILLISECOND, 999)
-            val dayEnd = calendar.time
-
-            val count = allBills.count { bill ->
-                !bill.startDate.after(dayEnd) && !bill.endDate.before(dayStart)
+        SafeExecutor.runSafely("getHeatmapData", HeatmapData(year, month, emptyMap(), 0)) {
+            if (month < 1 || month > 12) {
+                throw IllegalArgumentException("无效的月份: $month")
             }
-
-            if (count > 0) {
-                dayCounts[day] = count
+            
+            val cacheKey = cacheManager.generateHeatmapKey(year, month)
+            cacheManager.getHeatmap(cacheKey)?.let { 
+                Log.d(TAG, "Heatmap cache hit for key: $cacheKey")
+                return@runSafely it 
             }
-        }
+            
+            val billDao = database.billDao()
+            val allBills = billDao.getAllList()
 
-        val maxCount = if (dayCounts.isNotEmpty()) dayCounts.values.maxOrNull() ?: 0 else 0
-
-        HeatmapData(
-            year = year,
-            month = month,
-            dayCounts = dayCounts,
-            maxCount = maxCount
-        )
-    }
-
-    suspend fun getYearlyIncomeData(year: Int): YearlyIncomeData = withContext(Dispatchers.IO) {
-        val paymentDao = database.paymentRecordDao()
-        val billDao = database.billDao()
-        
-        val allBills = billDao.getAllList()
-        val monthlyIncomes = mutableMapOf<Int, Double>()
-        
-        for (month in 1..12) {
             val calendar = Calendar.getInstance()
             calendar.set(year, month - 1, 1, 0, 0, 0)
             calendar.set(Calendar.MILLISECOND, 0)
             val monthStart = calendar.time
+
+            val daysInMonth = calendar.getActualMaximum(Calendar.DAY_OF_MONTH)
+
+            val dayCounts = mutableMapOf<Int, Int>()
+
+            for (day in 1..daysInMonth) {
+                calendar.set(year, month - 1, day, 0, 0, 0)
+                calendar.set(Calendar.MILLISECOND, 0)
+                val dayStart = calendar.time
+
+                calendar.set(Calendar.HOUR_OF_DAY, 23)
+                calendar.set(Calendar.MINUTE, 59)
+                calendar.set(Calendar.SECOND, 59)
+                calendar.set(Calendar.MILLISECOND, 999)
+                val dayEnd = calendar.time
+
+                val count = allBills.count { bill ->
+                    !bill.startDate.after(dayEnd) && !bill.endDate.before(dayStart)
+                }
+
+                if (count > 0) {
+                    dayCounts[day] = count
+                }
+            }
+
+            val maxCount = if (dayCounts.isNotEmpty()) dayCounts.values.maxOrNull() ?: 0 else 0
+
+            val result = HeatmapData(
+                year = year,
+                month = month,
+                dayCounts = dayCounts,
+                maxCount = maxCount
+            )
             
-            calendar.set(Calendar.DAY_OF_MONTH, calendar.getActualMaximum(Calendar.DAY_OF_MONTH))
-            calendar.set(Calendar.HOUR_OF_DAY, 23)
-            calendar.set(Calendar.MINUTE, 59)
-            calendar.set(Calendar.SECOND, 59)
-            calendar.set(Calendar.MILLISECOND, 999)
-            val monthEnd = calendar.time
+            cacheManager.putHeatmap(cacheKey, result)
+            Log.d(TAG, "Heatmap cached for key: $cacheKey")
             
-            var monthTotal = 0.0
+            result
+        }
+    }
+
+    suspend fun getYearlyIncomeData(year: Int): YearlyIncomeData = withContext(Dispatchers.IO) {
+        SafeExecutor.runSafely("getYearlyIncomeData", YearlyIncomeData(year, emptyMap())) {
+            if (year < 2000 || year > Calendar.getInstance().get(Calendar.YEAR) + 1) {
+                throw IllegalArgumentException("无效的年份: $year")
+            }
             
-            allBills.forEach { bill ->
-                val payments = paymentDao.getByBillIdList(bill.id)
-                payments.forEach { payment ->
-                    if (!payment.paymentDate.before(monthStart) && !payment.paymentDate.after(monthEnd)) {
-                        monthTotal += payment.amount
+            cacheManager.getYearlyIncome(year)?.let { 
+                Log.d(TAG, "YearlyIncome cache hit for year: $year")
+                return@runSafely it 
+            }
+            
+            val paymentDao = database.paymentRecordDao()
+            val billDao = database.billDao()
+            
+            val allBills = billDao.getAllList()
+            val monthlyIncomes = mutableMapOf<Int, Double>()
+            
+            for (month in 1..12) {
+                val calendar = Calendar.getInstance()
+                calendar.set(year, month - 1, 1, 0, 0, 0)
+                calendar.set(Calendar.MILLISECOND, 0)
+                val monthStart = calendar.time
+                
+                calendar.set(Calendar.DAY_OF_MONTH, calendar.getActualMaximum(Calendar.DAY_OF_MONTH))
+                calendar.set(Calendar.HOUR_OF_DAY, 23)
+                calendar.set(Calendar.MINUTE, 59)
+                calendar.set(Calendar.SECOND, 59)
+                calendar.set(Calendar.MILLISECOND, 999)
+                val monthEnd = calendar.time
+                
+                var monthTotal = 0.0
+                
+                allBills.forEach { bill ->
+                    try {
+                        val payments = paymentDao.getByBillIdList(bill.id)
+                        payments.forEach { payment ->
+                            if (!payment.paymentDate.before(monthStart) && !payment.paymentDate.after(monthEnd)) {
+                                monthTotal += payment.amount
+                            }
+                        }
+                    } catch (e: Exception) {
+                        Log.e(TAG, "Error processing payments for bill ${bill.id}", e)
                     }
+                }
+                
+                if (monthTotal > 0) {
+                    monthlyIncomes[month] = monthTotal
                 }
             }
             
-            if (monthTotal > 0) {
-                monthlyIncomes[month] = monthTotal
-            }
+            val result = YearlyIncomeData(year = year, monthlyIncomes = monthlyIncomes)
+            cacheManager.putYearlyIncome(year, result)
+            Log.d(TAG, "YearlyIncome cached for year: $year")
+            
+            result
         }
-        
-        YearlyIncomeData(year = year, monthlyIncomes = monthlyIncomes)
     }
 
     suspend fun getYearlyHeatmapData(year: Int): YearlyHeatmapData = withContext(Dispatchers.IO) {
-        val monthlyHeatmaps = mutableMapOf<Int, HeatmapData>()
-        
-        for (month in 1..12) {
-            monthlyHeatmaps[month] = getHeatmapData(year, month)
+        SafeExecutor.runSafely("getYearlyHeatmapData", YearlyHeatmapData(year, emptyMap())) {
+            if (year < 2000 || year > Calendar.getInstance().get(Calendar.YEAR) + 1) {
+                throw IllegalArgumentException("无效的年份: $year")
+            }
+            
+            cacheManager.getYearlyHeatmap(year)?.let { 
+                Log.d(TAG, "YearlyHeatmap cache hit for year: $year")
+                return@runSafely it 
+            }
+            
+            val monthlyHeatmaps = mutableMapOf<Int, HeatmapData>()
+            
+            for (month in 1..12) {
+                monthlyHeatmaps[month] = getHeatmapData(year, month)
+            }
+            
+            val result = YearlyHeatmapData(year = year, monthlyHeatmaps = monthlyHeatmaps)
+            cacheManager.putYearlyHeatmap(year, result)
+            Log.d(TAG, "YearlyHeatmap cached for year: $year")
+            
+            result
         }
-        
-        YearlyHeatmapData(year = year, monthlyHeatmaps = monthlyHeatmaps)
+    }
+    
+    fun clearCache() {
+        cacheManager.clearStatisticsCaches()
+        Log.d(TAG, "Statistics caches cleared")
     }
 }

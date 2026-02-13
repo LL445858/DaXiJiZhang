@@ -41,6 +41,14 @@
                 android:src="@drawable/default_user_background"
                 android:contentDescription="@string/user_background" />
 
+            <!-- 灰色遮罩层 - 用于调节遮罩浓度 -->
+            <View
+                android:id="@+id/view_overlay_mask"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:background="#80000000"
+                android:visibility="gone" />
+
             <!-- 渐变遮罩层 -->
             <View
                 android:layout_width="match_parent"
