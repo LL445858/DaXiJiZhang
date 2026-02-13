@@ -35,7 +35,7 @@ import java.util.Calendar
 import java.util.Date
 import java.util.Locale
 
-class BillsFragment : Fragment() {
+class BillsFragment : Fragment(), ThemeManager.OnThemeColorChangeListener {
 
     private var _binding: FragmentBillsBinding? = null
     private val binding get() = _binding!!
@@ -57,6 +57,8 @@ class BillsFragment : Fragment() {
     private val dateFormat = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
 
     private var filterDialog: AlertDialog? = null
+    private var sortDialog: AlertDialog? = null
+    private var isDialogsPreloaded = false
 
     private var currentStartDateFrom: Date? = null
     private var currentStartDateTo: Date? = null
@@ -81,6 +83,81 @@ class BillsFragment : Fragment() {
         setupObservers()
         setupListeners()
         applyThemeColor()
+        applyDefaultSortType()
+        
+        ThemeManager.addThemeColorChangeListener(this)
+        
+        preloadDialogs()
+    }
+    
+    private fun applyDefaultSortType() {
+        val defaultSortType = com.example.daxijizhang.util.StatisticsStateManager.getDefaultSortType()
+        val sortType = when (defaultSortType) {
+            "START_DATE_ASC" -> BillViewModel.SortType.START_DATE_ASC
+            "END_DATE_DESC" -> BillViewModel.SortType.END_DATE_DESC
+            "END_DATE_ASC" -> BillViewModel.SortType.END_DATE_ASC
+            "COMMUNITY_ASC" -> BillViewModel.SortType.COMMUNITY_ASC
+            "AMOUNT_DESC" -> BillViewModel.SortType.AMOUNT_DESC
+            "AMOUNT_ASC" -> BillViewModel.SortType.AMOUNT_ASC
+            else -> BillViewModel.SortType.START_DATE_DESC
+        }
+        viewModel.setSortType(sortType)
+    }
+    
+    private fun preloadDialogs() {
+        if (isDialogsPreloaded) return
+        android.os.Handler(android.os.Looper.getMainLooper()).post {
+            try {
+                initSortDialog()
+                isDialogsPreloaded = true
+            } catch (e: Exception) {
+                android.util.Log.e("BillsFragment", "Error preloading dialogs", e)
+            }
+        }
+    }
+    
+    private fun initSortDialog() {
+        val dialogBinding = DialogSortBinding.inflate(LayoutInflater.from(requireContext()))
+
+        sortDialog = AlertDialog.Builder(requireContext())
+            .setView(dialogBinding.root)
+            .create()
+        sortDialog?.window?.setBackgroundDrawable(ContextCompat.getDrawable(requireContext(), R.drawable.bg_dialog_rounded))
+
+        dialogBinding.btnSortStartDateDesc.setOnClickListener {
+            viewModel.setSortType(BillViewModel.SortType.START_DATE_DESC)
+            sortDialog?.dismiss()
+        }
+        dialogBinding.btnSortStartDateAsc.setOnClickListener {
+            viewModel.setSortType(BillViewModel.SortType.START_DATE_ASC)
+            sortDialog?.dismiss()
+        }
+        dialogBinding.btnSortEndDateDesc.setOnClickListener {
+            viewModel.setSortType(BillViewModel.SortType.END_DATE_DESC)
+            sortDialog?.dismiss()
+        }
+        dialogBinding.btnSortEndDateAsc.setOnClickListener {
+            viewModel.setSortType(BillViewModel.SortType.END_DATE_ASC)
+            sortDialog?.dismiss()
+        }
+        dialogBinding.btnSortCommunity.setOnClickListener {
+            viewModel.setSortType(BillViewModel.SortType.COMMUNITY_ASC)
+            sortDialog?.dismiss()
+        }
+        dialogBinding.btnSortAmountDesc.setOnClickListener {
+            viewModel.setSortType(BillViewModel.SortType.AMOUNT_DESC)
+            sortDialog?.dismiss()
+        }
+        dialogBinding.btnSortAmountAsc.setOnClickListener {
+            viewModel.setSortType(BillViewModel.SortType.AMOUNT_ASC)
+            sortDialog?.dismiss()
+        }
+    }
+
+    override fun onThemeColorChanged(color: Int) {
+        applyThemeColor()
+        billAdapter.updateThemeColor(color)
+        billAdapter.notifyDataSetChanged()
     }
 
     private fun applyThemeColor() {
@@ -184,48 +261,16 @@ class BillsFragment : Fragment() {
     }
 
     private fun showSortMenu() {
-        val dialogBinding = DialogSortBinding.inflate(LayoutInflater.from(requireContext()))
-
-        val sortDialog = AlertDialog.Builder(requireContext())
-            .setView(dialogBinding.root)
-            .create()
-
-        dialogBinding.btnSortStartDateDesc.setOnClickListener {
-            viewModel.setSortType(BillViewModel.SortType.START_DATE_DESC)
-            sortDialog.dismiss()
+        if (sortDialog == null) {
+            initSortDialog()
         }
-        dialogBinding.btnSortStartDateAsc.setOnClickListener {
-            viewModel.setSortType(BillViewModel.SortType.START_DATE_ASC)
-            sortDialog.dismiss()
-        }
-        dialogBinding.btnSortEndDateDesc.setOnClickListener {
-            viewModel.setSortType(BillViewModel.SortType.END_DATE_DESC)
-            sortDialog.dismiss()
-        }
-        dialogBinding.btnSortEndDateAsc.setOnClickListener {
-            viewModel.setSortType(BillViewModel.SortType.END_DATE_ASC)
-            sortDialog.dismiss()
-        }
-        dialogBinding.btnSortCommunity.setOnClickListener {
-            viewModel.setSortType(BillViewModel.SortType.COMMUNITY_ASC)
-            sortDialog.dismiss()
-        }
-        dialogBinding.btnSortAmountDesc.setOnClickListener {
-            viewModel.setSortType(BillViewModel.SortType.AMOUNT_DESC)
-            sortDialog.dismiss()
-        }
-        dialogBinding.btnSortAmountAsc.setOnClickListener {
-            viewModel.setSortType(BillViewModel.SortType.AMOUNT_ASC)
-            sortDialog.dismiss()
-        }
-
-        sortDialog.show()
-
-        sortDialog.window?.apply {
-            setBackgroundDrawable(ContextCompat.getDrawable(requireContext(), R.drawable.bg_dialog_rounded))
+        
+        sortDialog?.apply {
+            window?.setWindowAnimations(R.style.DialogAnimationFast)
+            show()
             val displayMetrics = resources.displayMetrics
             val width = (displayMetrics.widthPixels * 0.7).toInt()
-            setLayout(width, android.view.WindowManager.LayoutParams.WRAP_CONTENT)
+            window?.setLayout(width, android.view.WindowManager.LayoutParams.WRAP_CONTENT)
         }
     }
 
@@ -397,8 +442,11 @@ class BillsFragment : Fragment() {
 
     override fun onDestroyView() {
         super.onDestroyView()
+        ThemeManager.removeThemeColorChangeListener(this)
         filterDialog?.dismiss()
         filterDialog = null
+        sortDialog?.dismiss()
+        sortDialog = null
         _binding = null
     }
 }

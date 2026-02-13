@@ -41,7 +41,7 @@ import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Locale
 
-class StatisticsFragment : Fragment() {
+class StatisticsFragment : Fragment(), ThemeManager.OnThemeColorChangeListener {
 
     private var _binding: FragmentStatisticsBinding? = null
     private val binding get() = _binding!!
@@ -62,13 +62,13 @@ class StatisticsFragment : Fragment() {
     private var tempEndDate: Calendar = Calendar.getInstance()
 
     private val handler = Handler(Looper.getMainLooper())
-    private var periodSelectorRunnable: Runnable? = null
     private var dateSelectorRunnable: Runnable? = null
-    private val DEBOUNCE_DELAY = 300L
+    private val DATE_DEBOUNCE_DELAY = 150L
 
     private var periodSelectorDialog: AlertDialog? = null
     private var yearMonthPickerDialog: AlertDialog? = null
     private var yearPickerDialog: AlertDialog? = null
+    private var isDialogsPreloaded = false
 
     private lateinit var llPeriodSelector: LinearLayout
     private lateinit var tvPeriodType: TextView
@@ -119,6 +119,31 @@ class StatisticsFragment : Fragment() {
         loadStatisticsData()
         
         viewModel.observeDataChanges(viewLifecycleOwner)
+        
+        ThemeManager.addThemeColorChangeListener(this)
+    }
+
+    override fun onThemeColorChanged(color: Int) {
+        applyThemeColor()
+        applyHeaderThemeColor()
+        viewModel.statisticsData.value?.let { updateStatisticsUI(it) }
+    }
+
+    private fun applyThemeColor() {
+        val themeColor = ThemeManager.getThemeColor()
+        yearlyIncomeChart?.setThemeColor(themeColor)
+        yearlyHeatmapView?.setThemeColor(themeColor)
+        heatmapView?.setThemeColor(themeColor)
+        updatePaymentListThemeColor()
+    }
+    
+    private fun updatePaymentListThemeColor() {
+        val themeColor = ThemeManager.getThemeColor()
+        for (i in 0 until llPaymentList.childCount) {
+            val child = llPaymentList.getChildAt(i)
+            val tvAmount = child.findViewById<TextView>(R.id.tv_payment_amount)
+            tvAmount?.setTextColor(themeColor)
+        }
     }
 
     private fun restoreStateFromManager() {
@@ -234,13 +259,11 @@ class StatisticsFragment : Fragment() {
 
     private fun setupClickListeners() {
         llPeriodSelector.setOnClickListener {
-            debounceClick(periodSelectorRunnable) {
-                showPeriodTypeDialog()
-            }
+            showPeriodTypeDialog()
         }
 
         llDateSelector.setOnClickListener {
-            debounceClick(dateSelectorRunnable) {
+            debounceDateClick {
                 when (currentPeriodType) {
                     PeriodType.MONTH -> showMonthPickerDialog()
                     PeriodType.YEAR -> showYearPickerDialog()
@@ -251,26 +274,23 @@ class StatisticsFragment : Fragment() {
         }
 
         tvStartDate.setOnClickListener {
-            debounceClick(dateSelectorRunnable) {
+            debounceDateClick {
                 showDatePickerDialog(isStartDate = true)
             }
         }
 
         tvEndDate.setOnClickListener {
-            debounceClick(dateSelectorRunnable) {
+            debounceDateClick {
                 showDatePickerDialog(isStartDate = false)
             }
         }
     }
 
-    private fun debounceClick(runnable: Runnable?, action: () -> Unit) {
-        runnable?.let { handler.removeCallbacks(it) }
+    private fun debounceDateClick(action: () -> Unit) {
+        dateSelectorRunnable?.let { handler.removeCallbacks(it) }
         val newRunnable = Runnable { action() }
-        when (runnable) {
-            periodSelectorRunnable -> periodSelectorRunnable = newRunnable
-            dateSelectorRunnable -> dateSelectorRunnable = newRunnable
-        }
-        handler.postDelayed(newRunnable, DEBOUNCE_DELAY)
+        dateSelectorRunnable = newRunnable
+        handler.postDelayed(newRunnable, DATE_DEBOUNCE_DELAY)
     }
 
     private fun loadStatisticsData() {
@@ -363,9 +383,18 @@ class StatisticsFragment : Fragment() {
     }
 
     private fun preloadDialogs() {
-        initPeriodSelectorDialog()
-        initYearMonthPickerDialog()
-        initYearPickerDialog()
+        if (isDialogsPreloaded) return
+        
+        handler.post {
+            try {
+                initPeriodSelectorDialog()
+                initYearMonthPickerDialog()
+                initYearPickerDialog()
+                isDialogsPreloaded = true
+            } catch (e: Exception) {
+                android.util.Log.e("StatisticsFragment", "Error preloading dialogs", e)
+            }
+        }
     }
 
     private fun initPeriodSelectorDialog() {
@@ -402,12 +431,16 @@ class StatisticsFragment : Fragment() {
         if (periodSelectorDialog == null) {
             initPeriodSelectorDialog()
         }
-        periodSelectorDialog?.show()
-
-        periodSelectorDialog?.window?.let { window ->
-            val displayMetrics = resources.displayMetrics
-            val width = (displayMetrics.widthPixels * 0.7).toInt()
-            window.setLayout(width, android.view.ViewGroup.LayoutParams.WRAP_CONTENT)
+        
+        periodSelectorDialog?.apply {
+            window?.setWindowAnimations(R.style.DialogAnimationFast)
+            show()
+            
+            window?.let { window ->
+                val displayMetrics = resources.displayMetrics
+                val width = (displayMetrics.widthPixels * 0.7).toInt()
+                window.setLayout(width, android.view.ViewGroup.LayoutParams.WRAP_CONTENT)
+            }
         }
     }
 
@@ -475,12 +508,18 @@ class StatisticsFragment : Fragment() {
 
         val npYear = yearMonthPickerDialog?.findViewById<CustomNumberPicker>(R.id.np_year)
         val npMonth = yearMonthPickerDialog?.findViewById<CustomNumberPicker>(R.id.np_month)
+        val btnCancel = yearMonthPickerDialog?.findViewById<MaterialButton>(R.id.btn_cancel)
+        val btnConfirm = yearMonthPickerDialog?.findViewById<MaterialButton>(R.id.btn_confirm)
 
         val currentYear = Calendar.getInstance().get(Calendar.YEAR)
 
         npYear?.setValue(selectedYear)
         updateMonthPickerRange(npMonth, selectedYear, currentYear)
         npMonth?.setValue(selectedMonth)
+        
+        val primaryColor = ThemeManager.getThemeColor()
+        btnCancel?.setTextColor(primaryColor)
+        btnConfirm?.backgroundTintList = android.content.res.ColorStateList.valueOf(primaryColor)
 
         yearMonthPickerDialog?.show()
     }
@@ -547,7 +586,14 @@ class StatisticsFragment : Fragment() {
         }
 
         val npYear = yearPickerDialog?.findViewById<CustomNumberPicker>(R.id.np_year)
+        val btnCancel = yearPickerDialog?.findViewById<MaterialButton>(R.id.btn_cancel)
+        val btnConfirm = yearPickerDialog?.findViewById<MaterialButton>(R.id.btn_confirm)
+        
         npYear?.setValue(selectedYear)
+        
+        val primaryColor = ThemeManager.getThemeColor()
+        btnCancel?.setTextColor(primaryColor)
+        btnConfirm?.backgroundTintList = android.content.res.ColorStateList.valueOf(primaryColor)
 
         yearPickerDialog?.show()
     }
@@ -713,6 +759,7 @@ class StatisticsFragment : Fragment() {
 
     override fun onDestroyView() {
         super.onDestroyView()
+        ThemeManager.removeThemeColorChangeListener(this)
         handler.removeCallbacksAndMessages(null)
         periodSelectorDialog?.dismiss()
         periodSelectorDialog = null

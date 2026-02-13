@@ -5,4 +5,10 @@
         <item name="cornerFamily">rounded</item>
         <item name="cornerSize">50%</item>
     </style>
+    
+    <!-- 快速弹窗动画样式 -->
+    <style name="DialogAnimationFast">
+        <item name="android:windowEnterAnimation">@anim/dialog_fast_in</item>
+        <item name="android:windowExitAnimation">@anim/dialog_fast_out</item>
+    </style>
 </resources>

@@ -107,6 +107,142 @@
 
             </com.google.android.material.card.MaterialCardView>
 
+            <!-- 页面管理模块 -->
+            <com.google.android.material.card.MaterialCardView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="16dp"
+                app:cardCornerRadius="12dp"
+                app:cardElevation="0dp"
+                app:cardBackgroundColor="@color/surface">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:padding="16dp">
+
+                    <!-- 模块标题 -->
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="@string/page_management"
+                        android:textColor="@color/text_primary"
+                        android:textSize="16sp"
+                        android:textStyle="bold" />
+
+                    <!-- 默认排序方式条目 -->
+                    <LinearLayout
+                        android:id="@+id/item_default_sort_type"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="16dp"
+                        android:orientation="horizontal"
+                        android:gravity="center_vertical"
+                        android:background="?attr/selectableItemBackground"
+                        android:clickable="true"
+                        android:focusable="true"
+                        android:paddingVertical="8dp">
+
+                        <TextView
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:text="@string/default_sort_type"
+                            android:textColor="@color/text_primary"
+                            android:textSize="14sp"
+                            android:textStyle="bold" />
+
+                        <!-- 默认排序方式下拉选择框 -->
+                        <com.google.android.material.textfield.TextInputLayout
+                            android:id="@+id/til_default_sort_type"
+                            android:layout_width="wrap_content"
+                            android:layout_height="38dp"
+                            style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox.ExposedDropdownMenu"
+                            app:boxCornerRadiusTopStart="8dp"
+                            app:boxCornerRadiusTopEnd="8dp"
+                            app:boxCornerRadiusBottomStart="8dp"
+                            app:boxCornerRadiusBottomEnd="8dp"
+                            app:boxStrokeWidth="0dp"
+                            app:hintEnabled="false"
+                            app:endIconTint="@color/text_primary">
+
+                            <AutoCompleteTextView
+                                android:id="@+id/spinner_default_sort_type"
+                                android:layout_width="200dp"
+                                android:layout_height="match_parent"
+                                android:inputType="none"
+                                android:textSize="13sp"
+                                android:gravity="end|center_vertical"
+                                android:paddingHorizontal="8dp"
+                                android:paddingVertical="8dp"
+                                android:textColor="@color/text_primary"
+                                android:dropDownHeight="wrap_content"
+                                android:ellipsize="end"
+                                android:maxLines="1" />
+
+                        </com.google.android.material.textfield.TextInputLayout>
+
+                    </LinearLayout>
+
+                    <!-- 默认统计范围条目 -->
+                    <LinearLayout
+                        android:id="@+id/item_default_statistics_range"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="16dp"
+                        android:orientation="horizontal"
+                        android:gravity="center_vertical"
+                        android:background="?attr/selectableItemBackground"
+                        android:clickable="true"
+                        android:focusable="true"
+                        android:paddingVertical="8dp">
+
+                        <TextView
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:text="@string/default_statistics_range"
+                            android:textColor="@color/text_primary"
+                            android:textSize="14sp"
+                            android:textStyle="bold" />
+
+                        <!-- 默认统计范围下拉选择框 -->
+                        <com.google.android.material.textfield.TextInputLayout
+                            android:id="@+id/til_default_statistics_range"
+                            android:layout_width="wrap_content"
+                            android:layout_height="38dp"
+                            style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox.ExposedDropdownMenu"
+                            app:boxCornerRadiusTopStart="8dp"
+                            app:boxCornerRadiusTopEnd="8dp"
+                            app:boxCornerRadiusBottomStart="8dp"
+                            app:boxCornerRadiusBottomEnd="8dp"
+                            app:boxStrokeWidth="0dp"
+                            app:hintEnabled="false"
+                            app:endIconTint="@color/text_primary">
+
+                            <AutoCompleteTextView
+                                android:id="@+id/spinner_default_statistics_range"
+                                android:layout_width="160dp"
+                                android:layout_height="match_parent"
+                                android:inputType="none"
+                                android:textSize="13sp"
+                                android:gravity="end|center_vertical"
+                                android:paddingHorizontal="8dp"
+                                android:paddingVertical="8dp"
+                                android:textColor="@color/text_primary"
+                                android:dropDownHeight="wrap_content"
+                                android:ellipsize="end"
+                                android:maxLines="1" />
+
+                        </com.google.android.material.textfield.TextInputLayout>
+
+                    </LinearLayout>
+
+                </LinearLayout>
+
+            </com.google.android.material.card.MaterialCardView>
+
             <!-- 功能开发中提示 -->
             <com.google.android.material.card.MaterialCardView
                 android:layout_width="match_parent"

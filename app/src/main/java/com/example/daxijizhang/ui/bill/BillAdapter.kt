@@ -21,10 +21,6 @@ class BillAdapter(
     private val TAG = "BillAdapter"
     private val dateFormat = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
     private var themeColorCache: Int = ThemeManager.getThemeColor()
-    
-    private val cachedThemeColorWithAlpha: Int by lazy {
-        (0x33 shl 24) or (themeColorCache and 0x00FFFFFF)
-    }
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): BillViewHolder {
         val binding = ItemBillBinding.inflate(
@@ -63,6 +59,10 @@ class BillAdapter(
     fun updateThemeColor(color: Int) {
         themeColorCache = color
     }
+    
+    private fun getThemeColorWithAlpha(): Int {
+        return (0x33 shl 24) or (themeColorCache and 0x00FFFFFF)
+    }
 
     inner class BillViewHolder(
         private val binding: ItemBillBinding
@@ -81,7 +81,7 @@ class BillAdapter(
                     val statusText = bill.getPaymentStatus()
                     tvPaymentStatus.text = statusText
 
-                    tvPaymentStatus.setBackgroundColor(cachedThemeColorWithAlpha)
+                    tvPaymentStatus.setBackgroundColor(getThemeColorWithAlpha())
 
                     val statusColor = if (bill.isPaid()) {
                         Color.parseColor("#4CAF50")
@@ -110,11 +110,11 @@ class BillAdapter(
                         "status" -> {
                             val statusText = bill.getPaymentStatus()
                             tvPaymentStatus.text = statusText
-                            tvPaymentStatus.setBackgroundColor(cachedThemeColorWithAlpha)
+                            tvPaymentStatus.setBackgroundColor(getThemeColorWithAlpha())
                             val statusColor = if (bill.isPaid()) {
-                                Color.parseColor("#4CAF50")
+                                Color.parseColor("#297a2bff")
                             } else {
-                                Color.parseColor("#FF9800")
+                                Color.parseColor("#ff6200ff")
                             }
                             tvPaymentStatus.setTextColor(statusColor)
                         }

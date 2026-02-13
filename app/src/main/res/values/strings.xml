@@ -183,6 +183,11 @@
     <string name="project_dictionary">项目填写</string>
     <string name="project_dictionary_description">管理常用的装修项目名称</string>
 
+    <!-- 页面管理 -->
+    <string name="page_management">页面管理</string>
+    <string name="default_sort_type">默认排序方式</string>
+    <string name="default_statistics_range">默认统计范围</string>
+
     <!-- 同步相关 -->
     <string name="verifying">验证中...</string>
     <string name="connection_success">连接成功</string>

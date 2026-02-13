@@ -17,6 +17,15 @@ class DaxiApplication : Application() {
 
     private val TAG = "DaxiApplication"
 
+    companion object {
+        @Volatile
+        private var instance: DaxiApplication? = null
+
+        fun getInstance(): DaxiApplication {
+            return instance ?: throw IllegalStateException("Application not initialized")
+        }
+    }
+
     private var mainActivityRef: java.lang.ref.WeakReference<MainActivity>? = null
 
     private val fontScaleListeners = mutableListOf<OnFontScaleChangeListener>()
@@ -27,6 +36,8 @@ class DaxiApplication : Application() {
 
     override fun onCreate() {
         super.onCreate()
+        
+        instance = this
         
         CrashHandler.initialize(this)
         
