@@ -265,18 +265,33 @@ class StatisticsViewModel(private val repository: StatisticsRepository) : ViewMo
     }
     
     fun refreshCurrentData() {
-        when (cacheType) {
-            CacheType.YEAR -> cachedYear?.let { loadYearStatistics(it, true) }
+        val currentCacheType = cacheType
+        val year = cachedYear
+        val month = cachedMonth
+        val customStart = cachedCustomStart
+        val customEnd = cachedCustomEnd
+        
+        Log.d(TAG, "Refreshing current data, cacheType: $currentCacheType")
+        
+        cacheType = CacheType.NONE
+        cachedStatisticsData = null
+        cachedHeatmapData = null
+        cachedYearlyIncomeData = null
+        cachedYearlyHeatmapData = null
+        repository.clearCache()
+        
+        when (currentCacheType) {
+            CacheType.YEAR -> year?.let { loadYearStatistics(it, true) }
             CacheType.MONTH -> {
-                cachedYear?.let { year ->
-                    cachedMonth?.let { month ->
-                        loadMonthStatistics(year, month, true)
+                year?.let { y ->
+                    month?.let { m ->
+                        loadMonthStatistics(y, m, true)
                     }
                 }
             }
             CacheType.CUSTOM -> {
-                cachedCustomStart?.let { start ->
-                    cachedCustomEnd?.let { end ->
+                customStart?.let { start ->
+                    customEnd?.let { end ->
                         loadCustomStatistics(start, end, true)
                     }
                 }

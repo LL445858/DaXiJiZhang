@@ -39,9 +39,7 @@ class BillRepository(
             }
             
             val id = billDao.insert(bill)
-            val savedBill = bill.copy(id = id)
-            cacheManager.putBill(savedBill)
-            cacheManager.removeBill(id)
+            cacheManager.clearAllCaches()
             notifier.notifyBillAdded()
             Log.d(TAG, "Bill inserted with id: $id")
             id
@@ -53,8 +51,7 @@ class BillRepository(
             validateBill(bill)
             
             billDao.update(bill)
-            cacheManager.putBill(bill)
-            cacheManager.removeBill(bill.id)
+            cacheManager.clearAllCaches()
             notifier.notifyBillUpdated()
             Log.d(TAG, "Bill updated: ${bill.id}")
         }
@@ -63,7 +60,7 @@ class BillRepository(
     suspend fun deleteBill(bill: Bill) {
         SafeExecutor.runSafely("deleteBill") {
             billDao.delete(bill)
-            cacheManager.removeBill(bill.id)
+            cacheManager.clearAllCaches()
             notifier.notifyBillDeleted()
             Log.d(TAG, "Bill deleted: ${bill.id}")
         }
