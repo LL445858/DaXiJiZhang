@@ -6,7 +6,15 @@
     android:layout_height="match_parent"
     android:background="@color/background"
     android:orientation="vertical"
+    android:fitsSystemWindows="false"
     tools:context=".ui.bill.AddBillActivity">
+
+    <!-- 状态栏占位 -->
+    <View
+        android:id="@+id/status_bar_placeholder"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:background="@color/surface" />
 
     <androidx.appcompat.widget.Toolbar
         android:id="@+id/toolbar"
@@ -29,7 +37,8 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="vertical"
-            android:padding="16dp">
+            android:padding="16dp"
+            android:paddingBottom="32dp">
 
             <!-- 基本信息卡片 -->
             <androidx.cardview.widget.CardView
@@ -369,6 +378,7 @@
 
     <!-- 底部按钮 -->
     <LinearLayout
+        android:id="@+id/bottom_buttons"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:background="@color/surface"

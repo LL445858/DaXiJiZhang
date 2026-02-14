@@ -106,6 +106,15 @@ class BillAdapter(
                         "amount" -> {
                             tvAmount.text = String.format("¥%,.2f", bill.totalAmount)
                             tvAmount.setTextColor(themeColorCache)
+                            val statusText = bill.getPaymentStatus()
+                            tvPaymentStatus.text = statusText
+                            tvPaymentStatus.setBackgroundColor(getThemeColorWithAlpha())
+                            val statusColor = if (bill.isPaid()) {
+                                Color.parseColor("#4CAF50")
+                            } else {
+                                Color.parseColor("#FF9800")
+                            }
+                            tvPaymentStatus.setTextColor(statusColor)
                         }
                         "status" -> {
                             val statusText = bill.getPaymentStatus()

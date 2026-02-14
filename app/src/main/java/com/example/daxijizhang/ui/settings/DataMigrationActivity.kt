@@ -17,6 +17,9 @@ import android.view.View
 import android.widget.Toast
 import androidx.activity.OnBackPressedCallback
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.updateLayoutParams
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
@@ -48,6 +51,7 @@ class DataMigrationActivity : BaseActivity() {
 
     private lateinit var binding: ActivityDataMigrationBinding
     private lateinit var repository: BillRepository
+    private lateinit var projectDictionaryRepository: com.example.daxijizhang.data.repository.ProjectDictionaryRepository
     private lateinit var prefs: SharedPreferences
     private lateinit var syncLogAdapter: SyncLogAdapter
 
@@ -64,6 +68,7 @@ class DataMigrationActivity : BaseActivity() {
     private var pendingImportUri: Uri? = null
     private var pendingImportBills: List<ImportBillData>? = null
     private var pendingActualImportCount: Int = 0
+    private var pendingDictionaryArray: JSONArray? = null
     private val syncLogs = mutableListOf<SyncLogEntry>()
 
     data class SyncLogEntry(
@@ -80,6 +85,7 @@ class DataMigrationActivity : BaseActivity() {
 
         prefs = getSharedPreferences("user_settings", MODE_PRIVATE)
 
+        setupStatusBarPadding()
         initRepository()
         initViews()
         setupSyncLogRecycler()
@@ -90,6 +96,26 @@ class DataMigrationActivity : BaseActivity() {
         updateAccountStatus()
         applyThemeColor()
         applyImportPreviewThemeColor()
+    }
+
+    private fun setupStatusBarPadding() {
+        ViewCompat.setOnApplyWindowInsetsListener(binding.root) { _, windowInsets ->
+            val statusBarInsets = windowInsets.getInsets(WindowInsetsCompat.Type.statusBars())
+            val navigationBarInsets = windowInsets.getInsets(WindowInsetsCompat.Type.navigationBars())
+            
+            binding.statusBarPlaceholder.updateLayoutParams {
+                height = statusBarInsets.top
+            }
+            
+            binding.contentContainer.setPadding(
+                binding.contentContainer.paddingLeft,
+                binding.contentContainer.paddingTop,
+                binding.contentContainer.paddingRight,
+                navigationBarInsets.bottom + binding.contentContainer.paddingTop
+            )
+            
+            windowInsets
+        }
     }
 
     /**
@@ -174,6 +200,7 @@ class DataMigrationActivity : BaseActivity() {
             database.billItemDao(),
             database.paymentRecordDao()
         )
+        projectDictionaryRepository = com.example.daxijizhang.data.repository.ProjectDictionaryRepository(database.projectDictionaryDao())
     }
 
     private fun initViews() {
@@ -682,8 +709,21 @@ class DataMigrationActivity : BaseActivity() {
 
                     val importBills = parseImportBills(billsArray)
                     val importResult = importBillsToDatabase(importBills)
+                    
+                    // 导入项目词典（去重追加）
+                    val dictionaryArray = json.optJSONArray("projectDictionary")
+                    var dictionaryImportCount = 0
+                    if (dictionaryArray != null && dictionaryArray.length() > 0) {
+                        dictionaryImportCount = importProjectDictionary(dictionaryArray)
+                    }
 
-                    Result.success("成功导入 ${importResult.importedCount} 条账单")
+                    val message = buildString {
+                        append("成功导入 ${importResult.importedCount} 条账单")
+                        if (dictionaryImportCount > 0) {
+                            append("，$dictionaryImportCount 个项目词典")
+                        }
+                    }
+                    Result.success(message)
                 } catch (e: Exception) {
                     e.printStackTrace()
                     Result.failure(e)
@@ -809,6 +849,20 @@ class DataMigrationActivity : BaseActivity() {
 
         exportData.put("bills", billsArray)
         exportData.put("billCount", billsArray.length())
+        
+        // 添加项目词典数据
+        val projectDictionary = projectDictionaryRepository.getAllProjectsSync()
+        val dictionaryArray = JSONArray()
+        projectDictionary.forEach { project ->
+            val projectJson = JSONObject().apply {
+                put("name", project.name)
+                put("usageCount", project.usageCount)
+            }
+            dictionaryArray.put(projectJson)
+        }
+        exportData.put("projectDictionary", dictionaryArray)
+        exportData.put("dictionaryCount", dictionaryArray.length())
+        
         exportData.put("exportDate", SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).format(Date()))
 
         return exportData
@@ -830,12 +884,13 @@ class DataMigrationActivity : BaseActivity() {
             put("createdAt", formatDate(bill.createdAt))
 
             val itemsArray = JSONArray()
-            billWithItems.items.forEach { item ->
+            billWithItems.items.sortedBy { it.orderIndex }.forEach { item ->
                 val itemJson = JSONObject().apply {
                     put("projectName", item.projectName)
                     put("unitPrice", item.unitPrice)
                     put("quantity", item.quantity)
                     put("totalPrice", item.totalPrice)
+                    put("orderIndex", item.orderIndex)
                 }
                 itemsArray.put(itemJson)
             }
@@ -937,8 +992,19 @@ class DataMigrationActivity : BaseActivity() {
                         val duplicateBills = importBills.count { existingKeys.contains(generateBillUniqueKey(it.bill)) }
                         val actualImportCount = importBills.size - duplicateBills
 
-                        val fileInfo = "总账单数量: $billCount\n实际导入数量: $actualImportCount\n重复账单数量: $duplicateBills\n导出时间: ${json.optString("exportDate", "未知")}"
-                        Triple(fileInfo, importBills, actualImportCount)
+                        val dictionaryArray = json.optJSONArray("projectDictionary")
+                        val dictionaryCount = dictionaryArray?.length() ?: 0
+
+                        val fileInfo = buildString {
+                            append("总账单数量: $billCount\n")
+                            append("实际导入数量: $actualImportCount\n")
+                            append("重复账单数量: $duplicateBills\n")
+                            if (dictionaryCount > 0) {
+                                append("项目词典: $dictionaryCount 个\n")
+                            }
+                            append("导出时间: ${json.optString("exportDate", "未知")}")
+                        }
+                        ImportPreviewData(fileInfo, importBills, actualImportCount, dictionaryArray)
                     }
                 } catch (e: Exception) {
                     e.printStackTrace()
@@ -946,11 +1012,12 @@ class DataMigrationActivity : BaseActivity() {
                 }
             }
 
-            if (parseResult != null && parseResult.second.isNotEmpty()) {
+            if (parseResult != null && parseResult.importBills.isNotEmpty()) {
                 pendingImportUri = uri
-                pendingImportBills = parseResult.second
-                pendingActualImportCount = parseResult.third
-                binding.tvPreviewInfo.text = parseResult.first
+                pendingImportBills = parseResult.importBills
+                pendingActualImportCount = parseResult.actualImportCount
+                pendingDictionaryArray = parseResult.dictionaryArray
+                binding.tvPreviewInfo.text = parseResult.fileInfo
                 binding.cardImportPreview.visibility = View.VISIBLE
                 binding.tvImportResult.visibility = View.GONE
             } else {
@@ -994,11 +1061,14 @@ class DataMigrationActivity : BaseActivity() {
                                 projectName = itemJson.optString("projectName", ""),
                                 unitPrice = itemJson.optDouble("unitPrice", 0.0),
                                 quantity = itemJson.optDouble("quantity", 0.0),
-                                totalPrice = itemJson.optDouble("totalPrice", 0.0)
+                                totalPrice = itemJson.optDouble("totalPrice", 0.0),
+                                orderIndex = itemJson.optInt("orderIndex", j)
                             )
                         )
                     }
                 }
+                // 按 orderIndex 排序项目
+                items.sortBy { it.orderIndex }
 
                 val recordsArray = billJson.optJSONArray("paymentRecords")
                 val paymentRecords = mutableListOf<PaymentRecord>()
@@ -1043,6 +1113,7 @@ class DataMigrationActivity : BaseActivity() {
         pendingImportUri = null
         pendingImportBills = null
         pendingActualImportCount = 0
+        pendingDictionaryArray = null
     }
 
     private fun executeImport(uri: Uri) {
@@ -1050,6 +1121,7 @@ class DataMigrationActivity : BaseActivity() {
             showImportProgress()
 
             val importData = pendingImportBills
+            val dictionaryArray = pendingDictionaryArray
             if (importData.isNullOrEmpty()) {
                 hideImportProgress()
                 showImportFailed("没有有效的账单数据")
@@ -1064,12 +1136,26 @@ class DataMigrationActivity : BaseActivity() {
                     ImportResult(false, 0, e.message)
                 }
             }
+            
+            // 导入项目词典（去重追加）
+            var dictionaryImportCount = 0
+            if (dictionaryArray != null && dictionaryArray.length() > 0) {
+                dictionaryImportCount = withContext(Dispatchers.IO) {
+                    importProjectDictionary(dictionaryArray)
+                }
+            }
 
             hideImportProgress()
             hideImportPreview()
 
             if (result.success) {
-                showImportSuccess(result.importedCount)
+                val message = buildString {
+                    append("成功导入 ${result.importedCount} 条账单")
+                    if (dictionaryImportCount > 0) {
+                        append("，$dictionaryImportCount 个项目词典")
+                    }
+                }
+                showImportSuccessWithMessage(message)
             } else {
                 showImportFailed(result.errorMessage)
             }
@@ -1157,10 +1243,45 @@ class DataMigrationActivity : BaseActivity() {
         }
     }
 
+    private suspend fun importProjectDictionary(dictionaryArray: JSONArray): Int {
+        var importCount = 0
+        try {
+            val existingNames = projectDictionaryRepository.getAllProjectNames().toSet()
+            
+            for (i in 0 until dictionaryArray.length()) {
+                try {
+                    val projectJson = dictionaryArray.getJSONObject(i)
+                    val name = projectJson.optString("name", "").trim()
+                    
+                    if (name.isNotEmpty() && !existingNames.contains(name)) {
+                        val project = com.example.daxijizhang.data.model.ProjectDictionary(
+                            name = name,
+                            usageCount = projectJson.optInt("usageCount", 0)
+                        )
+                        projectDictionaryRepository.insertProject(project)
+                        importCount++
+                    }
+                } catch (e: Exception) {
+                    e.printStackTrace()
+                }
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+        return importCount
+    }
+
     data class ImportBillData(
         val bill: Bill,
         val items: List<BillItem>,
         val paymentRecords: List<PaymentRecord>
+    )
+
+    data class ImportPreviewData(
+        val fileInfo: String,
+        val importBills: List<ImportBillData>,
+        val actualImportCount: Int,
+        val dictionaryArray: JSONArray?
     )
 
     data class ImportResult(
@@ -1206,6 +1327,13 @@ class DataMigrationActivity : BaseActivity() {
         binding.tvImportResult.text = successMessage
         binding.tvImportResult.setTextColor(getColor(R.color.success))
         Toast.makeText(this, successMessage, Toast.LENGTH_SHORT).show()
+    }
+
+    private fun showImportSuccessWithMessage(message: String) {
+        binding.tvImportResult.visibility = View.VISIBLE
+        binding.tvImportResult.text = message
+        binding.tvImportResult.setTextColor(getColor(R.color.success))
+        Toast.makeText(this, message, Toast.LENGTH_SHORT).show()
     }
 
     private fun showImportFailed(errorMessage: String? = null) {

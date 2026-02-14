@@ -50,6 +50,7 @@ class CustomNumberPicker @JvmOverloads constructor(
 
     private var selectedTextColor: Int = Color.BLACK
     private var normalTextColor: Int = Color.GRAY
+    private var themeColor: Int = Color.BLACK
 
     init {
         updateColors()
@@ -110,7 +111,7 @@ class CustomNumberPicker @JvmOverloads constructor(
             val (textSize, alpha) = calculateTextStyle(distanceFromCenter)
 
             paint.textSize = textSize
-            paint.color = if (distanceFromCenter < 0.5f) selectedTextColor else normalTextColor
+            paint.color = if (distanceFromCenter < 0.5f) themeColor else normalTextColor
             paint.alpha = (alpha * 255).toInt().coerceIn(0, 255)
 
             val displayValue = if (wrapSelectorWheel) {
@@ -336,6 +337,11 @@ class CustomNumberPicker @JvmOverloads constructor(
 
     fun setOnValueChangedListener(listener: (Int) -> Unit) {
         onValueChangedListener = listener
+    }
+
+    fun setThemeColor(color: Int) {
+        themeColor = color
+        invalidate()
     }
 
     override fun onConfigurationChanged(newConfig: android.content.res.Configuration?) {

@@ -9,6 +9,9 @@ import android.widget.ArrayAdapter
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatDelegate
 import androidx.core.content.ContextCompat
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.updateLayoutParams
 import com.example.daxijizhang.R
 import com.example.daxijizhang.databinding.ActivityDisplaySettingsBinding
 import com.example.daxijizhang.ui.base.BaseActivity
@@ -68,9 +71,30 @@ class DisplaySettingsActivity : BaseActivity(), ColorPickerDialogListener {
 
         prefs = getSharedPreferences(PREFS_NAME, MODE_PRIVATE)
 
+        setupStatusBarPadding()
         initViews()
         setupClickListeners()
         loadCurrentSettings()
+    }
+
+    private fun setupStatusBarPadding() {
+        ViewCompat.setOnApplyWindowInsetsListener(binding.root) { _, windowInsets ->
+            val statusBarInsets = windowInsets.getInsets(WindowInsetsCompat.Type.statusBars())
+            val navigationBarInsets = windowInsets.getInsets(WindowInsetsCompat.Type.navigationBars())
+            
+            binding.statusBarPlaceholder.updateLayoutParams {
+                height = statusBarInsets.top
+            }
+            
+            binding.contentContainer.setPadding(
+                binding.contentContainer.paddingLeft,
+                binding.contentContainer.paddingTop,
+                binding.contentContainer.paddingRight,
+                navigationBarInsets.bottom + binding.contentContainer.paddingTop
+            )
+            
+            windowInsets
+        }
     }
 
     override fun onResume() {

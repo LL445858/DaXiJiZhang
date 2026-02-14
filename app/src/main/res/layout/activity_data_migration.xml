@@ -5,31 +5,46 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="@color/background"
+    android:fitsSystemWindows="false"
     tools:context=".ui.settings.DataMigrationActivity">
 
-    <!-- 顶部工具栏 -->
-    <com.google.android.material.appbar.MaterialToolbar
-        android:id="@+id/toolbar"
-        android:layout_width="match_parent"
-        android:layout_height="?attr/actionBarSize"
-        android:background="@color/surface"
-        android:elevation="0dp"
-        app:navigationIcon="@drawable/ic_back"
-        app:navigationIconTint="@color/text_primary"
-        app:title="@string/data_migration"
-        app:titleTextColor="@color/text_primary" />
-
-    <!-- 内容区域 -->
-    <androidx.core.widget.NestedScrollView
+    <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:layout_marginTop="?attr/actionBarSize">
+        android:orientation="vertical">
 
-        <LinearLayout
+        <!-- 状态栏占位 -->
+        <View
+            android:id="@+id/status_bar_placeholder"
             android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="vertical"
-            android:padding="16dp">
+            android:layout_height="0dp"
+            android:background="@color/surface" />
+
+        <!-- 顶部工具栏 -->
+        <com.google.android.material.appbar.MaterialToolbar
+            android:id="@+id/toolbar"
+            android:layout_width="match_parent"
+            android:layout_height="?attr/actionBarSize"
+            android:background="@color/surface"
+            android:elevation="0dp"
+            app:navigationIcon="@drawable/ic_back"
+            app:navigationIconTint="@color/text_primary"
+            app:title="@string/data_migration"
+            app:titleTextColor="@color/text_primary" />
+
+        <!-- 内容区域 -->
+        <androidx.core.widget.NestedScrollView
+            android:id="@+id/nested_scroll_view"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:fillViewport="true">
+
+            <LinearLayout
+                android:id="@+id/content_container"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:padding="16dp">
 
             <!-- 本地备份模块 -->
             <com.google.android.material.card.MaterialCardView
@@ -632,6 +647,8 @@
         </LinearLayout>
 
     </androidx.core.widget.NestedScrollView>
+
+    </LinearLayout>
 
     <!-- 同步日志弹窗遮罩层 -->
     <FrameLayout

@@ -1,6 +1,5 @@
 package com.example.daxijizhang.ui.statistics
 
-import android.app.DatePickerDialog
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
@@ -31,6 +30,7 @@ import com.example.daxijizhang.data.repository.StatisticsRepository
 import com.example.daxijizhang.databinding.FragmentStatisticsBinding
 import com.example.daxijizhang.ui.view.CustomNumberPicker
 import com.example.daxijizhang.ui.view.HeatmapView
+import com.example.daxijizhang.ui.view.ModernDatePickerDialog
 import com.example.daxijizhang.ui.view.YearlyHeatmapView
 import com.example.daxijizhang.ui.view.YearlyIncomeChartView
 import com.example.daxijizhang.util.StatisticsStateManager
@@ -482,6 +482,8 @@ class StatisticsFragment : Fragment(), ThemeManager.OnThemeColorChangeListener {
         val primaryColor = ThemeManager.getThemeColor()
         btnCancel.setTextColor(primaryColor)
         btnConfirm.backgroundTintList = android.content.res.ColorStateList.valueOf(primaryColor)
+        npYear.setThemeColor(primaryColor)
+        npMonth.setThemeColor(primaryColor)
 
         btnCancel.setOnClickListener {
             yearMonthPickerDialog?.dismiss()
@@ -520,6 +522,8 @@ class StatisticsFragment : Fragment(), ThemeManager.OnThemeColorChangeListener {
         val primaryColor = ThemeManager.getThemeColor()
         btnCancel?.setTextColor(primaryColor)
         btnConfirm?.backgroundTintList = android.content.res.ColorStateList.valueOf(primaryColor)
+        npYear?.setThemeColor(primaryColor)
+        npMonth?.setThemeColor(primaryColor)
 
         yearMonthPickerDialog?.show()
     }
@@ -566,6 +570,7 @@ class StatisticsFragment : Fragment(), ThemeManager.OnThemeColorChangeListener {
         val primaryColor = ThemeManager.getThemeColor()
         btnCancel.setTextColor(primaryColor)
         btnConfirm.backgroundTintList = android.content.res.ColorStateList.valueOf(primaryColor)
+        npYear.setThemeColor(primaryColor)
 
         btnCancel.setOnClickListener {
             yearPickerDialog?.dismiss()
@@ -594,6 +599,7 @@ class StatisticsFragment : Fragment(), ThemeManager.OnThemeColorChangeListener {
         val primaryColor = ThemeManager.getThemeColor()
         btnCancel?.setTextColor(primaryColor)
         btnConfirm?.backgroundTintList = android.content.res.ColorStateList.valueOf(primaryColor)
+        npYear?.setThemeColor(primaryColor)
 
         yearPickerDialog?.show()
     }
@@ -677,20 +683,17 @@ class StatisticsFragment : Fragment(), ThemeManager.OnThemeColorChangeListener {
         tempEndDate.timeInMillis = customEndDate.timeInMillis
 
         val calendar = if (isStartDate) tempStartDate else tempEndDate
-        val year = calendar.get(Calendar.YEAR)
-        val month = calendar.get(Calendar.MONTH)
-        val day = calendar.get(Calendar.DAY_OF_MONTH)
 
-        val datePickerDialog = DatePickerDialog(
-            requireContext(),
-            { _, selectedYear, selectedMonth, selectedDay ->
-                val newCalendar = Calendar.getInstance()
-                newCalendar.set(selectedYear, selectedMonth, selectedDay)
-
+        ModernDatePickerDialog.show(
+            context = requireContext(),
+            initialDate = calendar,
+            minDate = if (isStartDate) null else customStartDate,
+            maxDate = if (isStartDate) customEndDate else null,
+            onDateSelected = { selectedCalendar ->
                 if (isStartDate) {
-                    tempStartDate.timeInMillis = newCalendar.timeInMillis
+                    tempStartDate.timeInMillis = selectedCalendar.timeInMillis
                 } else {
-                    tempEndDate.timeInMillis = newCalendar.timeInMillis
+                    tempEndDate.timeInMillis = selectedCalendar.timeInMillis
                 }
 
                 if (validateCustomDates(isStartDate)) {
@@ -700,26 +703,8 @@ class StatisticsFragment : Fragment(), ThemeManager.OnThemeColorChangeListener {
                     updateCustomDateDisplay()
                     loadStatisticsData()
                 }
-            },
-            year, month, day
+            }
         )
-
-        val datePicker = datePickerDialog.datePicker
-        if (isStartDate) {
-            datePicker.maxDate = customEndDate.timeInMillis
-        } else {
-            datePicker.minDate = customStartDate.timeInMillis
-        }
-
-        datePickerDialog.setOnShowListener {
-            val positiveButton = datePickerDialog.getButton(DatePickerDialog.BUTTON_POSITIVE)
-            val negativeButton = datePickerDialog.getButton(DatePickerDialog.BUTTON_NEGATIVE)
-            val primaryColor = ThemeManager.getThemeColor()
-            positiveButton.setTextColor(primaryColor)
-            negativeButton.setTextColor(primaryColor)
-        }
-
-        datePickerDialog.show()
     }
 
     private fun validateCustomDates(isSelectingStartDate: Boolean): Boolean {

@@ -13,7 +13,7 @@
         android:id="@+id/status_bar_placeholder"
         android:layout_width="match_parent"
         android:layout_height="0dp"
-        android:background="@color/status_bar" />
+        android:background="@color/surface" />
 
     <!-- 标题栏：统计周期和日期选择 -->
     <include

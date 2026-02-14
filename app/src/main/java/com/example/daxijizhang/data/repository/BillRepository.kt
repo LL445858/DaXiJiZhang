@@ -186,8 +186,10 @@ class BillRepository(
             )
             val billId = billDao.insert(billWithAmount)
 
-            val itemsWithBillId = items.map { it.copy(billId = billId) }
-            billItemDao.insertAll(itemsWithBillId)
+            val itemsWithBillIdAndOrder = items.mapIndexed { index, item ->
+                item.copy(billId = billId, orderIndex = index)
+            }
+            billItemDao.insertAll(itemsWithBillIdAndOrder)
 
             if (paymentRecords.isNotEmpty()) {
                 val recordsWithBillId = paymentRecords.map { it.copy(billId = billId) }

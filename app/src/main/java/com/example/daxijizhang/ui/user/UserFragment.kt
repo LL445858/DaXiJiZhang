@@ -187,50 +187,63 @@ class UserFragment : Fragment(), ThemeManager.OnThemeColorChangeListener {
     }
 
     private fun loadUserData() {
-        try {
-            // 从SharedPreferences加载用户数据
-            val prefs = requireContext().getSharedPreferences("user_settings", android.content.Context.MODE_PRIVATE)
-            val nickname = prefs.getString("nickname", getString(R.string.default_nickname))
-            binding.tvUserNickname.text = nickname
+        val prefs = requireContext().getSharedPreferences("user_settings", android.content.Context.MODE_PRIVATE)
+        val nickname = prefs.getString("nickname", getString(R.string.default_nickname))
+        binding.tvUserNickname.text = nickname
 
-            // 加载头像
+        loadAvatar()
+        loadBackground(prefs)
+    }
+    
+    private fun loadAvatar() {
+        try {
             val avatarBitmap = ImagePickerUtil.loadAvatar(requireContext())
             if (avatarBitmap != null) {
                 binding.ivUserAvatar.setImageBitmap(avatarBitmap)
             } else {
                 binding.ivUserAvatar.setImageResource(R.drawable.default_avatar)
             }
-
-            // 加载背景
+        } catch (e: Exception) {
+            e.printStackTrace()
+            binding.ivUserAvatar.setImageResource(R.drawable.default_avatar)
+        }
+    }
+    
+    private fun loadBackground(prefs: android.content.SharedPreferences) {
+        try {
             val backgroundBitmap = ImagePickerUtil.loadBackground(requireContext())
             if (backgroundBitmap != null) {
                 binding.ivBackground.setImageBitmap(backgroundBitmap)
                 originalBackgroundBitmap = backgroundBitmap
             } else {
                 binding.ivBackground.setImageResource(R.drawable.default_user_background)
-                // 保存默认背景图片
-                val drawable = binding.ivBackground.drawable
-                if (drawable != null) {
-                    originalBackgroundBitmap = Bitmap.createBitmap(
-                        drawable.intrinsicWidth,
-                        drawable.intrinsicHeight,
-                        Bitmap.Config.ARGB_8888
-                    )
-                    val canvas = Canvas(originalBackgroundBitmap!!)
-                    drawable.draw(canvas)
-                } else {
-                    originalBackgroundBitmap = null
-                }
+                originalBackgroundBitmap = loadDefaultBackgroundBitmap()
             }
-
-            // 应用背景效果设置
             applyBackgroundEffects(prefs)
         } catch (e: Exception) {
             e.printStackTrace()
-            // 发生异常时，使用默认资源
-            binding.ivUserAvatar.setImageResource(R.drawable.default_avatar)
             binding.ivBackground.setImageResource(R.drawable.default_user_background)
             originalBackgroundBitmap = null
+        }
+    }
+    
+    private fun loadDefaultBackgroundBitmap(): Bitmap? {
+        return try {
+            val drawable = ContextCompat.getDrawable(requireContext(), R.drawable.default_user_background)
+            if (drawable != null) {
+                val width = if (drawable.intrinsicWidth > 0) drawable.intrinsicWidth else 1080
+                val height = if (drawable.intrinsicHeight > 0) drawable.intrinsicHeight else 1920
+                val bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
+                val canvas = Canvas(bitmap)
+                drawable.setBounds(0, 0, width, height)
+                drawable.draw(canvas)
+                bitmap
+            } else {
+                null
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+            null
         }
     }
 

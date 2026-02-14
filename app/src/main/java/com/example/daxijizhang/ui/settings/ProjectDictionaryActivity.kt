@@ -17,6 +17,9 @@ import androidx.activity.OnBackPressedCallback
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.updateLayoutParams
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
@@ -42,6 +45,8 @@ class ProjectDictionaryActivity : AppCompatActivity() {
     private lateinit var tvEmpty: TextView
     private lateinit var btnAdd: ImageButton
     private lateinit var toolbar: androidx.appcompat.widget.Toolbar
+    private lateinit var statusBarPlaceholder: View
+    private lateinit var navigationBarPlaceholder: View
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -52,6 +57,7 @@ class ProjectDictionaryActivity : AppCompatActivity() {
         repository = ProjectDictionaryRepository(database.projectDictionaryDao())
 
         initViews()
+        setupStatusBarPadding()
         setupRecyclerView()
         setupClickListeners()
         setupBackPressHandler()
@@ -69,6 +75,8 @@ class ProjectDictionaryActivity : AppCompatActivity() {
         recyclerView = findViewById(R.id.recycler_projects)
         tvEmpty = findViewById(R.id.tv_empty_hint)
         btnAdd = findViewById(R.id.btn_add_project)
+        statusBarPlaceholder = findViewById(R.id.status_bar_placeholder)
+        navigationBarPlaceholder = findViewById(R.id.navigation_bar_placeholder)
 
         toolbar.setNavigationOnClickListener {
             finishWithAnimation()
@@ -76,6 +84,27 @@ class ProjectDictionaryActivity : AppCompatActivity() {
 
         // 应用主题色到加号按钮
         applyThemeColorToViews()
+    }
+
+    private fun setupStatusBarPadding() {
+        val rootView = findViewById<androidx.coordinatorlayout.widget.CoordinatorLayout>(R.id.root_view)
+        ViewCompat.setOnApplyWindowInsetsListener(rootView) { view, windowInsets ->
+            val statusBarInsets = windowInsets.getInsets(WindowInsetsCompat.Type.statusBars())
+            val navigationBarInsets = windowInsets.getInsets(WindowInsetsCompat.Type.navigationBars())
+            
+            statusBarPlaceholder.updateLayoutParams {
+                height = statusBarInsets.top
+            }
+            
+            navigationBarPlaceholder.updateLayoutParams {
+                height = navigationBarInsets.bottom
+            }
+            
+            // 消费掉导航栏 insets，防止传递给子视图
+            WindowInsetsCompat.Builder(windowInsets)
+                .setInsets(WindowInsetsCompat.Type.navigationBars(), androidx.core.graphics.Insets.of(0, 0, 0, 0))
+                .build()
+        }
     }
 
     /**
@@ -386,7 +415,6 @@ class ProjectDictionaryActivity : AppCompatActivity() {
 
         inner class ViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
             val tvName: TextView = itemView.findViewById(R.id.tv_project_name)
-            val tvCount: TextView = itemView.findViewById(R.id.tv_usage_count)
             val btnEdit: ImageButton = itemView.findViewById(R.id.btn_edit)
             val btnDelete: ImageButton = itemView.findViewById(R.id.btn_delete)
         }
@@ -400,7 +428,6 @@ class ProjectDictionaryActivity : AppCompatActivity() {
         override fun onBindViewHolder(holder: ViewHolder, position: Int) {
             val project = projects[position]
             holder.tvName.text = project.name
-            holder.tvCount.text = "使用${project.usageCount}次"
 
             // 应用主题色到编辑按钮
             val themeColor = ThemeManager.getThemeColor()

@@ -15,6 +15,7 @@ import com.example.daxijizhang.data.model.BillItem
 import com.example.daxijizhang.data.model.BillWithItems
 import com.example.daxijizhang.data.model.PaymentRecord
 import com.example.daxijizhang.data.repository.BillRepository
+import com.example.daxijizhang.data.repository.ProjectDictionaryRepository
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
@@ -28,6 +29,7 @@ class AutoBackupManager private constructor(private val context: Context) {
 
     private lateinit var prefs: SharedPreferences
     private lateinit var repository: BillRepository
+    private lateinit var projectDictionaryRepository: ProjectDictionaryRepository
     private val TAG = "AutoBackupManager"
 
     companion object {
@@ -56,6 +58,7 @@ class AutoBackupManager private constructor(private val context: Context) {
             database.billItemDao(),
             database.paymentRecordDao()
         )
+        projectDictionaryRepository = ProjectDictionaryRepository(database.projectDictionaryDao())
     }
 
     fun performAutoBackupIfNeeded() {
@@ -167,6 +170,20 @@ class AutoBackupManager private constructor(private val context: Context) {
 
         exportData.put("bills", billsArray)
         exportData.put("billCount", billsArray.length())
+        
+        // 添加项目词典数据
+        val projectDictionary = projectDictionaryRepository.getAllProjectsSync()
+        val dictionaryArray = JSONArray()
+        projectDictionary.forEach { project ->
+            val projectJson = JSONObject().apply {
+                put("name", project.name)
+                put("usageCount", project.usageCount)
+            }
+            dictionaryArray.put(projectJson)
+        }
+        exportData.put("projectDictionary", dictionaryArray)
+        exportData.put("dictionaryCount", dictionaryArray.length())
+        
         exportData.put("exportDate", SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).format(Date()))
         exportData.put("isAutoBackup", true)
 
@@ -189,12 +206,13 @@ class AutoBackupManager private constructor(private val context: Context) {
             put("createdAt", formatDate(bill.createdAt))
 
             val itemsArray = JSONArray()
-            billWithItems.items.forEach { item ->
+            billWithItems.items.sortedBy { it.orderIndex }.forEach { item ->
                 val itemJson = JSONObject().apply {
                     put("projectName", item.projectName)
                     put("unitPrice", item.unitPrice)
                     put("quantity", item.quantity)
                     put("totalPrice", item.totalPrice)
+                    put("orderIndex", item.orderIndex)
                 }
                 itemsArray.put(itemJson)
             }

@@ -1,6 +1,5 @@
 package com.example.daxijizhang.ui.bill
 
-import android.app.DatePickerDialog
 import android.os.Bundle
 import android.text.Editable
 import android.text.TextWatcher
@@ -9,6 +8,9 @@ import android.widget.EditText
 import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
 import androidx.core.content.ContextCompat
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.updateLayoutParams
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.ItemTouchHelper
 import androidx.recyclerview.widget.LinearLayoutManager
@@ -26,6 +28,7 @@ import com.example.daxijizhang.databinding.ActivityAddBillBinding
 import com.example.daxijizhang.databinding.DialogAddPaymentBinding
 import com.example.daxijizhang.databinding.DialogAddProjectBinding
 import com.example.daxijizhang.ui.base.BaseActivity
+import com.example.daxijizhang.ui.view.ModernDatePickerDialog
 import com.example.daxijizhang.ui.view.ProjectAutoCompleteView
 import com.example.daxijizhang.util.ThemeManager
 import com.example.daxijizhang.util.ViewUtil.setOnOptimizedClickListener
@@ -80,6 +83,7 @@ class AddBillActivity : BaseActivity() {
             projectDictionaryRepository.initializeDefaultProjects()
         }
 
+        setupStatusBarPadding()
         setupToolbar()
         setupRecyclerViews()
         setupListeners()
@@ -88,6 +92,26 @@ class AddBillActivity : BaseActivity() {
 
         // 检查是否有草稿
         checkAndLoadDraft()
+    }
+
+    private fun setupStatusBarPadding() {
+        ViewCompat.setOnApplyWindowInsetsListener(binding.root) { _, windowInsets ->
+            val statusBarInsets = windowInsets.getInsets(WindowInsetsCompat.Type.statusBars())
+            val navigationBarInsets = windowInsets.getInsets(WindowInsetsCompat.Type.navigationBars())
+            
+            binding.statusBarPlaceholder.updateLayoutParams {
+                height = statusBarInsets.top
+            }
+            
+            binding.bottomButtons.setPadding(
+                binding.bottomButtons.paddingLeft,
+                binding.bottomButtons.paddingTop,
+                binding.bottomButtons.paddingRight,
+                navigationBarInsets.bottom + binding.bottomButtons.paddingTop
+            )
+            
+            windowInsets
+        }
     }
 
     /**
@@ -243,6 +267,7 @@ class AddBillActivity : BaseActivity() {
         binding.recyclerItems.apply {
             layoutManager = LinearLayoutManager(this@AddBillActivity)
             adapter = billItemAdapter
+            itemAnimator = null
         }
         billItemAdapter.submitList(items.toList())
 
@@ -314,6 +339,7 @@ class AddBillActivity : BaseActivity() {
         binding.recyclerPaymentRecords.apply {
             layoutManager = LinearLayoutManager(this@AddBillActivity)
             adapter = paymentRecordAdapter
+            itemAnimator = null
         }
         sortPaymentRecords()
         paymentRecordAdapter.submitList(paymentRecords.toList())
@@ -394,18 +420,13 @@ class AddBillActivity : BaseActivity() {
 
     private fun showDatePicker(onDateSelected: (Date) -> Unit) {
         val calendar = Calendar.getInstance()
-        DatePickerDialog(
-            this,
-            { _, year, month, dayOfMonth ->
-                val date = Calendar.getInstance().apply {
-                    set(year, month, dayOfMonth)
-                }.time
-                onDateSelected(date)
-            },
-            calendar.get(Calendar.YEAR),
-            calendar.get(Calendar.MONTH),
-            calendar.get(Calendar.DAY_OF_MONTH)
-        ).show()
+        ModernDatePickerDialog.show(
+            context = this,
+            initialDate = calendar,
+            onDateSelected = { selectedCalendar ->
+                onDateSelected(selectedCalendar.time)
+            }
+        )
     }
 
     private fun showAddProjectDialog() {
@@ -452,18 +473,19 @@ class AddBillActivity : BaseActivity() {
         dialogBinding.btnSave.setOnClickListener {
             if (validateProjectInput(dialogBinding)) {
                 val projectName = dialogBinding.etProjectName.text.toString().trim()
+                val unitPrice = dialogBinding.etUnitPrice.text.toString().toDouble()
+                val quantity = if (dialogBinding.etQuantity.text.isNullOrBlank()) {
+                    1.0
+                } else {
+                    dialogBinding.etQuantity.text.toString().toDouble()
+                }
                 val item = BillItem(
                     billId = 0,
                     projectName = projectName,
-                    unitPrice = dialogBinding.etUnitPrice.text.toString().toDouble(),
-                    quantity = dialogBinding.etQuantity.text.toString().toDouble()
+                    unitPrice = unitPrice,
+                    quantity = quantity
                 )
                 handleAddBillItem(item)
-
-                // 更新项目词典使用频率
-                lifecycleScope.launch {
-                    projectDictionaryRepository.incrementUsageCountByName(projectName)
-                }
 
                 dialog.dismiss()
             }
@@ -569,7 +591,11 @@ class AddBillActivity : BaseActivity() {
 
     private fun calculateTotal(dialogBinding: DialogAddProjectBinding) {
         val unitPrice = dialogBinding.etUnitPrice.text.toString().toDoubleOrNull() ?: 0.0
-        val quantity = dialogBinding.etQuantity.text.toString().toDoubleOrNull() ?: 0.0
+        val quantity = if (dialogBinding.etQuantity.text.isNullOrBlank()) {
+            1.0
+        } else {
+            dialogBinding.etQuantity.text.toString().toDoubleOrNull() ?: 1.0
+        }
         val total = unitPrice * quantity
         dialogBinding.etTotalPrice.setText(String.format("¥%.2f", total))
     }
@@ -591,12 +617,8 @@ class AddBillActivity : BaseActivity() {
             binding.tilUnitPrice.error = null
         }
 
-        if (binding.etQuantity.text.isNullOrBlank()) {
-            binding.tilQuantity.error = getString(R.string.error_quantity_required)
-            isValid = false
-        } else {
-            binding.tilQuantity.error = null
-        }
+        // 数量字段可选，为空时默认为1
+        binding.tilQuantity.error = null
 
         return isValid
     }

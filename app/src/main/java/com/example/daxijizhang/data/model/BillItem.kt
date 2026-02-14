@@ -24,7 +24,8 @@ data class BillItem(
     val projectName: String,
     val unitPrice: Double,
     val quantity: Double,
-    val totalPrice: Double = unitPrice * quantity
+    val totalPrice: Double = unitPrice * quantity,
+    val orderIndex: Int = 0
 ) {
     companion object {
         fun calculateTotalPrice(unitPrice: Double, quantity: Double): Double {

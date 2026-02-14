@@ -21,10 +21,10 @@ interface BillItemDao {
     @Query("SELECT * FROM bill_items WHERE id = :id")
     suspend fun getById(id: Long): BillItem?
 
-    @Query("SELECT * FROM bill_items WHERE billId = :billId")
+    @Query("SELECT * FROM bill_items WHERE billId = :billId ORDER BY orderIndex ASC")
     fun getByBillId(billId: Long): LiveData<List<BillItem>>
 
-    @Query("SELECT * FROM bill_items WHERE billId = :billId")
+    @Query("SELECT * FROM bill_items WHERE billId = :billId ORDER BY orderIndex ASC")
     suspend fun getByBillIdList(billId: Long): List<BillItem>
 
     @Query("DELETE FROM bill_items WHERE billId = :billId")

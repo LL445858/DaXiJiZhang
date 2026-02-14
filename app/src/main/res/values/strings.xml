@@ -45,6 +45,7 @@
     <string name="project_name_hint">如：地砖、墙面漆</string>
     <string name="unit_price">单价</string>
     <string name="quantity">数量</string>
+    <string name="quantity_hint">数量(默认1)</string>
     <string name="total_price">总价</string>
     <string name="save_project">保存</string>
     <string name="continue_add">继续添加</string>

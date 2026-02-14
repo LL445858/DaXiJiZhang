@@ -9,6 +9,9 @@ import android.view.inputmethod.InputMethodManager
 import android.widget.EditText
 import androidx.activity.OnBackPressedCallback
 import androidx.core.app.ActivityOptionsCompat
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.updateLayoutParams
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.example.daxijizhang.R
@@ -40,6 +43,7 @@ class SearchActivity : BaseActivity() {
 
         billDao = AppDatabase.getDatabase(applicationContext).billDao()
 
+        setupStatusBarPadding()
         setupRecyclerView()
         setupListeners()
         setupSearch()
@@ -48,6 +52,26 @@ class SearchActivity : BaseActivity() {
         binding.etSearch.post {
             binding.etSearch.requestFocus()
             showKeyboard(binding.etSearch)
+        }
+    }
+
+    private fun setupStatusBarPadding() {
+        ViewCompat.setOnApplyWindowInsetsListener(binding.root) { _, windowInsets ->
+            val statusBarInsets = windowInsets.getInsets(WindowInsetsCompat.Type.statusBars())
+            val navigationBarInsets = windowInsets.getInsets(WindowInsetsCompat.Type.navigationBars())
+            
+            binding.statusBarPlaceholder.updateLayoutParams {
+                height = statusBarInsets.top
+            }
+            
+            binding.recyclerSearchResults.setPadding(
+                binding.recyclerSearchResults.paddingLeft,
+                binding.recyclerSearchResults.paddingTop,
+                binding.recyclerSearchResults.paddingRight,
+                navigationBarInsets.bottom + binding.recyclerSearchResults.paddingTop
+            )
+            
+            windowInsets
         }
     }
 

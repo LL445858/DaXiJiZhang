@@ -1,6 +1,5 @@
 package com.example.daxijizhang.ui.bill
 
-import android.app.DatePickerDialog
 import android.os.Bundle
 import android.text.Editable
 import android.text.TextWatcher
@@ -11,6 +10,9 @@ import android.widget.EditText
 import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
 import androidx.core.content.ContextCompat
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.updateLayoutParams
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.ItemTouchHelper
 import androidx.recyclerview.widget.LinearLayoutManager
@@ -27,6 +29,7 @@ import com.example.daxijizhang.databinding.DialogAddPaymentBinding
 import com.example.daxijizhang.databinding.DialogAddProjectBinding
 import com.example.daxijizhang.databinding.DialogExportBillBinding
 import com.example.daxijizhang.ui.base.BaseActivity
+import com.example.daxijizhang.ui.view.ModernDatePickerDialog
 import com.example.daxijizhang.ui.view.ProjectAutoCompleteView
 import com.example.daxijizhang.util.BillExportUtil
 import com.example.daxijizhang.util.ThemeManager
@@ -109,12 +112,33 @@ class BillDetailActivity : BaseActivity() {
             projectDictionaryRepository.initializeDefaultProjects()
         }
 
+        setupStatusBarPadding()
         setupToolbar()
         setupRecyclerViews()
         setupListeners()
         setupExpandCollapse()
         loadBillData()
         applyThemeColor()
+    }
+
+    private fun setupStatusBarPadding() {
+        ViewCompat.setOnApplyWindowInsetsListener(binding.root) { _, windowInsets ->
+            val statusBarInsets = windowInsets.getInsets(WindowInsetsCompat.Type.statusBars())
+            val navigationBarInsets = windowInsets.getInsets(WindowInsetsCompat.Type.navigationBars())
+            
+            binding.statusBarPlaceholder.updateLayoutParams {
+                height = statusBarInsets.top
+            }
+            
+            binding.bottomButtons.setPadding(
+                binding.bottomButtons.paddingLeft,
+                binding.bottomButtons.paddingTop,
+                binding.bottomButtons.paddingRight,
+                navigationBarInsets.bottom + binding.bottomButtons.paddingTop
+            )
+            
+            windowInsets
+        }
     }
 
     /**
@@ -192,6 +216,7 @@ class BillDetailActivity : BaseActivity() {
         binding.recyclerItems.apply {
             layoutManager = LinearLayoutManager(this@BillDetailActivity)
             adapter = billItemAdapter
+            itemAnimator = null
         }
         billItemAdapter.submitList(items.toList())
 
@@ -258,6 +283,7 @@ class BillDetailActivity : BaseActivity() {
         binding.recyclerPaymentRecords.apply {
             layoutManager = LinearLayoutManager(this@BillDetailActivity)
             adapter = paymentRecordAdapter
+            itemAnimator = null
         }
         sortPaymentRecords()
         paymentRecordAdapter.submitList(paymentRecords.toList())
@@ -597,7 +623,7 @@ class BillDetailActivity : BaseActivity() {
                 // 加载装修项目
                 val billItems = viewModel.repository.getBillWithItems(billId)?.items ?: emptyList()
                 items.clear()
-                items.addAll(billItems)
+                items.addAll(billItems.sortedBy { it.orderIndex })
                 billItemAdapter.submitList(items.toList())
 
                 // 加载结付记录
@@ -750,18 +776,13 @@ class BillDetailActivity : BaseActivity() {
 
     private fun showDatePicker(onDateSelected: (Date) -> Unit) {
         val calendar = Calendar.getInstance()
-        DatePickerDialog(
-            this,
-            { _, year, month, dayOfMonth ->
-                val date = Calendar.getInstance().apply {
-                    set(year, month, dayOfMonth)
-                }.time
-                onDateSelected(date)
-            },
-            calendar.get(Calendar.YEAR),
-            calendar.get(Calendar.MONTH),
-            calendar.get(Calendar.DAY_OF_MONTH)
-        ).show()
+        ModernDatePickerDialog.show(
+            context = this,
+            initialDate = calendar,
+            onDateSelected = { selectedCalendar ->
+                onDateSelected(selectedCalendar.time)
+            }
+        )
     }
 
     private fun showAddProjectDialog() {
@@ -807,18 +828,19 @@ class BillDetailActivity : BaseActivity() {
         dialogBinding.btnSave.setOnClickListener {
             if (validateProjectInput(dialogBinding)) {
                 val projectName = dialogBinding.etProjectName.text.toString().trim()
+                val unitPrice = dialogBinding.etUnitPrice.text.toString().toDouble()
+                val quantity = if (dialogBinding.etQuantity.text.isNullOrBlank()) {
+                    1.0
+                } else {
+                    dialogBinding.etQuantity.text.toString().toDouble()
+                }
                 val item = BillItem(
                     billId = billId,
                     projectName = projectName,
-                    unitPrice = dialogBinding.etUnitPrice.text.toString().toDouble(),
-                    quantity = dialogBinding.etQuantity.text.toString().toDouble()
+                    unitPrice = unitPrice,
+                    quantity = quantity
                 )
                 handleAddBillItem(item)
-
-                // 更新项目词典使用频率
-                lifecycleScope.launch {
-                    projectDictionaryRepository.incrementUsageCountByName(projectName)
-                }
 
                 dialog.dismiss()
             }
@@ -923,7 +945,11 @@ class BillDetailActivity : BaseActivity() {
 
     private fun calculateTotal(dialogBinding: DialogAddProjectBinding) {
         val unitPrice = dialogBinding.etUnitPrice.text.toString().toDoubleOrNull() ?: 0.0
-        val quantity = dialogBinding.etQuantity.text.toString().toDoubleOrNull() ?: 0.0
+        val quantity = if (dialogBinding.etQuantity.text.isNullOrBlank()) {
+            1.0
+        } else {
+            dialogBinding.etQuantity.text.toString().toDoubleOrNull() ?: 1.0
+        }
         val total = unitPrice * quantity
         dialogBinding.etTotalPrice.setText(String.format("¥%.2f", total))
     }
@@ -945,12 +971,8 @@ class BillDetailActivity : BaseActivity() {
             binding.tilUnitPrice.error = null
         }
 
-        if (binding.etQuantity.text.isNullOrBlank()) {
-            binding.tilQuantity.error = getString(R.string.error_quantity_required)
-            isValid = false
-        } else {
-            binding.tilQuantity.error = null
-        }
+        // 数量字段可选，为空时默认为1
+        binding.tilQuantity.error = null
 
         return isValid
     }
@@ -1297,38 +1319,40 @@ class BillDetailActivity : BaseActivity() {
             return
         }
 
-        val bill = Bill(
-            id = billId,
-            startDate = billStartDate!!,
-            endDate = billEndDate!!,
-            communityName = binding.etCommunity.text.toString().trim(),
-            phase = binding.etPhase.text.toString().trim().takeIf { it.isNotBlank() },
-            buildingNumber = binding.etBuilding.text.toString().trim().takeIf { it.isNotBlank() },
-            roomNumber = binding.etRoom.text.toString().trim().takeIf { it.isNotBlank() },
-            remark = binding.etRemark.text.toString().trim().takeIf { it.isNotBlank() },
-            totalAmount = items.sumOf { it.totalPrice },
-            paidAmount = paymentRecords.sumOf { it.amount },
-            waivedAmount = waivedAmount
-        )
-
         lifecycleScope.launch {
             try {
-                // 更新账单
-                viewModel.repository.updateBill(bill)
-
-                // 删除旧的项目和记录
+                // 1. 先删除旧的项目和记录
                 viewModel.repository.deleteBillItemsByBillId(billId)
                 viewModel.repository.deletePaymentRecordsByBillId(billId)
 
-                // 插入新的项目
-                val itemsWithBillId = items.map { it.copy(billId = billId) }
-                viewModel.repository.insertBillItems(itemsWithBillId)
+                // 2. 插入新的项目（带排序索引）
+                val itemsWithBillIdAndOrder = items.mapIndexed { index, item ->
+                    item.copy(billId = billId, orderIndex = index)
+                }
+                viewModel.repository.insertBillItems(itemsWithBillIdAndOrder)
 
-                // 插入新的结付记录
+                // 3. 插入新的结付记录
                 if (paymentRecords.isNotEmpty()) {
                     val recordsWithBillId = paymentRecords.map { it.copy(billId = billId) }
                     recordsWithBillId.forEach { viewModel.repository.insertPaymentRecord(it) }
                 }
+
+                // 4. 最后更新账单（包括计算后的 paidAmount）
+                val totalPaid = paymentRecords.sumOf { it.amount }
+                val bill = Bill(
+                    id = billId,
+                    startDate = billStartDate!!,
+                    endDate = billEndDate!!,
+                    communityName = binding.etCommunity.text.toString().trim(),
+                    phase = binding.etPhase.text.toString().trim().takeIf { it.isNotBlank() },
+                    buildingNumber = binding.etBuilding.text.toString().trim().takeIf { it.isNotBlank() },
+                    roomNumber = binding.etRoom.text.toString().trim().takeIf { it.isNotBlank() },
+                    remark = binding.etRemark.text.toString().trim().takeIf { it.isNotBlank() },
+                    totalAmount = items.sumOf { it.totalPrice },
+                    paidAmount = totalPaid,
+                    waivedAmount = waivedAmount
+                )
+                viewModel.repository.updateBill(bill)
 
                 // 更新原始账单引用和原始值
                 originalBill = bill
@@ -1456,38 +1480,40 @@ class BillDetailActivity : BaseActivity() {
             return
         }
 
-        val bill = Bill(
-            id = billId,
-            startDate = billStartDate!!,
-            endDate = billEndDate!!,
-            communityName = binding.etCommunity.text.toString().trim(),
-            phase = binding.etPhase.text.toString().trim().takeIf { it.isNotBlank() },
-            buildingNumber = binding.etBuilding.text.toString().trim().takeIf { it.isNotBlank() },
-            roomNumber = binding.etRoom.text.toString().trim().takeIf { it.isNotBlank() },
-            remark = binding.etRemark.text.toString().trim().takeIf { it.isNotBlank() },
-            totalAmount = items.sumOf { it.totalPrice },
-            paidAmount = paymentRecords.sumOf { it.amount },
-            waivedAmount = waivedAmount
-        )
-
         lifecycleScope.launch {
             try {
-                // 更新账单
-                viewModel.repository.updateBill(bill)
-
-                // 删除旧的项目和记录
+                // 1. 先删除旧的项目和记录
                 viewModel.repository.deleteBillItemsByBillId(billId)
                 viewModel.repository.deletePaymentRecordsByBillId(billId)
 
-                // 插入新的项目
-                val itemsWithBillId = items.map { it.copy(billId = billId) }
-                viewModel.repository.insertBillItems(itemsWithBillId)
+                // 2. 插入新的项目（带排序索引）
+                val itemsWithBillIdAndOrder = items.mapIndexed { index, item ->
+                    item.copy(billId = billId, orderIndex = index)
+                }
+                viewModel.repository.insertBillItems(itemsWithBillIdAndOrder)
 
-                // 插入新的结付记录
+                // 3. 插入新的结付记录
                 if (paymentRecords.isNotEmpty()) {
                     val recordsWithBillId = paymentRecords.map { it.copy(billId = billId) }
                     recordsWithBillId.forEach { viewModel.repository.insertPaymentRecord(it) }
                 }
+
+                // 4. 最后更新账单（包括计算后的 paidAmount）
+                val totalPaid = paymentRecords.sumOf { it.amount }
+                val bill = Bill(
+                    id = billId,
+                    startDate = billStartDate!!,
+                    endDate = billEndDate!!,
+                    communityName = binding.etCommunity.text.toString().trim(),
+                    phase = binding.etPhase.text.toString().trim().takeIf { it.isNotBlank() },
+                    buildingNumber = binding.etBuilding.text.toString().trim().takeIf { it.isNotBlank() },
+                    roomNumber = binding.etRoom.text.toString().trim().takeIf { it.isNotBlank() },
+                    remark = binding.etRemark.text.toString().trim().takeIf { it.isNotBlank() },
+                    totalAmount = items.sumOf { it.totalPrice },
+                    paidAmount = totalPaid,
+                    waivedAmount = waivedAmount
+                )
+                viewModel.repository.updateBill(bill)
 
                 // 更新原始值
                 saveOriginalValues()
@@ -1566,33 +1592,40 @@ class BillDetailActivity : BaseActivity() {
             return
         }
 
-        val bill = Bill(
-            id = billId,
-            startDate = billStartDate!!,
-            endDate = billEndDate!!,
-            communityName = binding.etCommunity.text.toString().trim(),
-            phase = binding.etPhase.text.toString().trim().takeIf { it.isNotBlank() },
-            buildingNumber = binding.etBuilding.text.toString().trim().takeIf { it.isNotBlank() },
-            roomNumber = binding.etRoom.text.toString().trim().takeIf { it.isNotBlank() },
-            remark = binding.etRemark.text.toString().trim().takeIf { it.isNotBlank() },
-            totalAmount = items.sumOf { it.totalPrice },
-            paidAmount = paymentRecords.sumOf { it.amount },
-            waivedAmount = waivedAmount
-        )
-
         lifecycleScope.launch {
             try {
-                viewModel.repository.updateBill(bill)
+                // 1. 先删除旧的项目和记录
                 viewModel.repository.deleteBillItemsByBillId(billId)
                 viewModel.repository.deletePaymentRecordsByBillId(billId)
 
-                val itemsWithBillId = items.map { it.copy(billId = billId) }
-                viewModel.repository.insertBillItems(itemsWithBillId)
+                // 2. 插入新的项目（带排序索引）
+                val itemsWithBillIdAndOrder = items.mapIndexed { index, item ->
+                    item.copy(billId = billId, orderIndex = index)
+                }
+                viewModel.repository.insertBillItems(itemsWithBillIdAndOrder)
 
+                // 3. 插入新的结付记录
                 if (paymentRecords.isNotEmpty()) {
                     val recordsWithBillId = paymentRecords.map { it.copy(billId = billId) }
                     recordsWithBillId.forEach { viewModel.repository.insertPaymentRecord(it) }
                 }
+
+                // 4. 最后更新账单（包括计算后的 paidAmount）
+                val totalPaid = paymentRecords.sumOf { it.amount }
+                val bill = Bill(
+                    id = billId,
+                    startDate = billStartDate!!,
+                    endDate = billEndDate!!,
+                    communityName = binding.etCommunity.text.toString().trim(),
+                    phase = binding.etPhase.text.toString().trim().takeIf { it.isNotBlank() },
+                    buildingNumber = binding.etBuilding.text.toString().trim().takeIf { it.isNotBlank() },
+                    roomNumber = binding.etRoom.text.toString().trim().takeIf { it.isNotBlank() },
+                    remark = binding.etRemark.text.toString().trim().takeIf { it.isNotBlank() },
+                    totalAmount = items.sumOf { it.totalPrice },
+                    paidAmount = totalPaid,
+                    waivedAmount = waivedAmount
+                )
+                viewModel.repository.updateBill(bill)
 
                 saveOriginalValues()
                 hasUnsavedChanges = false

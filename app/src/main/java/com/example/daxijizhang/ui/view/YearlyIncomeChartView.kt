@@ -41,10 +41,10 @@ class YearlyIncomeChartView @JvmOverloads constructor(
     }
     
     private val baseBarWidthDp = 20f
-    private val barWidthDp = baseBarWidthDp * 0.8f
-    private val minBarSpacingDp = 12f
+    private val minBarSpacingDp = 4f
     private val topPaddingDp = 24f
     private val bottomPaddingDp = 24f
+    private val horizontalPaddingDp = 8f
     private val baseLabelTextSizeSp = 12f
     private val baseValueTextSizeSp = 10f
     private val valueTopMarginDp = 6f
@@ -53,6 +53,7 @@ class YearlyIncomeChartView @JvmOverloads constructor(
     private var barSpacingPx: Float = 0f
     private var topPaddingPx: Float = 0f
     private var bottomPaddingPx: Float = 0f
+    private var horizontalPaddingPx: Float = 0f
     private var valueTopMarginPx: Float = 0f
     
     private var textColor: Int = Color.BLACK
@@ -65,10 +66,9 @@ class YearlyIncomeChartView @JvmOverloads constructor(
         val density = context.resources.displayMetrics.density
         val fontScale = ThemeManager.getFontScale()
         
-        barWidthPx = barWidthDp * density
-        barSpacingPx = minBarSpacingDp * density
         topPaddingPx = topPaddingDp * density
         bottomPaddingPx = bottomPaddingDp * density
+        horizontalPaddingPx = horizontalPaddingDp * density
         valueTopMarginPx = valueTopMarginDp * density
         
         labelTextPaint.textSize = baseLabelTextSizeSp * density * fontScale
@@ -98,16 +98,32 @@ class YearlyIncomeChartView @JvmOverloads constructor(
         super.onDraw(canvas)
         
         val chartData = data
+        val density = context.resources.displayMetrics.density
+        
+        val availableWidth = width - paddingLeft - paddingRight - 2 * horizontalPaddingPx
         val chartHeight = height - topPaddingPx - bottomPaddingPx
-        val chartWidth = width - paddingLeft - paddingRight
         
-        val totalBarWidth = 12 * barWidthPx
-        val remainingWidth = chartWidth - totalBarWidth
-        val calculatedSpacing = remainingWidth / 11
-        val actualSpacing = max(barSpacingPx, calculatedSpacing)
+        val totalBars = 12
+        val minBarWidthPx = 8f * density
+        val maxBarWidthPx = baseBarWidthDp * density
+        val minSpacingPx = minBarSpacingDp * density
         
-        val totalWidth = totalBarWidth + 11 * actualSpacing
-        val startX = paddingLeft + (chartWidth - totalWidth) / 2
+        val totalMinSpacing = (totalBars - 1) * minSpacingPx
+        val availableForBars = availableWidth - totalMinSpacing
+        val calculatedBarWidth = availableForBars / totalBars
+        
+        barWidthPx = max(minBarWidthPx, calculatedBarWidth.coerceAtMost(maxBarWidthPx))
+        
+        val totalBarWidth = totalBars * barWidthPx
+        val remainingForSpacing = availableWidth - totalBarWidth
+        barSpacingPx = if (totalBars > 1) {
+            max(minSpacingPx, remainingForSpacing / (totalBars - 1))
+        } else {
+            0f
+        }
+        
+        val totalChartWidth = totalBarWidth + (totalBars - 1) * barSpacingPx
+        val startX = paddingLeft + horizontalPaddingPx + (availableWidth - totalChartWidth) / 2
         
         val maxIncome = if (chartData != null && chartData.maxIncome > 0) {
             chartData.maxIncome
@@ -127,7 +143,7 @@ class YearlyIncomeChartView @JvmOverloads constructor(
             }
             
             val col = month - 1
-            val barLeft = startX + col * (barWidthPx + actualSpacing)
+            val barLeft = startX + col * (barWidthPx + barSpacingPx)
             val barRight = barLeft + barWidthPx
             val barBottom = height - bottomPaddingPx
             val barTop = barBottom - barHeight

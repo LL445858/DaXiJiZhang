@@ -20,7 +20,7 @@ import java.util.concurrent.Executors
 
 @Database(
     entities = [Bill::class, BillItem::class, PaymentRecord::class, ProjectDictionary::class],
-    version = 4,
+    version = 5,
     exportSchema = false
 )
 @TypeConverters(DateConverter::class)
@@ -50,7 +50,7 @@ abstract class AppDatabase : RoomDatabase() {
                 AppDatabase::class.java,
                 "daxijizhang_database"
             )
-                .addMigrations(MIGRATION_2_3, MIGRATION_3_4)
+                .addMigrations(MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5)
                 .addCallback(DatabaseCallback())
                 .setJournalMode(JournalMode.TRUNCATE)
                 .setQueryExecutor(Executors.newFixedThreadPool(4))
@@ -106,6 +106,15 @@ abstract class AppDatabase : RoomDatabase() {
                 database.execSQL("CREATE INDEX IF NOT EXISTS index_project_dictionary_usageCount ON project_dictionary(usageCount)")
             } catch (e: Exception) {
                 Log.e(TAG, "Migration 3->4 error (table may already exist)", e)
+            }
+        }
+
+        private val MIGRATION_4_5 = androidx.room.migration.Migration(4, 5) { database ->
+            Log.i(TAG, "Running migration from version 4 to 5")
+            try {
+                database.execSQL("ALTER TABLE bill_items ADD COLUMN orderIndex INTEGER NOT NULL DEFAULT 0")
+            } catch (e: Exception) {
+                Log.e(TAG, "Migration 4->5 error (column may already exist)", e)
             }
         }
         

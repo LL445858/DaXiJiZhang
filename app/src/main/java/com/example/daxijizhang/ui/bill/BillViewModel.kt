@@ -43,6 +43,7 @@ class BillViewModel(val repository: BillRepository) : ViewModel() {
 
     private var cachedBillsList: List<Bill>? = null
     private var lastSortType: SortType? = null
+    private var currentSource: LiveData<List<Bill>>? = null
 
     init {
         updateBillsSource()
@@ -51,21 +52,23 @@ class BillViewModel(val repository: BillRepository) : ViewModel() {
     private fun updateBillsSource() {
         val sortType = _sortType.value ?: SortType.START_DATE_DESC
 
-        val source = if (sortType == SortType.COMMUNITY_ASC) {
-            repository.getBillsSortedByStartDateDesc()
-        } else {
-            when (sortType) {
-                SortType.START_DATE_ASC -> repository.getBillsSortedByStartDateAsc()
-                SortType.START_DATE_DESC -> repository.getBillsSortedByStartDateDesc()
-                SortType.END_DATE_ASC -> repository.getBillsSortedByEndDateAsc()
-                SortType.END_DATE_DESC -> repository.getBillsSortedByEndDateDesc()
-                SortType.AMOUNT_ASC -> repository.getBillsSortedByAmountAsc()
-                SortType.AMOUNT_DESC -> repository.getBillsSortedByAmountDesc()
-                else -> repository.getBillsSortedByStartDateDesc()
-            }
+        val newSource = when (sortType) {
+            SortType.START_DATE_ASC -> repository.getBillsSortedByStartDateAsc()
+            SortType.START_DATE_DESC -> repository.getBillsSortedByStartDateDesc()
+            SortType.END_DATE_ASC -> repository.getBillsSortedByEndDateAsc()
+            SortType.END_DATE_DESC -> repository.getBillsSortedByEndDateDesc()
+            SortType.AMOUNT_ASC -> repository.getBillsSortedByAmountAsc()
+            SortType.AMOUNT_DESC -> repository.getBillsSortedByAmountDesc()
+            SortType.COMMUNITY_ASC -> repository.getBillsSortedByStartDateDesc()
         }
 
-        _bills.addSource(source) { bills ->
+        currentSource?.let { oldSource ->
+            _bills.removeSource(oldSource)
+        }
+        
+        currentSource = newSource
+
+        _bills.addSource(newSource) { bills ->
             viewModelScope.launch(Dispatchers.Default + CrashHandler.coroutineExceptionHandler) {
                 val filteredBills = applyFilters(bills)
                 val sortedBills = applySorting(filteredBills)
@@ -159,7 +162,15 @@ class BillViewModel(val repository: BillRepository) : ViewModel() {
         }
         updateFilterStatus()
         cachedBillsList = null
-        updateBillsSource()
+        _bills.value?.let { currentBills ->
+            viewModelScope.launch(Dispatchers.Default + CrashHandler.coroutineExceptionHandler) {
+                val filteredBills = applyFilters(currentBills)
+                val sortedBills = applySorting(filteredBills)
+                withContext(Dispatchers.Main) {
+                    _bills.value = sortedBills
+                }
+            }
+        }
     }
 
     fun setEndDateRangeFilter(startDate: Date?, endDate: Date?) {
@@ -170,14 +181,30 @@ class BillViewModel(val repository: BillRepository) : ViewModel() {
         }
         updateFilterStatus()
         cachedBillsList = null
-        updateBillsSource()
+        _bills.value?.let { currentBills ->
+            viewModelScope.launch(Dispatchers.Default + CrashHandler.coroutineExceptionHandler) {
+                val filteredBills = applyFilters(currentBills)
+                val sortedBills = applySorting(filteredBills)
+                withContext(Dispatchers.Main) {
+                    _bills.value = sortedBills
+                }
+            }
+        }
     }
 
     fun setPaymentStatusFilter(status: PaymentStatusFilter) {
         _paymentStatusFilter.value = status
         updateFilterStatus()
         cachedBillsList = null
-        updateBillsSource()
+        _bills.value?.let { currentBills ->
+            viewModelScope.launch(Dispatchers.Default + CrashHandler.coroutineExceptionHandler) {
+                val filteredBills = applyFilters(currentBills)
+                val sortedBills = applySorting(filteredBills)
+                withContext(Dispatchers.Main) {
+                    _bills.value = sortedBills
+                }
+            }
+        }
     }
 
     fun clearAllFilters() {
@@ -298,6 +325,11 @@ class BillViewModel(val repository: BillRepository) : ViewModel() {
 
     fun clearError() {
         _errorMessage.value = null
+    }
+
+    fun refreshBills() {
+        cachedBillsList = null
+        updateBillsSource()
     }
 
     enum class SortType {

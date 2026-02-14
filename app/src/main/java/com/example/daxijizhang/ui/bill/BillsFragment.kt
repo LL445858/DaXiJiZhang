@@ -1,6 +1,5 @@
 package com.example.daxijizhang.ui.bill
 
-import android.app.DatePickerDialog
 import android.content.Intent
 import android.graphics.Color
 import android.os.Bundle
@@ -23,10 +22,12 @@ import com.example.daxijizhang.R
 import com.example.daxijizhang.DaxiApplication
 import com.example.daxijizhang.data.database.AppDatabase
 import com.example.daxijizhang.data.model.Bill
+import com.example.daxijizhang.data.notification.DataChangeNotifier
 import com.example.daxijizhang.data.repository.BillRepository
 import com.example.daxijizhang.databinding.DialogFilterBinding
 import com.example.daxijizhang.databinding.DialogSortBinding
 import com.example.daxijizhang.databinding.FragmentBillsBinding
+import com.example.daxijizhang.ui.view.ModernDatePickerDialog
 import com.example.daxijizhang.util.ThemeManager
 import com.example.daxijizhang.util.ViewUtil.fadeIn
 import com.example.daxijizhang.util.ViewUtil.setOnOptimizedClickListener
@@ -66,6 +67,8 @@ class BillsFragment : Fragment(), ThemeManager.OnThemeColorChangeListener {
     private var currentEndDateTo: Date? = null
     private var currentPaymentStatus: BillViewModel.PaymentStatusFilter = BillViewModel.PaymentStatusFilter.ALL
 
+    private var dataVersionObserver: androidx.lifecycle.Observer<Long>? = null
+
     override fun onCreateView(
         inflater: LayoutInflater,
         container: ViewGroup?,
@@ -88,6 +91,11 @@ class BillsFragment : Fragment(), ThemeManager.OnThemeColorChangeListener {
         ThemeManager.addThemeColorChangeListener(this)
         
         preloadDialogs()
+    }
+    
+    override fun onResume() {
+        super.onResume()
+        viewModel.refreshBills()
     }
     
     private fun applyDefaultSortType() {
@@ -394,18 +402,13 @@ class BillsFragment : Fragment(), ThemeManager.OnThemeColorChangeListener {
     private fun showDatePicker(onDateSelected: (Date) -> Unit) {
         val calendar = Calendar.getInstance()
 
-        DatePickerDialog(
-            requireContext(),
-            { _, year, month, dayOfMonth ->
-                val date = Calendar.getInstance().apply {
-                    set(year, month, dayOfMonth, 0, 0, 0)
-                }.time
-                onDateSelected(date)
-            },
-            calendar.get(Calendar.YEAR),
-            calendar.get(Calendar.MONTH),
-            calendar.get(Calendar.DAY_OF_MONTH)
-        ).show()
+        ModernDatePickerDialog.show(
+            context = requireContext(),
+            initialDate = calendar,
+            onDateSelected = { selectedCalendar ->
+                onDateSelected(selectedCalendar.time)
+            }
+        )
     }
 
     private fun updateSortInfo(sortType: BillViewModel.SortType) {

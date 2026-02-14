@@ -7,6 +7,9 @@ import android.os.Bundle
 import android.window.OnBackInvokedDispatcher
 import android.widget.ArrayAdapter
 import androidx.activity.OnBackPressedCallback
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.updateLayoutParams
 import com.example.daxijizhang.R
 import com.example.daxijizhang.data.model.PeriodType
 import com.example.daxijizhang.databinding.ActivityMoreSettingsBinding
@@ -49,12 +52,33 @@ class MoreSettingsActivity : BaseActivity() {
         binding = ActivityMoreSettingsBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
+        setupStatusBarPadding()
         initViews()
         setupClickListeners()
         setupBackPressHandler()
         setupForwardTransition()
         setupSortTypeSpinner()
         setupStatisticsRangeSpinner()
+    }
+
+    private fun setupStatusBarPadding() {
+        ViewCompat.setOnApplyWindowInsetsListener(binding.root) { _, windowInsets ->
+            val statusBarInsets = windowInsets.getInsets(WindowInsetsCompat.Type.statusBars())
+            val navigationBarInsets = windowInsets.getInsets(WindowInsetsCompat.Type.navigationBars())
+            
+            binding.statusBarPlaceholder.updateLayoutParams {
+                height = statusBarInsets.top
+            }
+            
+            binding.contentContainer.setPadding(
+                binding.contentContainer.paddingLeft,
+                binding.contentContainer.paddingTop,
+                binding.contentContainer.paddingRight,
+                navigationBarInsets.bottom + binding.contentContainer.paddingTop
+            )
+            
+            windowInsets
+        }
     }
 
     override fun onResume() {
