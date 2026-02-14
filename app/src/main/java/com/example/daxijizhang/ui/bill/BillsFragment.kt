@@ -362,15 +362,19 @@ class BillsFragment : Fragment(), ThemeManager.OnThemeColorChangeListener {
                 }
             }
 
-            viewModel.setStartDateRangeFilter(currentStartDateFrom, currentStartDateTo)
-            viewModel.setEndDateRangeFilter(currentEndDateFrom, currentEndDateTo)
-
             currentPaymentStatus = when (dialogBinding.spinnerPaymentStatus.text.toString()) {
                 "已结清" -> BillViewModel.PaymentStatusFilter.PAID
                 "未结清" -> BillViewModel.PaymentStatusFilter.UNPAID
                 else -> BillViewModel.PaymentStatusFilter.ALL
             }
-            viewModel.setPaymentStatusFilter(currentPaymentStatus)
+
+            viewModel.setAllFilters(
+                currentStartDateFrom,
+                currentStartDateTo,
+                currentEndDateFrom,
+                currentEndDateTo,
+                currentPaymentStatus
+            )
 
             filterDialog?.dismiss()
             filterDialog = null
