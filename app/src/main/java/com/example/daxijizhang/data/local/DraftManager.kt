@@ -2,6 +2,7 @@ package com.example.daxijizhang.data.local
 
 import android.content.Context
 import android.content.SharedPreferences
+import android.util.Log
 import com.example.daxijizhang.data.model.BillItem
 import com.example.daxijizhang.data.model.PaymentRecord
 import com.google.gson.Gson
@@ -36,6 +37,7 @@ data class BillDraft(
 class DraftManager(context: Context) {
     private val prefs: SharedPreferences = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
     private val gson = Gson()
+    private val TAG = "DraftManager"
 
     companion object {
         private const val PREFS_NAME = "bill_draft_prefs"
@@ -52,52 +54,70 @@ class DraftManager(context: Context) {
     }
 
     fun saveDraft(draft: BillDraft) {
-        prefs.edit().apply {
-            putLong(KEY_START_DATE, draft.startDate ?: -1)
-            putLong(KEY_END_DATE, draft.endDate ?: -1)
-            putString(KEY_COMMUNITY, draft.communityName)
-            putString(KEY_PHASE, draft.phase)
-            putString(KEY_BUILDING, draft.buildingNumber)
-            putString(KEY_ROOM, draft.roomNumber)
-            putString(KEY_REMARK, draft.remark)
-            putString(KEY_ITEMS, gson.toJson(draft.items))
-            putString(KEY_PAYMENT_RECORDS, gson.toJson(draft.paymentRecords))
-            putFloat(KEY_WAIVED_AMOUNT, draft.waivedAmount.toFloat())
-            apply()
+        try {
+            prefs.edit().apply {
+                putLong(KEY_START_DATE, draft.startDate ?: -1)
+                putLong(KEY_END_DATE, draft.endDate ?: -1)
+                putString(KEY_COMMUNITY, draft.communityName)
+                putString(KEY_PHASE, draft.phase)
+                putString(KEY_BUILDING, draft.buildingNumber)
+                putString(KEY_ROOM, draft.roomNumber)
+                putString(KEY_REMARK, draft.remark)
+                putString(KEY_ITEMS, gson.toJson(draft.items))
+                putString(KEY_PAYMENT_RECORDS, gson.toJson(draft.paymentRecords))
+                putFloat(KEY_WAIVED_AMOUNT, draft.waivedAmount.toFloat())
+                apply()
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "保存草稿失败", e)
         }
     }
 
     fun loadDraft(): BillDraft {
-        val startDate = prefs.getLong(KEY_START_DATE, -1).takeIf { it != -1L }
-        val endDate = prefs.getLong(KEY_END_DATE, -1).takeIf { it != -1L }
+        return try {
+            val startDate = prefs.getLong(KEY_START_DATE, -1).takeIf { it != -1L }
+            val endDate = prefs.getLong(KEY_END_DATE, -1).takeIf { it != -1L }
 
-        val itemsJson = prefs.getString(KEY_ITEMS, "[]") ?: "[]"
-        val itemsType = object : TypeToken<List<BillItem>>() {}.type
-        val items: List<BillItem> = gson.fromJson(itemsJson, itemsType) ?: emptyList()
+            val itemsJson = prefs.getString(KEY_ITEMS, "[]") ?: "[]"
+            val itemsType = object : TypeToken<List<BillItem>>() {}.type
+            val items: List<BillItem> = gson.fromJson(itemsJson, itemsType) ?: emptyList()
 
-        val paymentJson = prefs.getString(KEY_PAYMENT_RECORDS, "[]") ?: "[]"
-        val paymentType = object : TypeToken<List<PaymentRecord>>() {}.type
-        val paymentRecords: List<PaymentRecord> = gson.fromJson(paymentJson, paymentType) ?: emptyList()
+            val paymentJson = prefs.getString(KEY_PAYMENT_RECORDS, "[]") ?: "[]"
+            val paymentType = object : TypeToken<List<PaymentRecord>>() {}.type
+            val paymentRecords: List<PaymentRecord> = gson.fromJson(paymentJson, paymentType) ?: emptyList()
 
-        return BillDraft(
-            startDate = startDate,
-            endDate = endDate,
-            communityName = prefs.getString(KEY_COMMUNITY, "") ?: "",
-            phase = prefs.getString(KEY_PHASE, "") ?: "",
-            buildingNumber = prefs.getString(KEY_BUILDING, "") ?: "",
-            roomNumber = prefs.getString(KEY_ROOM, "") ?: "",
-            remark = prefs.getString(KEY_REMARK, "") ?: "",
-            items = items,
-            paymentRecords = paymentRecords,
-            waivedAmount = prefs.getFloat(KEY_WAIVED_AMOUNT, 0f).toDouble()
-        )
+            BillDraft(
+                startDate = startDate,
+                endDate = endDate,
+                communityName = prefs.getString(KEY_COMMUNITY, "") ?: "",
+                phase = prefs.getString(KEY_PHASE, "") ?: "",
+                buildingNumber = prefs.getString(KEY_BUILDING, "") ?: "",
+                roomNumber = prefs.getString(KEY_ROOM, "") ?: "",
+                remark = prefs.getString(KEY_REMARK, "") ?: "",
+                items = items,
+                paymentRecords = paymentRecords,
+                waivedAmount = prefs.getFloat(KEY_WAIVED_AMOUNT, 0f).toDouble()
+            )
+        } catch (e: Exception) {
+            Log.e(TAG, "加载草稿失败，返回空草稿", e)
+            BillDraft()
+        }
     }
 
     fun clearDraft() {
-        prefs.edit().clear().apply()
+        try {
+            prefs.edit().clear().apply()
+        } catch (e: Exception) {
+            Log.e(TAG, "清除草稿失败", e)
+        }
     }
 
     fun hasDraft(): Boolean {
-        return loadDraft().hasContent()
+        return try {
+            loadDraft().hasContent()
+        } catch (e: Exception) {
+            Log.e(TAG, "检查草稿失败", e)
+            false
+        }
     }
 }

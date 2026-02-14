@@ -16,8 +16,11 @@ import com.example.daxijizhang.data.model.BillWithItems
 import com.example.daxijizhang.data.model.PaymentRecord
 import com.example.daxijizhang.data.repository.BillRepository
 import com.example.daxijizhang.data.repository.ProjectDictionaryRepository
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.json.JSONArray
 import org.json.JSONObject
@@ -31,6 +34,8 @@ class AutoBackupManager private constructor(private val context: Context) {
     private lateinit var repository: BillRepository
     private lateinit var projectDictionaryRepository: ProjectDictionaryRepository
     private val TAG = "AutoBackupManager"
+    
+    private val backupScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     companion object {
         const val AUTO_BACKUP_FILE_PREFIX = "auto_backup_"
@@ -69,7 +74,7 @@ class AutoBackupManager private constructor(private val context: Context) {
             return
         }
 
-        runBlocking {
+        backupScope.launch {
             try {
                 if (autoLocalBackup) {
                     performAutoLocalBackup()
@@ -362,13 +367,26 @@ class AutoBackupManager private constructor(private val context: Context) {
     }
 
     private fun saveBackupLog(action: String, status: String, message: String) {
-        val timestamp = System.currentTimeMillis()
-        val logEntry = "$timestamp|$action|$status|$message"
-        val logs = prefs.getString("auto_backup_logs", "")?.split("\n")?.toMutableList() ?: mutableListOf()
-        logs.add(0, logEntry)
-        while (logs.size > 20) {
-            logs.removeAt(logs.size - 1)
+        try {
+            val timestamp = System.currentTimeMillis()
+            val logEntry = "$timestamp|$action|$status|$message"
+            val logs = prefs.getString("auto_backup_logs", "")?.split("\n")?.toMutableList() ?: mutableListOf()
+            logs.add(0, logEntry)
+            while (logs.size > 20) {
+                logs.removeAt(logs.size - 1)
+            }
+            prefs.edit().putString("auto_backup_logs", logs.joinToString("\n")).apply()
+        } catch (e: Exception) {
+            Log.e(TAG, "保存备份日志失败", e)
         }
-        prefs.edit().putString("auto_backup_logs", logs.joinToString("\n")).apply()
+    }
+    
+    fun shutdown() {
+        try {
+            backupScope.cancel()
+            Log.i(TAG, "AutoBackupManager shutdown completed")
+        } catch (e: Exception) {
+            Log.e(TAG, "Error during shutdown", e)
+        }
     }
 }

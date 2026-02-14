@@ -124,24 +124,12 @@ class BillViewModel(val repository: BillRepository) : ViewModel() {
                         .thenByDescending { it.startDate }
                 )
             }
-            SortType.AMOUNT_ASC -> bills.sortedWith(
-                compareBy<Bill> { it.totalAmount }.thenByDescending { it.startDate }
-            )
-            SortType.AMOUNT_DESC -> bills.sortedWith(
-                compareByDescending<Bill> { it.totalAmount }.thenByDescending { it.startDate }
-            )
-            SortType.START_DATE_ASC -> bills.sortedWith(
-                compareBy<Bill> { it.startDate }.thenByDescending { it.startDate }
-            )
-            SortType.START_DATE_DESC -> bills.sortedWith(
-                compareByDescending<Bill> { it.startDate }.thenByDescending { it.startDate }
-            )
-            SortType.END_DATE_ASC -> bills.sortedWith(
-                compareBy<Bill> { it.endDate }.thenByDescending { it.startDate }
-            )
-            SortType.END_DATE_DESC -> bills.sortedWith(
-                compareByDescending<Bill> { it.endDate }.thenByDescending { it.startDate }
-            )
+            SortType.AMOUNT_ASC -> bills.sortedBy { it.totalAmount }
+            SortType.AMOUNT_DESC -> bills.sortedByDescending { it.totalAmount }
+            SortType.START_DATE_ASC -> bills.sortedBy { it.startDate }
+            SortType.START_DATE_DESC -> bills.sortedByDescending { it.startDate }
+            SortType.END_DATE_ASC -> bills.sortedBy { it.endDate }
+            SortType.END_DATE_DESC -> bills.sortedByDescending { it.endDate }
             else -> bills
         }
     }

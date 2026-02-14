@@ -142,7 +142,9 @@ class StatisticsRepository(private val database: AppDatabase) {
 
     suspend fun getStatisticsByYear(year: Int): StatisticsData {
         return SafeExecutor.runSafely("getStatisticsByYear", StatisticsData.empty()) {
-            if (year < 2000 || year > Calendar.getInstance().get(Calendar.YEAR) + 1) {
+            val currentYear = Calendar.getInstance().get(Calendar.YEAR)
+            if (year < 2000 || year > currentYear + 1) {
+                Log.w(TAG, "Invalid year: $year, using current year")
                 throw IllegalArgumentException("无效的年份: $year")
             }
             
@@ -162,10 +164,13 @@ class StatisticsRepository(private val database: AppDatabase) {
 
     suspend fun getStatisticsByMonth(year: Int, month: Int): StatisticsData {
         return SafeExecutor.runSafely("getStatisticsByMonth", StatisticsData.empty()) {
-            if (year < 2000 || year > Calendar.getInstance().get(Calendar.YEAR) + 1) {
+            val currentYear = Calendar.getInstance().get(Calendar.YEAR)
+            if (year < 2000 || year > currentYear + 1) {
+                Log.w(TAG, "Invalid year: $year")
                 throw IllegalArgumentException("无效的年份: $year")
             }
             if (month < 1 || month > 12) {
+                Log.w(TAG, "Invalid month: $month")
                 throw IllegalArgumentException("无效的月份: $month")
             }
             

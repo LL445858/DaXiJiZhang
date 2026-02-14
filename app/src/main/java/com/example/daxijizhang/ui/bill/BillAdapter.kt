@@ -103,7 +103,7 @@ class BillAdapter(
             binding.apply {
                 payloads.forEach { payload ->
                     when (payload) {
-                        "amount" -> {
+                        "amount", "status" -> {
                             tvAmount.text = String.format("¥%,.2f", bill.totalAmount)
                             tvAmount.setTextColor(themeColorCache)
                             val statusText = bill.getPaymentStatus()
@@ -113,17 +113,6 @@ class BillAdapter(
                                 Color.parseColor("#4CAF50")
                             } else {
                                 Color.parseColor("#FF9800")
-                            }
-                            tvPaymentStatus.setTextColor(statusColor)
-                        }
-                        "status" -> {
-                            val statusText = bill.getPaymentStatus()
-                            tvPaymentStatus.text = statusText
-                            tvPaymentStatus.setBackgroundColor(getThemeColorWithAlpha())
-                            val statusColor = if (bill.isPaid()) {
-                                Color.parseColor("#297a2bff")
-                            } else {
-                                Color.parseColor("#ff6200ff")
                             }
                             tvPaymentStatus.setTextColor(statusColor)
                         }

@@ -120,6 +120,11 @@ class DaxiApplication : Application() {
         
         override fun onDestroy(owner: LifecycleOwner) {
             Log.i(TAG, "应用进程即将销毁")
+            try {
+                AutoBackupManager.getInstance(this@DaxiApplication).shutdown()
+            } catch (e: Exception) {
+                Log.e(TAG, "AutoBackupManager shutdown failed", e)
+            }
             DataCacheManager.shutdown()
         }
     }
