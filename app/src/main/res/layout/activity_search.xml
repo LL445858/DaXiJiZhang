@@ -65,7 +65,7 @@
                     android:layout_weight="1"
                     android:layout_marginStart="12dp"
                     android:background="@null"
-                    android:hint="搜索小区名"
+                    android:hint="搜索小区名或备注"
                     android:inputType="text"
                     android:maxLines="1"
                     android:textColor="@color/text_primary"
@@ -118,7 +118,7 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginTop="16dp"
-            android:text="输入小区名进行搜索"
+            android:text="输入小区名或备注进行搜索"
             android:textColor="@color/text_hint"
             android:textSize="16sp" />
 

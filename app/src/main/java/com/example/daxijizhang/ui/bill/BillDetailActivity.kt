@@ -563,8 +563,13 @@ class BillDetailActivity : BaseActivity() {
 
     private fun hideKeyboard() {
         val imm = getSystemService(INPUT_METHOD_SERVICE) as InputMethodManager
-        currentFocus?.let {
-            imm.hideSoftInputFromWindow(it.windowToken, 0)
+        // 尝试从当前焦点隐藏键盘
+        currentFocus?.let { view ->
+            imm.hideSoftInputFromWindow(view.windowToken, 0)
+        }
+        // 同时尝试从根视图隐藏键盘，确保键盘被隐藏
+        window?.decorView?.rootView?.let { rootView ->
+            imm.hideSoftInputFromWindow(rootView.windowToken, 0)
         }
     }
 
@@ -1310,6 +1315,9 @@ class BillDetailActivity : BaseActivity() {
     }
 
     private fun saveBillThenExport() {
+        // 隐藏键盘
+        hideKeyboard()
+
         if (!validateBillInput()) {
             return
         }
@@ -1471,6 +1479,9 @@ class BillDetailActivity : BaseActivity() {
     }
 
     private fun saveBill() {
+        // 隐藏键盘
+        hideKeyboard()
+
         if (!validateBillInput()) {
             return
         }
@@ -1583,6 +1594,9 @@ class BillDetailActivity : BaseActivity() {
     }
 
     private fun saveBillAndFinish() {
+        // 隐藏键盘
+        hideKeyboard()
+
         if (!validateBillInput()) {
             return
         }

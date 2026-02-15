@@ -63,4 +63,7 @@ interface BillDao {
     // 日期区间筛选
     @Query("SELECT * FROM bills WHERE startDate >= :startDate AND endDate <= :endDate ORDER BY startDate DESC")
     fun getBillsByDateRange(startDate: Date, endDate: Date): LiveData<List<Bill>>
+
+    @Query("SELECT * FROM bills WHERE communityName LIKE '%' || :query || '%' OR remark LIKE '%' || :query || '%' ORDER BY startDate DESC")
+    suspend fun searchByCommunityNameOrRemark(query: String): List<Bill>
 }

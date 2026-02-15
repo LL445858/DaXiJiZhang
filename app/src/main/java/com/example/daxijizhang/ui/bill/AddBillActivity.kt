@@ -4,6 +4,7 @@ import android.os.Bundle
 import android.text.Editable
 import android.text.TextWatcher
 import android.view.LayoutInflater
+import android.view.inputmethod.InputMethodManager
 import android.widget.EditText
 import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
@@ -978,6 +979,9 @@ class AddBillActivity : BaseActivity() {
     }
 
     private fun saveBill() {
+        // 隐藏键盘
+        hideKeyboard()
+
         // 验证基本信息
         if (!validateBillInput()) {
             return
@@ -1017,6 +1021,18 @@ class AddBillActivity : BaseActivity() {
             } catch (e: Exception) {
                 Toast.makeText(this@AddBillActivity, "保存失败：${e.message}", Toast.LENGTH_SHORT).show()
             }
+        }
+    }
+
+    private fun hideKeyboard() {
+        val imm = getSystemService(INPUT_METHOD_SERVICE) as InputMethodManager
+        // 尝试从当前焦点隐藏键盘
+        currentFocus?.let { view ->
+            imm.hideSoftInputFromWindow(view.windowToken, 0)
+        }
+        // 同时尝试从根视图隐藏键盘，确保键盘被隐藏
+        window?.decorView?.rootView?.let { rootView ->
+            imm.hideSoftInputFromWindow(rootView.windowToken, 0)
         }
     }
 

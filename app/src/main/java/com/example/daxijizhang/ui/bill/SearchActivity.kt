@@ -150,15 +150,27 @@ class SearchActivity : BaseActivity() {
             return
         }
 
-        // 获取所有账单并进行模糊匹配
-        val allBills = billDao.getAllList()
-        val filteredBills = allBills.filter { bill ->
-            bill.communityName.contains(query, ignoreCase = true)
-        }
+        val searchResults = billDao.searchByCommunityNameOrRemark(query)
+        val sortedResults = sortSearchResults(searchResults, query)
 
         runOnUiThread {
-            updateSearchResults(filteredBills)
+            updateSearchResults(sortedResults)
         }
+    }
+
+    private fun sortSearchResults(bills: List<Bill>, query: String): List<Bill> {
+        val lowerQuery = query.lowercase()
+        return bills.sortedWith(compareBy { bill ->
+            val communityMatch = bill.communityName.lowercase().contains(lowerQuery)
+            val remarkMatch = !bill.remark.isNullOrBlank() && bill.remark.lowercase().contains(lowerQuery)
+            when {
+                bill.communityName.lowercase() == lowerQuery -> 0
+                communityMatch && remarkMatch -> 1
+                communityMatch -> 2
+                remarkMatch -> 3
+                else -> 4
+            }
+        })
     }
 
     private fun updateSearchResults(bills: List<Bill>) {

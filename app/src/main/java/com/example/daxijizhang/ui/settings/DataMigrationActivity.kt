@@ -579,40 +579,54 @@ class DataMigrationActivity : BaseActivity() {
 
         val dialogBinding = com.example.daxijizhang.databinding.DialogCloudFilesBinding.inflate(LayoutInflater.from(this))
 
+        lateinit var dialog: AlertDialog
+
         val adapter = CloudFileRecyclerAdapter(
             sortedFiles,
             onFileClick = { file ->
-                showCloudFileImportDialog(config, file)
+                showCloudFileImportDialog(config, file, dialog)
             },
             onDeleteClick = { file ->
-                showDeleteCloudFileConfirmDialog(config, file, dialogBinding)
+                showDeleteCloudFileConfirmDialog(config, file, dialogBinding, dialog)
             }
         )
 
         dialogBinding.recyclerCloudFiles.layoutManager = LinearLayoutManager(this)
         dialogBinding.recyclerCloudFiles.adapter = adapter
 
-        val dialog = AlertDialog.Builder(this)
-            .setNegativeButton("取消", null)
+        dialog = AlertDialog.Builder(this)
             .setView(dialogBinding.root)
             .create()
 
         // 设置透明背景以显示 MaterialCardView 的圆角
         dialog.window?.setBackgroundDrawableResource(android.R.color.transparent)
 
+        // 设置取消按钮点击事件
+        dialogBinding.btnCancel.setOnClickListener {
+            dialog.dismiss()
+        }
+
         dialog.show()
+
+        // 设置弹窗宽度为屏幕宽度的85%
+        dialog.window?.let { window ->
+            val displayMetrics = resources.displayMetrics
+            val width = (displayMetrics.widthPixels * 0.85).toInt()
+            window.setLayout(width, android.view.WindowManager.LayoutParams.WRAP_CONTENT)
+        }
     }
 
     private fun showDeleteCloudFileConfirmDialog(
         config: WebDAVUtil.WebDAVConfig,
         file: WebDAVUtil.RemoteFile,
-        dialogBinding: com.example.daxijizhang.databinding.DialogCloudFilesBinding
+        dialogBinding: com.example.daxijizhang.databinding.DialogCloudFilesBinding,
+        parentDialog: AlertDialog
     ) {
         val dialog = AlertDialog.Builder(this)
             .setTitle("删除云端备份")
             .setMessage("确定要删除文件：${file.name}？此操作不可恢复。")
             .setPositiveButton("删除") { _, _ ->
-                deleteCloudFile(config, file, dialogBinding)
+                deleteCloudFile(config, file, dialogBinding, parentDialog)
             }
             .setNegativeButton("取消", null)
             .create()
@@ -626,7 +640,8 @@ class DataMigrationActivity : BaseActivity() {
     private fun deleteCloudFile(
         config: WebDAVUtil.WebDAVConfig,
         file: WebDAVUtil.RemoteFile,
-        dialogBinding: com.example.daxijizhang.databinding.DialogCloudFilesBinding
+        dialogBinding: com.example.daxijizhang.databinding.DialogCloudFilesBinding,
+        parentDialog: AlertDialog
     ) {
         lifecycleScope.launch {
             val result = withContext(Dispatchers.IO) {
@@ -637,7 +652,7 @@ class DataMigrationActivity : BaseActivity() {
                 Toast.makeText(this@DataMigrationActivity, "删除成功", Toast.LENGTH_SHORT).show()
                 addSyncLog("删除云端文件", "成功", "删除文件: ${file.name}")
                 // 刷新文件列表
-                refreshCloudFileList(config, dialogBinding)
+                refreshCloudFileList(config, dialogBinding, parentDialog)
             }.onFailure { e ->
                 Toast.makeText(this@DataMigrationActivity, "删除失败: ${e.message}", Toast.LENGTH_SHORT).show()
                 addSyncLog("删除云端文件", "失败", "删除失败: ${e.message}")
@@ -647,7 +662,8 @@ class DataMigrationActivity : BaseActivity() {
 
     private fun refreshCloudFileList(
         config: WebDAVUtil.WebDAVConfig,
-        dialogBinding: com.example.daxijizhang.databinding.DialogCloudFilesBinding
+        dialogBinding: com.example.daxijizhang.databinding.DialogCloudFilesBinding,
+        parentDialog: AlertDialog
     ) {
         lifecycleScope.launch {
             val listResult = withContext(Dispatchers.IO) {
@@ -659,10 +675,10 @@ class DataMigrationActivity : BaseActivity() {
                 val adapter = CloudFileRecyclerAdapter(
                     sortedFiles,
                     onFileClick = { file ->
-                        showCloudFileImportDialog(config, file)
+                        showCloudFileImportDialog(config, file, parentDialog)
                     },
                     onDeleteClick = { file ->
-                        showDeleteCloudFileConfirmDialog(config, file, dialogBinding)
+                        showDeleteCloudFileConfirmDialog(config, file, dialogBinding, parentDialog)
                     }
                 )
                 dialogBinding.recyclerCloudFiles.adapter = adapter
@@ -670,11 +686,13 @@ class DataMigrationActivity : BaseActivity() {
         }
     }
 
-    private fun showCloudFileImportDialog(config: WebDAVUtil.WebDAVConfig, file: WebDAVUtil.RemoteFile) {
+    private fun showCloudFileImportDialog(config: WebDAVUtil.WebDAVConfig, file: WebDAVUtil.RemoteFile, parentDialog: AlertDialog) {
         val dialog = AlertDialog.Builder(this)
             .setTitle("导入备份文件")
             .setMessage("确定要导入文件：${file.name}？")
             .setPositiveButton("导入") { _, _ ->
+                // 关闭文件列表弹窗
+                parentDialog.dismiss()
                 importCloudFile(config, file)
             }
             .setNegativeButton("取消", null)

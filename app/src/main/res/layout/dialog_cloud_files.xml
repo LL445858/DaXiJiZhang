@@ -30,6 +30,28 @@
             android:layout_marginTop="16dp"
             android:maxHeight="400dp" />
 
+        <!-- 取消按钮容器 -->
+        <FrameLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16dp">
+
+            <!-- 取消按钮 -->
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btn_cancel"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="end"
+                android:text="取消"
+                android:textColor="?attr/colorPrimary"
+                android:background="?attr/selectableItemBackground"
+                app:backgroundTint="@android:color/transparent"
+                app:elevation="0dp"
+                app:rippleColor="?attr/colorPrimary"
+                style="@style/Widget.MaterialComponents.Button.TextButton" />
+
+        </FrameLayout>
+
     </LinearLayout>
 
 </com.google.android.material.card.MaterialCardView>
