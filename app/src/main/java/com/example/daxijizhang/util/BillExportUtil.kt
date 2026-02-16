@@ -72,16 +72,22 @@ object BillExportUtil {
         onSuccess: () -> Unit,
         onError: (String) -> Unit
     ) {
-        val bitmap = createBillImageHighQuality(context, data)
-        val fileName = "账单_${data.bill.getDisplayAddress()}_${System.currentTimeMillis()}.png"
+        var bitmap: Bitmap? = null
+        try {
+            bitmap = createBillImageHighQuality(context, data)
+            val fileName = "账单_${data.bill.getDisplayAddress()}_${System.currentTimeMillis()}.png"
 
-        when (method) {
-            ExportMethod.SAVE_LOCAL -> {
-                saveImageToGalleryHighQuality(context, bitmap, fileName, onSuccess, onError)
+            when (method) {
+                ExportMethod.SAVE_LOCAL -> {
+                    saveImageToGalleryHighQuality(context, bitmap, fileName, onSuccess, onError)
+                }
+                ExportMethod.SHARE_APP -> {
+                    shareImageToAppHighQuality(context, bitmap, fileName, onSuccess, onError)
+                }
             }
-            ExportMethod.SHARE_APP -> {
-                shareImageToAppHighQuality(context, bitmap, fileName, onSuccess, onError)
-            }
+        } catch (e: Exception) {
+            bitmap?.recycle()
+            onError(context.getString(R.string.export_failed) + ": ${e.message}")
         }
     }
 

@@ -11,11 +11,11 @@ object PinyinUtil {
     /**
      * 比较两个字符串（支持中英文混合排序）
      * 排序规则：
-     * 1. 中文字符转换为小写拼音全拼
+     * 1. 中文字符转换为小写拼音全拼，多音字根据词语上下文选择正确的拼音
      * 2. 字母字符统一转换为小写形式
      * 3. 数字字符保持原始状态不变
      * 4. 特殊符号保留原始状态，参与排序比较
-     * 5. 按字符逐个比较ASCII码值大小
+     * 5. 按字符从前向后逐个比较ASCII码值大小，按第一个不同字符的ASCII码值大小排序
      * 6. 当一个字符串是另一个字符串的前缀时，较短的字符串排在前面
      */
     fun compareForSort(str1: String, str2: String): Int {
@@ -66,8 +66,33 @@ object PinyinUtil {
      * 获取字符串的拼音表示（用于调试和测试）
      */
     fun getPinyin(str: String): String {
-        // 使用Collator的分解功能获取排序键
         val sortKey = chineseCollator.getCollationKey(str)
         return sortKey.toString()
+    }
+    
+    /**
+     * 获取字符串的拼音首字母（用于分组显示）
+     */
+    fun getPinyinInitial(str: String): String {
+        if (str.isEmpty()) return "#"
+        val firstChar = str[0]
+        if (firstChar.code in 0x4E00..0x9FFF) {
+            val pinyin = getPinyinFirstLetter(firstChar)
+            return pinyin.uppercase(Locale.getDefault())
+        }
+        return firstChar.uppercaseChar().toString()
+    }
+    
+    private fun getPinyinFirstLetter(c: Char): String {
+        val collationKey = chineseCollator.getCollationKey(c.toString())
+        val bytes = collationKey.toByteArray()
+        if (bytes.isNotEmpty()) {
+            val firstByte = bytes[0].toInt() and 0xFF
+            return when {
+                firstByte in 1..26 -> ('a' + firstByte - 1).toString()
+                else -> "#"
+            }
+        }
+        return "#"
     }
 }

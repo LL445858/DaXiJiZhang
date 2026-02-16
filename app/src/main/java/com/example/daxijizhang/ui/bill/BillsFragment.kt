@@ -28,13 +28,12 @@ import com.example.daxijizhang.databinding.DialogFilterBinding
 import com.example.daxijizhang.databinding.DialogSortBinding
 import com.example.daxijizhang.databinding.FragmentBillsBinding
 import com.example.daxijizhang.ui.view.ModernDatePickerDialog
+import com.example.daxijizhang.util.DateFormatter
 import com.example.daxijizhang.util.ThemeManager
 import com.example.daxijizhang.util.ViewUtil.fadeIn
 import com.example.daxijizhang.util.ViewUtil.setOnOptimizedClickListener
-import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Date
-import java.util.Locale
 
 class BillsFragment : Fragment(), ThemeManager.OnThemeColorChangeListener {
 
@@ -54,8 +53,6 @@ class BillsFragment : Fragment(), ThemeManager.OnThemeColorChangeListener {
             )
         )
     }
-
-    private val dateFormat = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
 
     private var filterDialog: AlertDialog? = null
     private var sortDialog: AlertDialog? = null
@@ -295,10 +292,10 @@ class BillsFragment : Fragment(), ThemeManager.OnThemeColorChangeListener {
         )
         dialogBinding.spinnerPaymentStatus.setAdapter(paymentStatusAdapter)
 
-        currentStartDateFrom?.let { dialogBinding.etStartDateFrom.setText(dateFormat.format(it)) }
-        currentStartDateTo?.let { dialogBinding.etStartDateTo.setText(dateFormat.format(it)) }
-        currentEndDateFrom?.let { dialogBinding.etEndDateFrom.setText(dateFormat.format(it)) }
-        currentEndDateTo?.let { dialogBinding.etEndDateTo.setText(dateFormat.format(it)) }
+        currentStartDateFrom?.let { dialogBinding.etStartDateFrom.setText(DateFormatter.formatDate(it)) }
+        currentStartDateTo?.let { dialogBinding.etStartDateTo.setText(DateFormatter.formatDate(it)) }
+        currentEndDateFrom?.let { dialogBinding.etEndDateFrom.setText(DateFormatter.formatDate(it)) }
+        currentEndDateTo?.let { dialogBinding.etEndDateTo.setText(DateFormatter.formatDate(it)) }
 
         val statusText = when (currentPaymentStatus) {
             BillViewModel.PaymentStatusFilter.PAID -> "已结清"
@@ -310,28 +307,28 @@ class BillsFragment : Fragment(), ThemeManager.OnThemeColorChangeListener {
         dialogBinding.etStartDateFrom.setOnClickListener {
             showDatePicker { date ->
                 currentStartDateFrom = date
-                dialogBinding.etStartDateFrom.setText(dateFormat.format(date))
+                dialogBinding.etStartDateFrom.setText(DateFormatter.formatDate(date))
             }
         }
 
         dialogBinding.etStartDateTo.setOnClickListener {
             showDatePicker { date ->
                 currentStartDateTo = date
-                dialogBinding.etStartDateTo.setText(dateFormat.format(date))
+                dialogBinding.etStartDateTo.setText(DateFormatter.formatDate(date))
             }
         }
 
         dialogBinding.etEndDateFrom.setOnClickListener {
             showDatePicker { date ->
                 currentEndDateFrom = date
-                dialogBinding.etEndDateFrom.setText(dateFormat.format(date))
+                dialogBinding.etEndDateFrom.setText(DateFormatter.formatDate(date))
             }
         }
 
         dialogBinding.etEndDateTo.setOnClickListener {
             showDatePicker { date ->
                 currentEndDateTo = date
-                dialogBinding.etEndDateTo.setText(dateFormat.format(date))
+                dialogBinding.etEndDateTo.setText(DateFormatter.formatDate(date))
             }
         }
 

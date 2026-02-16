@@ -364,11 +364,13 @@ class AddBillActivity : BaseActivity() {
 
         // 添加项目 - 使用优化点击监听器
         binding.btnAddProject.setOnOptimizedClickListener(debounceTime = 300) {
+            hideKeyboardAndClearFocus()
             showAddProjectDialog()
         }
 
         // 添加结付记录 - 使用优化点击监听器
         binding.btnAddPayment.setOnOptimizedClickListener(debounceTime = 300) {
+            hideKeyboardAndClearFocus()
             showAddPaymentDialog()
         }
 
@@ -460,6 +462,9 @@ class AddBillActivity : BaseActivity() {
         // 设置透明背景以显示圆角
         dialog.window?.setBackgroundDrawableResource(android.R.color.transparent)
 
+        // 设置软输入模式，确保输入法能正常弹出
+        dialog.window?.setSoftInputMode(android.view.WindowManager.LayoutParams.SOFT_INPUT_STATE_VISIBLE)
+
         // 对话框关闭时重置标记
         dialog.setOnDismissListener {
             isAddProjectDialogShowing = false
@@ -473,22 +478,35 @@ class AddBillActivity : BaseActivity() {
 
         dialogBinding.btnSave.setOnClickListener {
             if (validateProjectInput(dialogBinding)) {
-                val projectName = dialogBinding.etProjectName.text.toString().trim()
-                val unitPrice = dialogBinding.etUnitPrice.text.toString().toDouble()
-                val quantity = if (dialogBinding.etQuantity.text.isNullOrBlank()) {
-                    1.0
-                } else {
-                    dialogBinding.etQuantity.text.toString().toDouble()
-                }
-                val item = BillItem(
-                    billId = 0,
-                    projectName = projectName,
-                    unitPrice = unitPrice,
-                    quantity = quantity
-                )
-                handleAddBillItem(item)
+                try {
+                    val projectName = dialogBinding.etProjectName.text.toString().trim()
+                    val unitPrice = dialogBinding.etUnitPrice.text.toString().toDoubleOrNull() ?: 0.0
+                    val quantity = if (dialogBinding.etQuantity.text.isNullOrBlank()) {
+                        1.0
+                    } else {
+                        dialogBinding.etQuantity.text.toString().toDoubleOrNull() ?: 1.0
+                    }
+                    val item = BillItem(
+                        billId = 0,
+                        projectName = projectName,
+                        unitPrice = unitPrice,
+                        quantity = quantity
+                    )
+                    handleAddBillItem(item)
 
-                dialog.dismiss()
+                    dialog.dismiss()
+                } catch (e: NumberFormatException) {
+                    dialogBinding.tilUnitPrice.error = "请输入有效的数字"
+                }
+            }
+        }
+
+        // 设置对话框显示监听器，在对话框完全显示后聚焦并弹出输入法
+        dialog.setOnShowListener {
+            dialogBinding.etProjectName.post {
+                dialogBinding.etProjectName.requestFocus()
+                val imm = getSystemService(INPUT_METHOD_SERVICE) as InputMethodManager
+                imm.showSoftInput(dialogBinding.etProjectName, InputMethodManager.SHOW_IMPLICIT)
             }
         }
 
@@ -560,14 +578,18 @@ class AddBillActivity : BaseActivity() {
 
         dialogBinding.btnSave.setOnClickListener {
             if (validatePaymentInput(dialogBinding, paymentDate)) {
-                val amount = dialogBinding.etPaymentAmount.text.toString().toDouble()
-                val record = PaymentRecord(
-                    billId = 0,
-                    paymentDate = paymentDate!!,
-                    amount = amount
-                )
-                handleAddPaymentRecord(record)
-                dialog.dismiss()
+                try {
+                    val amount = dialogBinding.etPaymentAmount.text.toString().toDoubleOrNull() ?: 0.0
+                    val record = PaymentRecord(
+                        billId = 0,
+                        paymentDate = paymentDate!!,
+                        amount = amount
+                    )
+                    handleAddPaymentRecord(record)
+                    dialog.dismiss()
+                } catch (e: NumberFormatException) {
+                    dialogBinding.tilPaymentAmount.error = "请输入有效的数字"
+                }
             }
         }
 
@@ -979,23 +1001,27 @@ class AddBillActivity : BaseActivity() {
     }
 
     private fun saveBill() {
-        // 隐藏键盘
         hideKeyboard()
 
-        // 验证基本信息
         if (!validateBillInput()) {
             return
         }
 
-        // 验证是否有项目
         if (items.isEmpty()) {
             Toast.makeText(this, R.string.error_add_at_least_one_item, Toast.LENGTH_SHORT).show()
             return
         }
 
+        val startDate = billStartDate
+        val endDate = billEndDate
+        if (startDate == null || endDate == null) {
+            Toast.makeText(this, "日期无效", Toast.LENGTH_SHORT).show()
+            return
+        }
+
         val bill = Bill(
-            startDate = billStartDate!!,
-            endDate = billEndDate!!,
+            startDate = startDate,
+            endDate = endDate,
             communityName = binding.etCommunity.text.toString().trim(),
             phase = binding.etPhase.text.toString().trim().takeIf { it.isNotBlank() },
             buildingNumber = binding.etBuilding.text.toString().trim().takeIf { it.isNotBlank() },
@@ -1005,7 +1031,6 @@ class AddBillActivity : BaseActivity() {
 
         lifecycleScope.launch {
             try {
-                // 使用新的保存方法，同时保存账单、项目、结付记录和抹零金额
                 val billId = viewModel.repository.saveBillWithItems(
                     bill = bill,
                     items = items,
@@ -1013,7 +1038,6 @@ class AddBillActivity : BaseActivity() {
                     waivedAmount = waivedAmount
                 )
 
-                // 保存成功后清除草稿
                 draftManager.clearDraft()
 
                 Toast.makeText(this@AddBillActivity, "账单保存成功", Toast.LENGTH_SHORT).show()
@@ -1024,13 +1048,26 @@ class AddBillActivity : BaseActivity() {
         }
     }
 
+    private fun hideKeyboardAndClearFocus() {
+        val imm = getSystemService(INPUT_METHOD_SERVICE) as InputMethodManager
+        
+        currentFocus?.let { view ->
+            imm.hideSoftInputFromWindow(view.windowToken, 0)
+            view.clearFocus()
+        }
+        
+        window?.decorView?.rootView?.let { rootView ->
+            imm.hideSoftInputFromWindow(rootView.windowToken, 0)
+        }
+        
+        binding.root.requestFocus()
+    }
+
     private fun hideKeyboard() {
         val imm = getSystemService(INPUT_METHOD_SERVICE) as InputMethodManager
-        // 尝试从当前焦点隐藏键盘
         currentFocus?.let { view ->
             imm.hideSoftInputFromWindow(view.windowToken, 0)
         }
-        // 同时尝试从根视图隐藏键盘，确保键盘被隐藏
         window?.decorView?.rootView?.let { rootView ->
             imm.hideSoftInputFromWindow(rootView.windowToken, 0)
         }

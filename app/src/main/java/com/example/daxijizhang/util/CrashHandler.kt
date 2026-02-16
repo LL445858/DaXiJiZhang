@@ -8,9 +8,7 @@ import kotlinx.coroutines.CoroutineExceptionHandler
 import java.io.File
 import java.io.FileWriter
 import java.io.PrintWriter
-import java.text.SimpleDateFormat
 import java.util.Date
-import java.util.Locale
 import java.util.concurrent.ThreadFactory
 import java.util.concurrent.atomic.AtomicInteger
 
@@ -19,22 +17,22 @@ object CrashHandler : Thread.UncaughtExceptionHandler {
     private const val TAG = "CrashHandler"
     private const val CRASH_DIR = "crash_logs"
     
-    private var context: Context? = null
+    private val contextRef = java.util.concurrent.atomic.AtomicReference<android.content.Context>(null)
     private var defaultHandler: Thread.UncaughtExceptionHandler? = null
     private var isInitialized = false
-    
-    private val dateFormat = SimpleDateFormat("yyyy-MM-dd_HH-mm-ss", Locale.getDefault())
     
     fun initialize(ctx: Context) {
         if (isInitialized) return
         
-        context = ctx.applicationContext
+        contextRef.set(ctx.applicationContext)
         defaultHandler = Thread.getDefaultUncaughtExceptionHandler()
         Thread.setDefaultUncaughtExceptionHandler(this)
         isInitialized = true
         
         Log.i(TAG, "CrashHandler initialized")
     }
+    
+    private fun getContext(): Context? = contextRef.get()
     
     override fun uncaughtException(thread: Thread, throwable: Throwable) {
         Log.e(TAG, "Uncaught exception in thread: ${thread.name}", throwable)
@@ -52,7 +50,7 @@ object CrashHandler : Thread.UncaughtExceptionHandler {
     }
     
     private fun saveCrashLog(thread: Thread, throwable: Throwable) {
-        val ctx = context ?: return
+        val ctx = getContext() ?: return
         
         try {
             val crashDir = File(ctx.cacheDir, CRASH_DIR)
@@ -60,7 +58,7 @@ object CrashHandler : Thread.UncaughtExceptionHandler {
                 crashDir.mkdirs()
             }
             
-            val timestamp = dateFormat.format(Date())
+            val timestamp = DateFormatter.formatCrashLogTimestamp(Date())
             val crashFile = File(crashDir, "crash_$timestamp.txt")
             
             FileWriter(crashFile, true).use { writer ->
@@ -119,7 +117,7 @@ object CrashHandler : Thread.UncaughtExceptionHandler {
     }
     
     fun getCrashLogs(): List<File> {
-        val ctx = context ?: return emptyList()
+        val ctx = getContext() ?: return emptyList()
         val crashDir = File(ctx.cacheDir, CRASH_DIR)
         if (!crashDir.exists()) return emptyList()
         
@@ -127,7 +125,7 @@ object CrashHandler : Thread.UncaughtExceptionHandler {
     }
     
     fun clearCrashLogs() {
-        val ctx = context ?: return
+        val ctx = getContext() ?: return
         val crashDir = File(ctx.cacheDir, CRASH_DIR)
         if (crashDir.exists()) {
             crashDir.listFiles()?.forEach { it.delete() }

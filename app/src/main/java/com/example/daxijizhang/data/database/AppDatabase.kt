@@ -20,7 +20,7 @@ import java.util.concurrent.Executors
 
 @Database(
     entities = [Bill::class, BillItem::class, PaymentRecord::class, ProjectDictionary::class],
-    version = 5,
+    version = 6,
     exportSchema = false
 )
 @TypeConverters(DateConverter::class)
@@ -50,7 +50,7 @@ abstract class AppDatabase : RoomDatabase() {
                 AppDatabase::class.java,
                 "daxijizhang_database"
             )
-                .addMigrations(MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5)
+                .addMigrations(MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6)
                 .addCallback(DatabaseCallback())
                 .setJournalMode(JournalMode.TRUNCATE)
                 .setQueryExecutor(Executors.newFixedThreadPool(4))
@@ -115,6 +115,30 @@ abstract class AppDatabase : RoomDatabase() {
                 database.execSQL("ALTER TABLE bill_items ADD COLUMN orderIndex INTEGER NOT NULL DEFAULT 0")
             } catch (e: Exception) {
                 Log.e(TAG, "Migration 4->5 error (column may already exist)", e)
+            }
+        }
+
+        private val MIGRATION_5_6 = androidx.room.migration.Migration(5, 6) { database ->
+            Log.i(TAG, "Running migration from version 5 to 6")
+            try {
+                database.execSQL("DROP INDEX IF EXISTS index_project_dictionary_usageCount")
+                database.execSQL("""
+                    CREATE TABLE IF NOT EXISTS project_dictionary_new (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                        name TEXT NOT NULL,
+                        createTime INTEGER NOT NULL DEFAULT 0,
+                        updateTime INTEGER NOT NULL DEFAULT 0
+                    )
+                """)
+                database.execSQL("""
+                    INSERT INTO project_dictionary_new (id, name, createTime, updateTime)
+                    SELECT id, name, createTime, updateTime FROM project_dictionary
+                """)
+                database.execSQL("DROP TABLE project_dictionary")
+                database.execSQL("ALTER TABLE project_dictionary_new RENAME TO project_dictionary")
+                database.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS index_project_dictionary_name ON project_dictionary(name)")
+            } catch (e: Exception) {
+                Log.e(TAG, "Migration 5->6 error", e)
             }
         }
         

@@ -28,12 +28,12 @@ class BillTest {
             startDate = Date(),
             endDate = Date(),
             communityName = "阳光花园",
-            phase = "一期",
-            buildingNumber = "5栋",
+            phase = "一",
+            buildingNumber = "5",
             roomNumber = "1201"
         )
 
-        assertEquals("阳光花园 一期 5栋 1201", bill.getDisplayAddress())
+        assertEquals("阳光花园 一期 5栋1201", bill.getDisplayAddress())
     }
 
     @Test
@@ -44,7 +44,7 @@ class BillTest {
             endDate = Date(),
             communityName = "阳光花园",
             phase = "",
-            buildingNumber = "5栋",
+            buildingNumber = "5",
             roomNumber = ""
         )
 
@@ -118,6 +118,64 @@ class BillTest {
             paidAmount = 300.0
         )
 
-        assertEquals("剩余¥700.00未结清", bill.getPaymentStatus())
+        assertEquals("待结清，剩余¥700.00", bill.getPaymentStatus())
+    }
+
+    @Test
+    fun `getPaymentStatus returns waived status when waivedAmount is positive`() {
+        val bill = Bill(
+            id = 1,
+            startDate = Date(),
+            endDate = Date(),
+            communityName = "阳光花园",
+            totalAmount = 1000.0,
+            paidAmount = 950.0,
+            waivedAmount = 50.0
+        )
+
+        assertEquals("已结清，抹零¥50.00", bill.getPaymentStatus())
+    }
+
+    @Test
+    fun `getPaymentStatus returns overpaid status when paid more than total`() {
+        val bill = Bill(
+            id = 1,
+            startDate = Date(),
+            endDate = Date(),
+            communityName = "阳光花园",
+            totalAmount = 1000.0,
+            paidAmount = 1050.0
+        )
+
+        assertEquals("已结清，多收¥50.00", bill.getPaymentStatus())
+    }
+
+    @Test
+    fun `isPaid returns true when overpaid`() {
+        val bill = Bill(
+            id = 1,
+            startDate = Date(),
+            endDate = Date(),
+            communityName = "阳光花园",
+            totalAmount = 1000.0,
+            paidAmount = 1050.0
+        )
+
+        assertTrue(bill.isPaid())
+    }
+
+    @Test
+    fun `isPaid returns true when waived`() {
+        val bill = Bill(
+            id = 1,
+            startDate = Date(),
+            endDate = Date(),
+            communityName = "阳光花园",
+            totalAmount = 1000.0,
+            paidAmount = 950.0,
+            waivedAmount = 50.0
+        )
+
+        assertTrue(bill.isPaid())
     }
 }

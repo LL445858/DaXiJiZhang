@@ -9,17 +9,15 @@ import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
 import com.example.daxijizhang.data.model.Bill
 import com.example.daxijizhang.databinding.ItemBillBinding
+import com.example.daxijizhang.util.DateFormatter
 import com.example.daxijizhang.util.ThemeManager
 import com.example.daxijizhang.util.ViewUtil.setOnOptimizedClickListener
-import java.text.SimpleDateFormat
-import java.util.Locale
 
 class BillAdapter(
     private val onItemClick: (Bill) -> Unit
 ) : ListAdapter<Bill, BillAdapter.BillViewHolder>(BillDiffCallback()) {
 
     private val TAG = "BillAdapter"
-    private val dateFormat = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
     private var themeColorCache: Int = ThemeManager.getThemeColor()
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): BillViewHolder {
@@ -71,7 +69,7 @@ class BillAdapter(
         fun bind(bill: Bill) {
             binding.apply {
                 try {
-                    tvDateRange.text = "${dateFormat.format(bill.startDate)} 至 ${dateFormat.format(bill.endDate)}"
+                    tvDateRange.text = DateFormatter.formatDateRange(bill.startDate, bill.endDate)
 
                     tvAddress.text = bill.getDisplayAddress()
 

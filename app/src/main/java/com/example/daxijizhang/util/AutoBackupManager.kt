@@ -24,9 +24,11 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.json.JSONArray
 import org.json.JSONObject
-import java.io.*
-import java.text.SimpleDateFormat
-import java.util.*
+import java.io.File
+import java.io.FileInputStream
+import java.io.FileWriter
+import java.io.OutputStreamWriter
+import java.util.Date
 
 class AutoBackupManager private constructor(private val context: Context) {
 
@@ -93,7 +95,7 @@ class AutoBackupManager private constructor(private val context: Context) {
             try {
                 // 先创建新备份
                 val exportData = createExportData()
-                val fileName = "${AUTO_BACKUP_FILE_PREFIX}${SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(Date())}.json"
+                val fileName = "${AUTO_BACKUP_FILE_PREFIX}${DateFormatter.formatFileTimestamp(Date())}.json"
                 val jsonContent = exportData.toString(2)
 
                 val result = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
@@ -141,7 +143,7 @@ class AutoBackupManager private constructor(private val context: Context) {
                 // 先创建新备份
                 val exportData = createExportData()
                 val jsonContent = exportData.toString(2)
-                val fileName = "${AUTO_CLOUD_BACKUP_PREFIX}${SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(Date())}.json"
+                val fileName = "${AUTO_CLOUD_BACKUP_PREFIX}${DateFormatter.formatFileTimestamp(Date())}.json"
                 val remotePath = "daxijizhang/$fileName"
 
                 val uploadResult = WebDAVUtil.uploadFile(config, remotePath, jsonContent) { }
@@ -176,20 +178,18 @@ class AutoBackupManager private constructor(private val context: Context) {
         exportData.put("bills", billsArray)
         exportData.put("billCount", billsArray.length())
         
-        // 添加项目词典数据
         val projectDictionary = projectDictionaryRepository.getAllProjectsSync()
         val dictionaryArray = JSONArray()
         projectDictionary.forEach { project ->
             val projectJson = JSONObject().apply {
                 put("name", project.name)
-                put("usageCount", project.usageCount)
             }
             dictionaryArray.put(projectJson)
         }
         exportData.put("projectDictionary", dictionaryArray)
         exportData.put("dictionaryCount", dictionaryArray.length())
         
-        exportData.put("exportDate", SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).format(Date()))
+        exportData.put("exportDate", DateFormatter.formatDateTime(Date()))
         exportData.put("isAutoBackup", true)
 
         return exportData
@@ -237,7 +237,7 @@ class AutoBackupManager private constructor(private val context: Context) {
     }
 
     private fun formatDate(date: Date): String {
-        return SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).format(date)
+        return DateFormatter.formatDateTime(date)
     }
 
     private fun saveFileUsingMediaStore(fileName: String, content: String): String? {

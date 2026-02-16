@@ -106,7 +106,19 @@ class DraftManager(context: Context) {
 
     fun clearDraft() {
         try {
-            prefs.edit().clear().apply()
+            prefs.edit().apply {
+                remove(KEY_START_DATE)
+                remove(KEY_END_DATE)
+                remove(KEY_COMMUNITY)
+                remove(KEY_PHASE)
+                remove(KEY_BUILDING)
+                remove(KEY_ROOM)
+                remove(KEY_REMARK)
+                remove(KEY_ITEMS)
+                remove(KEY_PAYMENT_RECORDS)
+                remove(KEY_WAIVED_AMOUNT)
+                apply()
+            }
         } catch (e: Exception) {
             Log.e(TAG, "清除草稿失败", e)
         }

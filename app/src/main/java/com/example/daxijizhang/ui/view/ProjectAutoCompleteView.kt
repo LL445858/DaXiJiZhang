@@ -271,9 +271,12 @@ class ProjectAutoCompleteView @JvmOverloads constructor(
 
         onSuggestionSelectedListener?.invoke(project.name)
 
-        // 隐藏软键盘
-        val imm = context.getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
-        imm.hideSoftInputFromWindow(editText.windowToken, 0)
+        // 保持输入法打开状态，确保用户可以继续输入单价和数量
+        editText.post {
+            editText.requestFocus()
+            val imm = context.getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
+            imm.showSoftInput(editText, InputMethodManager.SHOW_IMPLICIT)
+        }
     }
 
     /**

@@ -204,6 +204,52 @@ class BillRepository(
         }
     }
 
+    suspend fun updateBillWithItems(
+        billId: Long,
+        bill: Bill,
+        items: List<BillItem>,
+        paymentRecords: List<PaymentRecord> = emptyList(),
+        waivedAmount: Double = 0.0
+    ): Boolean {
+        return SafeExecutor.runSafely("updateBillWithItems", false) {
+            validateBill(bill)
+            if (items.isEmpty()) {
+                throw IllegalArgumentException("账单项目不能为空")
+            }
+            items.forEach { validateBillItem(it) }
+            paymentRecords.forEach { validatePaymentRecord(it) }
+            
+            val totalAmount = items.sumOf { it.totalPrice }
+            val totalPaid = paymentRecords.sumOf { it.amount }
+            val billWithAmount = bill.copy(
+                id = billId,
+                totalAmount = totalAmount,
+                paidAmount = totalPaid,
+                waivedAmount = waivedAmount.coerceAtLeast(0.0)
+            )
+            
+            billDao.update(billWithAmount)
+            
+            billItemDao.deleteByBillId(billId)
+            val itemsWithBillIdAndOrder = items.mapIndexed { index, item ->
+                item.copy(billId = billId, orderIndex = index)
+            }
+            billItemDao.insertAll(itemsWithBillIdAndOrder)
+
+            paymentRecordDao.deleteByBillId(billId)
+            if (paymentRecords.isNotEmpty()) {
+                val recordsWithBillId = paymentRecords.map { it.copy(billId = billId) }
+                recordsWithBillId.forEach { paymentRecordDao.insert(it) }
+            }
+            
+            cacheManager.clearAllCaches()
+            notifier.notifyBillUpdated()
+            
+            Log.d(TAG, "Bill updated with id: $billId, items: ${items.size}, payments: ${paymentRecords.size}")
+            true
+        }
+    }
+
     suspend fun updateBillPaidAmount(billId: Long) {
         SafeExecutor.runSafely("updateBillPaidAmount") {
             val totalPaid = paymentRecordDao.getTotalPaidByBillId(billId) ?: 0.0

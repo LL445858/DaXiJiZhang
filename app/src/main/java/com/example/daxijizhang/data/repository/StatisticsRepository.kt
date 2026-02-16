@@ -21,6 +21,7 @@ class StatisticsRepository(private val database: AppDatabase) {
     
     private val TAG = "StatisticsRepository"
     private val cacheManager = DataCacheManager
+    private val calendarLock = Any()
 
     suspend fun getStatisticsByDateRange(startDate: Date, endDate: Date): StatisticsData =
         withContext(Dispatchers.IO) {
@@ -75,29 +76,18 @@ class StatisticsRepository(private val database: AppDatabase) {
                 val allPaymentsWithBillInfo = mutableListOf<PaymentWithBillInfo>()
                 var totalPaymentAmount = 0.0
 
-                allBills.forEach { bill ->
-                    try {
-                        val payments = paymentDao.getByBillIdList(bill.id)
-                        payments.forEach { payment ->
-                            if (!payment.paymentDate.before(startDate) && !payment.paymentDate.after(endDate)) {
-                                allPaymentsWithBillInfo.add(
-                                    PaymentWithBillInfo(
-                                        paymentId = payment.id,
-                                        paymentDate = payment.paymentDate,
-                                        amount = payment.amount,
-                                        billId = bill.id,
-                                        communityName = bill.communityName,
-                                        phase = bill.phase,
-                                        buildingNumber = bill.buildingNumber,
-                                        roomNumber = bill.roomNumber
-                                    )
-                                )
-                                totalPaymentAmount += payment.amount
-                            }
-                        }
-                    } catch (e: Exception) {
-                        Log.e(TAG, "Error processing payments for bill ${bill.id}", e)
+                try {
+                    val paymentsWithInfo = paymentDao.getPaymentsWithBillInfoByDateRange(
+                        startDate.time,
+                        endDate.time
+                    )
+                    
+                    for (payment in paymentsWithInfo) {
+                        allPaymentsWithBillInfo.add(payment)
+                        totalPaymentAmount += payment.amount
                     }
+                } catch (e: Exception) {
+                    Log.e(TAG, "Error fetching payments with JOIN query", e)
                 }
 
                 val topPayments = allPaymentsWithBillInfo
@@ -123,21 +113,25 @@ class StatisticsRepository(private val database: AppDatabase) {
         }
 
     private fun calculateDaysBetween(startDate: Date, endDate: Date): Int {
-        val startCal = Calendar.getInstance().apply { time = startDate }
-        val endCal = Calendar.getInstance().apply { time = endDate }
+        synchronized(calendarLock) {
+            val calendar = Calendar.getInstance()
+            calendar.time = startDate
+            calendar.set(Calendar.HOUR_OF_DAY, 0)
+            calendar.set(Calendar.MINUTE, 0)
+            calendar.set(Calendar.SECOND, 0)
+            calendar.set(Calendar.MILLISECOND, 0)
+            val startMillis = calendar.timeInMillis
 
-        startCal.set(Calendar.HOUR_OF_DAY, 0)
-        startCal.set(Calendar.MINUTE, 0)
-        startCal.set(Calendar.SECOND, 0)
-        startCal.set(Calendar.MILLISECOND, 0)
+            calendar.time = endDate
+            calendar.set(Calendar.HOUR_OF_DAY, 0)
+            calendar.set(Calendar.MINUTE, 0)
+            calendar.set(Calendar.SECOND, 0)
+            calendar.set(Calendar.MILLISECOND, 0)
+            val endMillis = calendar.timeInMillis
 
-        endCal.set(Calendar.HOUR_OF_DAY, 0)
-        endCal.set(Calendar.MINUTE, 0)
-        endCal.set(Calendar.SECOND, 0)
-        endCal.set(Calendar.MILLISECOND, 0)
-
-        val diffInMillis = endCal.timeInMillis - startCal.timeInMillis
-        return TimeUnit.DAYS.convert(diffInMillis, TimeUnit.MILLISECONDS).toInt() + 1
+            val diffInMillis = endMillis - startMillis
+            return TimeUnit.DAYS.convert(diffInMillis, TimeUnit.MILLISECONDS).toInt() + 1
+        }
     }
 
     suspend fun getStatisticsByYear(year: Int): StatisticsData {
@@ -260,42 +254,28 @@ class StatisticsRepository(private val database: AppDatabase) {
             }
             
             val paymentDao = database.paymentRecordDao()
-            val billDao = database.billDao()
             
-            val allBills = billDao.getAllList()
+            val calendar = Calendar.getInstance()
+            calendar.set(year, Calendar.JANUARY, 1, 0, 0, 0)
+            calendar.set(Calendar.MILLISECOND, 0)
+            val yearStart = calendar.time.time
+            
+            calendar.set(year, Calendar.DECEMBER, 31, 23, 59, 59)
+            calendar.set(Calendar.MILLISECOND, 999)
+            val yearEnd = calendar.time.time
+            
             val monthlyIncomes = mutableMapOf<Int, Double>()
             
-            for (month in 1..12) {
-                val calendar = Calendar.getInstance()
-                calendar.set(year, month - 1, 1, 0, 0, 0)
-                calendar.set(Calendar.MILLISECOND, 0)
-                val monthStart = calendar.time
-                
-                calendar.set(Calendar.DAY_OF_MONTH, calendar.getActualMaximum(Calendar.DAY_OF_MONTH))
-                calendar.set(Calendar.HOUR_OF_DAY, 23)
-                calendar.set(Calendar.MINUTE, 59)
-                calendar.set(Calendar.SECOND, 59)
-                calendar.set(Calendar.MILLISECOND, 999)
-                val monthEnd = calendar.time
-                
-                var monthTotal = 0.0
-                
-                allBills.forEach { bill ->
-                    try {
-                        val payments = paymentDao.getByBillIdList(bill.id)
-                        payments.forEach { payment ->
-                            if (!payment.paymentDate.before(monthStart) && !payment.paymentDate.after(monthEnd)) {
-                                monthTotal += payment.amount
-                            }
-                        }
-                    } catch (e: Exception) {
-                        Log.e(TAG, "Error processing payments for bill ${bill.id}", e)
+            try {
+                val monthlyPayments = paymentDao.getMonthlyPaymentsByYear(yearStart, yearEnd)
+                for (monthlyPayment in monthlyPayments) {
+                    val month = monthlyPayment.month.toIntOrNull()
+                    if (month != null && monthlyPayment.total > 0) {
+                        monthlyIncomes[month] = monthlyPayment.total
                     }
                 }
-                
-                if (monthTotal > 0) {
-                    monthlyIncomes[month] = monthTotal
-                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Error fetching monthly payments with JOIN query", e)
             }
             
             val result = YearlyIncomeData(year = year, monthlyIncomes = monthlyIncomes)

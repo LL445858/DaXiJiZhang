@@ -868,13 +868,11 @@ class DataMigrationActivity : BaseActivity() {
         exportData.put("bills", billsArray)
         exportData.put("billCount", billsArray.length())
         
-        // 添加项目词典数据
         val projectDictionary = projectDictionaryRepository.getAllProjectsSync()
         val dictionaryArray = JSONArray()
         projectDictionary.forEach { project ->
             val projectJson = JSONObject().apply {
                 put("name", project.name)
-                put("usageCount", project.usageCount)
             }
             dictionaryArray.put(projectJson)
         }
@@ -1273,8 +1271,7 @@ class DataMigrationActivity : BaseActivity() {
                     
                     if (name.isNotEmpty() && !existingNames.contains(name)) {
                         val project = com.example.daxijizhang.data.model.ProjectDictionary(
-                            name = name,
-                            usageCount = projectJson.optInt("usageCount", 0)
+                            name = name
                         )
                         projectDictionaryRepository.insertProject(project)
                         importCount++

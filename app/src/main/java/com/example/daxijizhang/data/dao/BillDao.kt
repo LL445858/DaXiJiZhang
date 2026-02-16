@@ -66,4 +66,16 @@ interface BillDao {
 
     @Query("SELECT * FROM bills WHERE communityName LIKE '%' || :query || '%' OR remark LIKE '%' || :query || '%' ORDER BY startDate DESC")
     suspend fun searchByCommunityNameOrRemark(query: String): List<Bill>
+
+    @Transaction
+    suspend fun updateBillWithItems(
+        bill: Bill,
+        items: List<com.example.daxijizhang.data.model.BillItem>,
+        deleteBillItems: suspend (Long) -> Unit,
+        insertBillItems: suspend (List<com.example.daxijizhang.data.model.BillItem>) -> List<Long>
+    ) {
+        update(bill)
+        deleteBillItems(bill.id)
+        insertBillItems(items)
+    }
 }

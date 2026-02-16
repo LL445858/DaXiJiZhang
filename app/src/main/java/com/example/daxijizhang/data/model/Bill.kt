@@ -40,19 +40,15 @@ data class Bill(
         val remaining = totalAmount - actualPaid
         return when {
             waivedAmount > 0.01 -> {
-                // 抹零状态
                 "已结清，抹零¥${String.format("%.2f", waivedAmount)}"
             }
             remaining < -0.01 -> {
-                // 多收状态
                 "已结清，多收¥${String.format("%.2f", kotlin.math.abs(remaining))}"
             }
-            remaining <= 0.01 -> {
-                // 刚好结清
+            kotlin.math.abs(remaining) <= 0.01 -> {
                 "已结清"
             }
             else -> {
-                // 待结清状态
                 "待结清，剩余¥${String.format("%.2f", remaining)}"
             }
         }

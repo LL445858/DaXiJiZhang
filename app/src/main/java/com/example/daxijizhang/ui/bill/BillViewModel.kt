@@ -60,7 +60,7 @@ class BillViewModel(val repository: BillRepository) : ViewModel() {
             SortType.END_DATE_DESC -> repository.getBillsSortedByEndDateDesc()
             SortType.AMOUNT_ASC -> repository.getBillsSortedByAmountAsc()
             SortType.AMOUNT_DESC -> repository.getBillsSortedByAmountDesc()
-            SortType.COMMUNITY_ASC -> repository.getBillsSortedByStartDateDesc()
+            SortType.COMMUNITY_ASC -> repository.getBillsSortedByCommunityAsc()
         }
 
         currentSource?.let { oldSource ->
@@ -132,10 +132,10 @@ class BillViewModel(val repository: BillRepository) : ViewModel() {
     private fun applySorting(bills: List<Bill>): List<Bill> {
         return when (_sortType.value) {
             SortType.COMMUNITY_ASC -> {
-                bills.sortedWith(
-                    compareBy<Bill> { PinyinUtil.getPinyin(it.communityName) }
-                        .thenByDescending { it.startDate }
-                )
+                bills.sortedWith { b1, b2 ->
+                    val cmp = PinyinUtil.compareForSort(b1.communityName, b2.communityName)
+                    if (cmp != 0) cmp else b2.startDate.compareTo(b1.startDate)
+                }
             }
             SortType.AMOUNT_ASC -> bills.sortedBy { it.totalAmount }
             SortType.AMOUNT_DESC -> bills.sortedByDescending { it.totalAmount }

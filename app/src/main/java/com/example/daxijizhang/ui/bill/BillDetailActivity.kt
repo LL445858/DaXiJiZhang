@@ -313,11 +313,13 @@ class BillDetailActivity : BaseActivity() {
 
         // 添加项目 - 使用优化点击监听器
         binding.btnAddProject.setOnOptimizedClickListener(debounceTime = 300) {
+            hideKeyboardAndClearFocus()
             showAddProjectDialog()
         }
 
         // 添加结付记录 - 使用优化点击监听器
         binding.btnAddPayment.setOnOptimizedClickListener(debounceTime = 300) {
+            hideKeyboardAndClearFocus()
             showAddPaymentDialog()
         }
 
@@ -563,14 +565,27 @@ class BillDetailActivity : BaseActivity() {
 
     private fun hideKeyboard() {
         val imm = getSystemService(INPUT_METHOD_SERVICE) as InputMethodManager
-        // 尝试从当前焦点隐藏键盘
         currentFocus?.let { view ->
             imm.hideSoftInputFromWindow(view.windowToken, 0)
         }
-        // 同时尝试从根视图隐藏键盘，确保键盘被隐藏
         window?.decorView?.rootView?.let { rootView ->
             imm.hideSoftInputFromWindow(rootView.windowToken, 0)
         }
+    }
+
+    private fun hideKeyboardAndClearFocus() {
+        val imm = getSystemService(INPUT_METHOD_SERVICE) as InputMethodManager
+        
+        currentFocus?.let { view ->
+            imm.hideSoftInputFromWindow(view.windowToken, 0)
+            view.clearFocus()
+        }
+        
+        window?.decorView?.rootView?.let { rootView ->
+            imm.hideSoftInputFromWindow(rootView.windowToken, 0)
+        }
+        
+        binding.root.requestFocus()
     }
 
     private fun loadBillData() {
@@ -819,6 +834,9 @@ class BillDetailActivity : BaseActivity() {
         // 设置圆角背景
         dialog.window?.setBackgroundDrawableResource(R.drawable.bg_dialog_rounded)
 
+        // 设置软输入模式，确保输入法能正常弹出
+        dialog.window?.setSoftInputMode(android.view.WindowManager.LayoutParams.SOFT_INPUT_STATE_VISIBLE)
+
         // 对话框关闭时重置标记
         dialog.setOnDismissListener {
             isAddProjectDialogShowing = false
@@ -848,6 +866,15 @@ class BillDetailActivity : BaseActivity() {
                 handleAddBillItem(item)
 
                 dialog.dismiss()
+            }
+        }
+
+        // 设置对话框显示监听器，在对话框完全显示后聚焦并弹出输入法
+        dialog.setOnShowListener {
+            dialogBinding.etProjectName.post {
+                dialogBinding.etProjectName.requestFocus()
+                val imm = getSystemService(INPUT_METHOD_SERVICE) as InputMethodManager
+                imm.showSoftInput(dialogBinding.etProjectName, InputMethodManager.SHOW_IMPLICIT)
             }
         }
 
@@ -1315,7 +1342,6 @@ class BillDetailActivity : BaseActivity() {
     }
 
     private fun saveBillThenExport() {
-        // 隐藏键盘
         hideKeyboard()
 
         if (!validateBillInput()) {
@@ -1327,30 +1353,20 @@ class BillDetailActivity : BaseActivity() {
             return
         }
 
+        val startDate = billStartDate
+        val endDate = billEndDate
+        if (startDate == null || endDate == null) {
+            Toast.makeText(this, "日期无效", Toast.LENGTH_SHORT).show()
+            return
+        }
+
         lifecycleScope.launch {
             try {
-                // 1. 先删除旧的项目和记录
-                viewModel.repository.deleteBillItemsByBillId(billId)
-                viewModel.repository.deletePaymentRecordsByBillId(billId)
-
-                // 2. 插入新的项目（带排序索引）
-                val itemsWithBillIdAndOrder = items.mapIndexed { index, item ->
-                    item.copy(billId = billId, orderIndex = index)
-                }
-                viewModel.repository.insertBillItems(itemsWithBillIdAndOrder)
-
-                // 3. 插入新的结付记录
-                if (paymentRecords.isNotEmpty()) {
-                    val recordsWithBillId = paymentRecords.map { it.copy(billId = billId) }
-                    recordsWithBillId.forEach { viewModel.repository.insertPaymentRecord(it) }
-                }
-
-                // 4. 最后更新账单（包括计算后的 paidAmount）
                 val totalPaid = paymentRecords.sumOf { it.amount }
                 val bill = Bill(
                     id = billId,
-                    startDate = billStartDate!!,
-                    endDate = billEndDate!!,
+                    startDate = startDate,
+                    endDate = endDate,
                     communityName = binding.etCommunity.text.toString().trim(),
                     phase = binding.etPhase.text.toString().trim().takeIf { it.isNotBlank() },
                     buildingNumber = binding.etBuilding.text.toString().trim().takeIf { it.isNotBlank() },
@@ -1360,17 +1376,25 @@ class BillDetailActivity : BaseActivity() {
                     paidAmount = totalPaid,
                     waivedAmount = waivedAmount
                 )
-                viewModel.repository.updateBill(bill)
+                
+                val success = viewModel.repository.updateBillWithItems(
+                    billId = billId,
+                    bill = bill,
+                    items = items,
+                    paymentRecords = paymentRecords,
+                    waivedAmount = waivedAmount
+                )
 
-                // 更新原始账单引用和原始值
-                originalBill = bill
-                saveOriginalValues()
-                hasUnsavedChanges = false
+                if (success) {
+                    originalBill = bill
+                    saveOriginalValues()
+                    hasUnsavedChanges = false
 
-                Toast.makeText(this@BillDetailActivity, "账单保存成功", Toast.LENGTH_SHORT).show()
-
-                // 保存成功后显示导出对话框
-                showExportBillDialog()
+                    Toast.makeText(this@BillDetailActivity, "账单保存成功", Toast.LENGTH_SHORT).show()
+                    showExportBillDialog()
+                } else {
+                    Toast.makeText(this@BillDetailActivity, "保存失败", Toast.LENGTH_SHORT).show()
+                }
             } catch (e: Exception) {
                 Toast.makeText(this@BillDetailActivity, "保存失败：${e.message}", Toast.LENGTH_SHORT).show()
             }
@@ -1479,7 +1503,6 @@ class BillDetailActivity : BaseActivity() {
     }
 
     private fun saveBill() {
-        // 隐藏键盘
         hideKeyboard()
 
         if (!validateBillInput()) {
@@ -1491,30 +1514,20 @@ class BillDetailActivity : BaseActivity() {
             return
         }
 
+        val startDate = billStartDate
+        val endDate = billEndDate
+        if (startDate == null || endDate == null) {
+            Toast.makeText(this, "日期无效", Toast.LENGTH_SHORT).show()
+            return
+        }
+
         lifecycleScope.launch {
             try {
-                // 1. 先删除旧的项目和记录
-                viewModel.repository.deleteBillItemsByBillId(billId)
-                viewModel.repository.deletePaymentRecordsByBillId(billId)
-
-                // 2. 插入新的项目（带排序索引）
-                val itemsWithBillIdAndOrder = items.mapIndexed { index, item ->
-                    item.copy(billId = billId, orderIndex = index)
-                }
-                viewModel.repository.insertBillItems(itemsWithBillIdAndOrder)
-
-                // 3. 插入新的结付记录
-                if (paymentRecords.isNotEmpty()) {
-                    val recordsWithBillId = paymentRecords.map { it.copy(billId = billId) }
-                    recordsWithBillId.forEach { viewModel.repository.insertPaymentRecord(it) }
-                }
-
-                // 4. 最后更新账单（包括计算后的 paidAmount）
                 val totalPaid = paymentRecords.sumOf { it.amount }
                 val bill = Bill(
                     id = billId,
-                    startDate = billStartDate!!,
-                    endDate = billEndDate!!,
+                    startDate = startDate,
+                    endDate = endDate,
                     communityName = binding.etCommunity.text.toString().trim(),
                     phase = binding.etPhase.text.toString().trim().takeIf { it.isNotBlank() },
                     buildingNumber = binding.etBuilding.text.toString().trim().takeIf { it.isNotBlank() },
@@ -1524,14 +1537,23 @@ class BillDetailActivity : BaseActivity() {
                     paidAmount = totalPaid,
                     waivedAmount = waivedAmount
                 )
-                viewModel.repository.updateBill(bill)
+                
+                val success = viewModel.repository.updateBillWithItems(
+                    billId = billId,
+                    bill = bill,
+                    items = items,
+                    paymentRecords = paymentRecords,
+                    waivedAmount = waivedAmount
+                )
 
-                // 更新原始值
-                saveOriginalValues()
-                hasUnsavedChanges = false
-
-                Toast.makeText(this@BillDetailActivity, "账单保存成功", Toast.LENGTH_SHORT).show()
-                finish()
+                if (success) {
+                    saveOriginalValues()
+                    hasUnsavedChanges = false
+                    Toast.makeText(this@BillDetailActivity, "账单保存成功", Toast.LENGTH_SHORT).show()
+                    finish()
+                } else {
+                    Toast.makeText(this@BillDetailActivity, "保存失败", Toast.LENGTH_SHORT).show()
+                }
             } catch (e: Exception) {
                 Toast.makeText(this@BillDetailActivity, "保存失败：${e.message}", Toast.LENGTH_SHORT).show()
             }
@@ -1594,7 +1616,6 @@ class BillDetailActivity : BaseActivity() {
     }
 
     private fun saveBillAndFinish() {
-        // 隐藏键盘
         hideKeyboard()
 
         if (!validateBillInput()) {
@@ -1606,30 +1627,20 @@ class BillDetailActivity : BaseActivity() {
             return
         }
 
+        val startDate = billStartDate
+        val endDate = billEndDate
+        if (startDate == null || endDate == null) {
+            Toast.makeText(this, "日期无效", Toast.LENGTH_SHORT).show()
+            return
+        }
+
         lifecycleScope.launch {
             try {
-                // 1. 先删除旧的项目和记录
-                viewModel.repository.deleteBillItemsByBillId(billId)
-                viewModel.repository.deletePaymentRecordsByBillId(billId)
-
-                // 2. 插入新的项目（带排序索引）
-                val itemsWithBillIdAndOrder = items.mapIndexed { index, item ->
-                    item.copy(billId = billId, orderIndex = index)
-                }
-                viewModel.repository.insertBillItems(itemsWithBillIdAndOrder)
-
-                // 3. 插入新的结付记录
-                if (paymentRecords.isNotEmpty()) {
-                    val recordsWithBillId = paymentRecords.map { it.copy(billId = billId) }
-                    recordsWithBillId.forEach { viewModel.repository.insertPaymentRecord(it) }
-                }
-
-                // 4. 最后更新账单（包括计算后的 paidAmount）
                 val totalPaid = paymentRecords.sumOf { it.amount }
                 val bill = Bill(
                     id = billId,
-                    startDate = billStartDate!!,
-                    endDate = billEndDate!!,
+                    startDate = startDate,
+                    endDate = endDate,
                     communityName = binding.etCommunity.text.toString().trim(),
                     phase = binding.etPhase.text.toString().trim().takeIf { it.isNotBlank() },
                     buildingNumber = binding.etBuilding.text.toString().trim().takeIf { it.isNotBlank() },
@@ -1639,13 +1650,23 @@ class BillDetailActivity : BaseActivity() {
                     paidAmount = totalPaid,
                     waivedAmount = waivedAmount
                 )
-                viewModel.repository.updateBill(bill)
+                
+                val success = viewModel.repository.updateBillWithItems(
+                    billId = billId,
+                    bill = bill,
+                    items = items,
+                    paymentRecords = paymentRecords,
+                    waivedAmount = waivedAmount
+                )
 
-                saveOriginalValues()
-                hasUnsavedChanges = false
-
-                Toast.makeText(this@BillDetailActivity, "账单保存成功", Toast.LENGTH_SHORT).show()
-                finish()
+                if (success) {
+                    saveOriginalValues()
+                    hasUnsavedChanges = false
+                    Toast.makeText(this@BillDetailActivity, "账单保存成功", Toast.LENGTH_SHORT).show()
+                    finish()
+                } else {
+                    Toast.makeText(this@BillDetailActivity, "保存失败", Toast.LENGTH_SHORT).show()
+                }
             } catch (e: Exception) {
                 Toast.makeText(this@BillDetailActivity, "保存失败：${e.message}", Toast.LENGTH_SHORT).show()
             }

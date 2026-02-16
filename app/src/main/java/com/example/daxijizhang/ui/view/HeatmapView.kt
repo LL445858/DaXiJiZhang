@@ -42,6 +42,23 @@ class HeatmapView @JvmOverloads constructor(
     private var verticalSpacingPx: Float = 0f
     private var horizontalPaddingPx: Float = 0f
     
+    private data class CachedDotPosition(
+        val day: Int,
+        val left: Float,
+        val top: Float,
+        val right: Float,
+        val bottom: Float,
+        val count: Int
+    )
+    
+    private var cachedPositions: List<CachedDotPosition>? = null
+    private var cachedMaxCount: Int = 1
+    private var cachedYear: Int = 0
+    private var cachedMonth: Int = 0
+    private var cachedStartX: Float = 0f
+    
+    private val reusableCalendar = Calendar.getInstance()
+    
     init {
         val density = context.resources.displayMetrics.density
         dotSizePx = dotSizeDp * density
@@ -52,6 +69,7 @@ class HeatmapView @JvmOverloads constructor(
     
     fun setData(data: HeatmapData?) {
         this.heatmapData = data
+        cachedPositions = null
         requestLayout()
         invalidate()
     }
@@ -65,8 +83,8 @@ class HeatmapView @JvmOverloads constructor(
         val desiredWidth = MeasureSpec.getSize(widthMeasureSpec)
         
         val data = heatmapData
-        val year = data?.year ?: Calendar.getInstance().get(Calendar.YEAR)
-        val month = data?.month ?: (Calendar.getInstance().get(Calendar.MONTH) + 1)
+        val year = data?.year ?: reusableCalendar.get(Calendar.YEAR)
+        val month = data?.month ?: (reusableCalendar.get(Calendar.MONTH) + 1)
         val rowsNeeded = calculateRowsNeeded(year, month)
         
         val totalDotHeight = rowsNeeded * dotSizePx
@@ -80,11 +98,10 @@ class HeatmapView @JvmOverloads constructor(
     }
     
     private fun calculateRowsNeeded(year: Int, month: Int): Int {
-        val calendar = Calendar.getInstance()
-        calendar.set(year, month - 1, 1)
+        reusableCalendar.set(year, month - 1, 1)
         
-        val daysInMonth = calendar.getActualMaximum(Calendar.DAY_OF_MONTH)
-        val firstDayOfWeek = getMondayFirstDayOfWeek(calendar)
+        val daysInMonth = reusableCalendar.getActualMaximum(Calendar.DAY_OF_MONTH)
+        val firstDayOfWeek = getMondayFirstDayOfWeek(reusableCalendar)
         
         val lastPosition = firstDayOfWeek + daysInMonth - 1
         return (lastPosition / 7) + 1
@@ -104,30 +121,33 @@ class HeatmapView @JvmOverloads constructor(
         }
     }
     
-    override fun onDraw(canvas: Canvas) {
-        super.onDraw(canvas)
+    private fun ensureCachedPositions() {
+        val data = heatmapData ?: return
         
-        val data = heatmapData
+        val year = data.year
+        val month = data.month
         
-        val year = data?.year ?: Calendar.getInstance().get(Calendar.YEAR)
-        val month = data?.month ?: (Calendar.getInstance().get(Calendar.MONTH) + 1)
+        if (cachedPositions != null && cachedYear == year && cachedMonth == month) {
+            return
+        }
         
-        val calendar = Calendar.getInstance()
-        calendar.set(year, month - 1, 1)
+        reusableCalendar.set(year, month - 1, 1)
         
-        val daysInMonth = calendar.getActualMaximum(Calendar.DAY_OF_MONTH)
-        val firstDayOfWeek = getMondayFirstDayOfWeek(calendar)
+        val daysInMonth = reusableCalendar.getActualMaximum(Calendar.DAY_OF_MONTH)
+        val firstDayOfWeek = getMondayFirstDayOfWeek(reusableCalendar)
         
         val availableWidth = width - paddingLeft - paddingRight - 2 * horizontalPaddingPx
         val totalDotWidth = 7 * dotSizePx
         val totalSpacingWidth = 6 * horizontalSpacingPx
         val startX = paddingLeft + horizontalPaddingPx + (availableWidth - totalDotWidth - totalSpacingWidth) / 2
         
-        val maxCount = max(1, data?.maxCount ?: 1)
+        val maxCount = max(1, data.maxCount)
+        
+        val positions = mutableListOf<CachedDotPosition>()
         
         for (day in 1..daysInMonth) {
-            calendar.set(year, month - 1, day)
-            val dayOfWeek = getMondayFirstDayOfWeek(calendar)
+            reusableCalendar.set(year, month - 1, day)
+            val dayOfWeek = getMondayFirstDayOfWeek(reusableCalendar)
             
             val position = firstDayOfWeek + day - 1
             val row = position / 7
@@ -138,16 +158,72 @@ class HeatmapView @JvmOverloads constructor(
             val right = left + dotSizePx
             val bottom = top + dotSizePx
             
-            val count = data?.getCount(day) ?: 0
+            val count = data.getCount(day)
             
-            val color = if (count > 0) {
-                val ratio = count.toFloat() / maxCount.toFloat()
+            positions.add(CachedDotPosition(day, left, top, right, bottom, count))
+        }
+        
+        cachedPositions = positions
+        cachedMaxCount = maxCount
+        cachedYear = year
+        cachedMonth = month
+        cachedStartX = startX
+    }
+    
+    override fun onDraw(canvas: Canvas) {
+        super.onDraw(canvas)
+        
+        val data = heatmapData
+        if (data == null) {
+            drawEmptyState(canvas)
+            return
+        }
+        
+        ensureCachedPositions()
+        
+        val positions = cachedPositions ?: return
+        
+        for (pos in positions) {
+            val color = if (pos.count > 0) {
+                val ratio = pos.count.toFloat() / cachedMaxCount.toFloat()
                 calculateHeatColor(ratio)
             } else {
                 baseGrayColor
             }
             
             dotPaint.color = color
+            val cornerRadius = dotSizePx * 0.15f
+            canvas.drawRoundRect(pos.left, pos.top, pos.right, pos.bottom, cornerRadius, cornerRadius, dotPaint)
+        }
+    }
+    
+    private fun drawEmptyState(canvas: Canvas) {
+        val year = reusableCalendar.get(Calendar.YEAR)
+        val month = reusableCalendar.get(Calendar.MONTH) + 1
+        
+        reusableCalendar.set(year, month - 1, 1)
+        
+        val daysInMonth = reusableCalendar.getActualMaximum(Calendar.DAY_OF_MONTH)
+        val firstDayOfWeek = getMondayFirstDayOfWeek(reusableCalendar)
+        
+        val availableWidth = width - paddingLeft - paddingRight - 2 * horizontalPaddingPx
+        val totalDotWidth = 7 * dotSizePx
+        val totalSpacingWidth = 6 * horizontalSpacingPx
+        val startX = paddingLeft + horizontalPaddingPx + (availableWidth - totalDotWidth - totalSpacingWidth) / 2
+        
+        for (day in 1..daysInMonth) {
+            reusableCalendar.set(year, month - 1, day)
+            
+            val position = firstDayOfWeek + day - 1
+            val row = position / 7
+            val col = position % 7
+            
+            val left = startX + col * (dotSizePx + horizontalSpacingPx)
+            val top = paddingTop + row * (dotSizePx + verticalSpacingPx)
+            val right = left + dotSizePx
+            val bottom = top + dotSizePx
+            
+            dotPaint.color = baseGrayColor
             val cornerRadius = dotSizePx * 0.15f
             canvas.drawRoundRect(left, top, right, bottom, cornerRadius, cornerRadius, dotPaint)
         }
