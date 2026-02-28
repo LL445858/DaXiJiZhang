@@ -187,7 +187,25 @@
     <!-- 页面管理 -->
     <string name="page_management">页面管理</string>
     <string name="default_sort_type">默认排序方式</string>
+    <string name="default_sort_type_description">账单页面默认排序方式</string>
     <string name="default_statistics_range">默认统计范围</string>
+    <string name="default_statistics_range_description">统计页面默认统计范围</string>
+
+    <!-- 安全设置 -->
+    <string name="security_settings">安全设置</string>
+    <string name="app_lock">应用锁定</string>
+    <string name="app_lock_description">设置软件启动时需要验证密码</string>
+    <string name="draw_pattern">绘制图案</string>
+    <string name="draw_pattern_again">再次绘制图案</string>
+    <string name="pattern_too_short">请绘制至少4个点的图案</string>
+    <string name="pattern_not_match">图案不一致，请重新绘制</string>
+    <string name="pattern_error">图案错误，请重试</string>
+    <string name="pattern_error_remaining">图案错误，剩余%d次尝试机会</string>
+    <string name="pattern_locked">应用已锁定，请%d分钟后重试</string>
+    <string name="pattern_locked_time">应用已锁定，请%1$d分%2$d秒后重试</string>
+    <string name="verify_pattern">应用锁定</string>
+    <string name="app_locked_title">大喜记账已锁定</string>
+    <string name="please_draw_pattern">请绘制图案密码</string>
 
     <!-- 同步相关 -->
     <string name="verifying">验证中...</string>

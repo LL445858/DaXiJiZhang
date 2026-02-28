@@ -4,9 +4,12 @@ import android.app.Activity
 import android.content.Intent
 import android.os.Build
 import android.os.Bundle
+import android.util.Log
 import android.window.OnBackInvokedDispatcher
 import android.widget.ArrayAdapter
+import android.widget.Toast
 import androidx.activity.OnBackPressedCallback
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.updateLayoutParams
@@ -14,7 +17,9 @@ import com.example.daxijizhang.R
 import com.example.daxijizhang.data.model.PeriodType
 import com.example.daxijizhang.databinding.ActivityMoreSettingsBinding
 import com.example.daxijizhang.ui.base.BaseActivity
+import com.example.daxijizhang.util.PatternLockManager
 import com.example.daxijizhang.util.StatisticsStateManager
+import com.example.daxijizhang.util.ThemeManager
 import com.example.daxijizhang.util.ViewUtil
 
 class MoreSettingsActivity : BaseActivity() {
@@ -47,10 +52,55 @@ class MoreSettingsActivity : BaseActivity() {
         "AMOUNT_ASC"
     )
 
+    private var isUpdatingSwitch = false
+
+    private val setPatternLauncher = registerForActivityResult(
+        ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        isUpdatingSwitch = true
+        try {
+            if (result.resultCode == PatternLockActivity.RESULT_SUCCESS) {
+                binding.switchAppLock.isChecked = true
+                Toast.makeText(this, getString(R.string.app_lock) + "已开启", Toast.LENGTH_SHORT).show()
+            } else {
+                binding.switchAppLock.isChecked = false
+            }
+        } catch (e: Exception) {
+            Log.e("MoreSettingsActivity", "Error handling set pattern result", e)
+        } finally {
+            isUpdatingSwitch = false
+        }
+    }
+
+    private val verifyDisableLauncher = registerForActivityResult(
+        ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        isUpdatingSwitch = true
+        try {
+            if (result.resultCode == PatternLockActivity.RESULT_SUCCESS) {
+                PatternLockManager.clearPattern()
+                binding.switchAppLock.isChecked = false
+                Toast.makeText(this, getString(R.string.app_lock) + "已关闭", Toast.LENGTH_SHORT).show()
+            } else {
+                binding.switchAppLock.isChecked = true
+            }
+        } catch (e: Exception) {
+            Log.e("MoreSettingsActivity", "Error handling verify disable result", e)
+        } finally {
+            isUpdatingSwitch = false
+        }
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         binding = ActivityMoreSettingsBinding.inflate(layoutInflater)
         setContentView(binding.root)
+
+        try {
+            PatternLockManager.init(this)
+        } catch (e: Exception) {
+            Log.e("MoreSettingsActivity", "Failed to initialize PatternLockManager", e)
+        }
 
         setupStatusBarPadding()
         initViews()
@@ -59,24 +109,26 @@ class MoreSettingsActivity : BaseActivity() {
         setupForwardTransition()
         setupSortTypeSpinner()
         setupStatisticsRangeSpinner()
+        loadAppLockState()
+        applyThemeColor()
     }
 
     private fun setupStatusBarPadding() {
         ViewCompat.setOnApplyWindowInsetsListener(binding.root) { _, windowInsets ->
             val statusBarInsets = windowInsets.getInsets(WindowInsetsCompat.Type.statusBars())
             val navigationBarInsets = windowInsets.getInsets(WindowInsetsCompat.Type.navigationBars())
-            
+
             binding.statusBarPlaceholder.updateLayoutParams {
                 height = statusBarInsets.top
             }
-            
+
             binding.contentContainer.setPadding(
                 binding.contentContainer.paddingLeft,
                 binding.contentContainer.paddingTop,
                 binding.contentContainer.paddingRight,
                 navigationBarInsets.bottom + binding.contentContainer.paddingTop
             )
-            
+
             windowInsets
         }
     }
@@ -85,12 +137,13 @@ class MoreSettingsActivity : BaseActivity() {
         super.onResume()
         setupSortTypeSpinner()
         setupStatisticsRangeSpinner()
+        loadAppLockState()
     }
 
     private fun setupSortTypeSpinner() {
         val adapter = ArrayAdapter(this, R.layout.item_dropdown_dark_mode, sortTypeOptions)
         binding.spinnerDefaultSortType.setAdapter(adapter)
-        
+
         val currentType = StatisticsStateManager.getDefaultSortType()
         val currentIndex = sortTypeValues.indexOf(currentType).takeIf { it >= 0 } ?: 0
         binding.spinnerDefaultSortType.setText(sortTypeOptions[currentIndex], false)
@@ -99,14 +152,24 @@ class MoreSettingsActivity : BaseActivity() {
     private fun setupStatisticsRangeSpinner() {
         val adapter = ArrayAdapter(this, R.layout.item_dropdown_dark_mode, statisticsRangeOptions)
         binding.spinnerDefaultStatisticsRange.setAdapter(adapter)
-        
+
         val currentType = StatisticsStateManager.getDefaultPeriodType()
         val currentIndex = statisticsRangeValues.indexOf(currentType).takeIf { it >= 0 } ?: 0
         binding.spinnerDefaultStatisticsRange.setText(statisticsRangeOptions[currentIndex], false)
     }
 
+    private fun loadAppLockState() {
+        isUpdatingSwitch = true
+        binding.switchAppLock.isChecked = PatternLockManager.isLockEnabled()
+        isUpdatingSwitch = false
+    }
+
+    private fun applyThemeColor() {
+        binding.switchAppLock.thumbTintList = ThemeManager.createSwitchThumbColorStateList()
+        binding.switchAppLock.trackTintList = ThemeManager.createSwitchTrackColorStateList()
+    }
+
     private fun setupBackPressHandler() {
-        // Android 13+ 使用新的预测性返回手势API
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             onBackInvokedDispatcher.registerOnBackInvokedCallback(
                 OnBackInvokedDispatcher.PRIORITY_DEFAULT
@@ -114,7 +177,6 @@ class MoreSettingsActivity : BaseActivity() {
                 finishWithAnimation()
             }
         } else {
-            // 低版本使用OnBackPressedDispatcher
             onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
                 override fun handleOnBackPressed() {
                     finishWithAnimation()
@@ -123,11 +185,7 @@ class MoreSettingsActivity : BaseActivity() {
         }
     }
 
-    /**
-     * 设置进入动画（前进动画）
-     */
     private fun setupForwardTransition() {
-        // Android 13+ 使用新的过渡API
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             overrideActivityTransition(
                 Activity.OVERRIDE_TRANSITION_OPEN,
@@ -137,19 +195,14 @@ class MoreSettingsActivity : BaseActivity() {
         }
     }
 
-    /**
-     * 设置返回动画（后退动画）并结束Activity
-     */
     private fun finishWithAnimation() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            // Android 13+ 使用新的API
             overrideActivityTransition(
                 Activity.OVERRIDE_TRANSITION_CLOSE,
                 R.anim.slide_in_left,
                 R.anim.slide_out_right
             )
         } else {
-            // 低版本仍然需要使用旧API
             @Suppress("DEPRECATION")
             overridePendingTransition(R.anim.slide_in_left, R.anim.slide_out_right)
         }
@@ -163,7 +216,6 @@ class MoreSettingsActivity : BaseActivity() {
     }
 
     private fun setupClickListeners() {
-        // 项目词典 - 跳转到项目词典管理页面
         binding.itemProjectDictionary.setOnClickListener {
             ViewUtil.applyClickAnimation(it) {
                 val intent = Intent(this, ProjectDictionaryActivity::class.java)
@@ -171,7 +223,6 @@ class MoreSettingsActivity : BaseActivity() {
             }
         }
 
-        // 默认排序方式选择
         binding.spinnerDefaultSortType.setOnItemClickListener { parent, _, position, _ ->
             parent?.let {
                 val inputMethodManager = getSystemService(INPUT_METHOD_SERVICE) as android.view.inputmethod.InputMethodManager
@@ -184,7 +235,6 @@ class MoreSettingsActivity : BaseActivity() {
             binding.spinnerDefaultSortType.clearFocus()
         }
 
-        // 点击默认排序方式条目时，如果下拉菜单已打开则关闭它
         binding.itemDefaultSortType.setOnClickListener {
             if (binding.spinnerDefaultSortType.isPopupShowing) {
                 binding.spinnerDefaultSortType.dismissDropDown()
@@ -193,7 +243,6 @@ class MoreSettingsActivity : BaseActivity() {
             }
         }
 
-        // 默认统计范围选择
         binding.spinnerDefaultStatisticsRange.setOnItemClickListener { parent, _, position, _ ->
             parent?.let {
                 val inputMethodManager = getSystemService(INPUT_METHOD_SERVICE) as android.view.inputmethod.InputMethodManager
@@ -206,13 +255,40 @@ class MoreSettingsActivity : BaseActivity() {
             binding.spinnerDefaultStatisticsRange.clearFocus()
         }
 
-        // 点击默认统计范围条目时，如果下拉菜单已打开则关闭它
         binding.itemDefaultStatisticsRange.setOnClickListener {
             if (binding.spinnerDefaultStatisticsRange.isPopupShowing) {
                 binding.spinnerDefaultStatisticsRange.dismissDropDown()
             } else {
                 binding.spinnerDefaultStatisticsRange.showDropDown()
             }
+        }
+
+        binding.switchAppLock.setOnCheckedChangeListener { _, isChecked ->
+            if (isUpdatingSwitch) return@setOnCheckedChangeListener
+
+            try {
+                if (isChecked) {
+                    val intent = PatternLockActivity.createSetIntent(this)
+                    setPatternLauncher.launch(intent)
+                } else {
+                    if (PatternLockManager.hasPattern()) {
+                        val intent = PatternLockActivity.createVerifyDisableIntent(this)
+                        verifyDisableLauncher.launch(intent)
+                    } else {
+                        PatternLockManager.setLockEnabled(false)
+                    }
+                }
+            } catch (e: Exception) {
+                Log.e("MoreSettingsActivity", "Error handling switch change", e)
+                isUpdatingSwitch = true
+                binding.switchAppLock.isChecked = !isChecked
+                isUpdatingSwitch = false
+                Toast.makeText(this, "操作失败，请重试", Toast.LENGTH_SHORT).show()
+            }
+        }
+
+        binding.itemAppLock.setOnClickListener {
+            binding.switchAppLock.isChecked = !binding.switchAppLock.isChecked
         }
     }
 }

@@ -18,6 +18,8 @@ import com.example.daxijizhang.data.database.AppDatabase
 import com.example.daxijizhang.data.repository.BillRepository
 import com.example.daxijizhang.ui.adapter.MainFragmentAdapter
 import com.example.daxijizhang.ui.base.BaseActivity
+import com.example.daxijizhang.ui.settings.PatternLockActivity
+import com.example.daxijizhang.util.PatternLockManager
 import com.example.daxijizhang.util.ThemeManager
 import com.example.daxijizhang.util.WebDAVUtil
 import kotlinx.coroutines.Dispatchers
@@ -27,6 +29,10 @@ import java.text.SimpleDateFormat
 import java.util.*
 
 class MainActivity : BaseActivity() {
+
+    companion object {
+        const val EXTRA_SKIP_PATTERN_VERIFY = "skip_pattern_verify"
+    }
 
     private lateinit var binding: ActivityMainBinding
     private lateinit var prefs: SharedPreferences
@@ -39,6 +45,16 @@ class MainActivity : BaseActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
+        prefs = getSharedPreferences("user_settings", MODE_PRIVATE)
+
+        PatternLockManager.init(this)
+
+        val skipVerify = intent.getBooleanExtra(EXTRA_SKIP_PATTERN_VERIFY, false)
+        if (!skipVerify && PatternLockManager.isLockEnabled()) {
+            startPatternLockActivity()
+            return
+        }
+
         setupStatusBar()
 
         binding = ActivityMainBinding.inflate(layoutInflater)
@@ -46,8 +62,6 @@ class MainActivity : BaseActivity() {
 
         val displayMetrics = resources.displayMetrics
         edgeExclusionWidth = (displayMetrics.widthPixels * 0.05f).toInt()
-
-        prefs = getSharedPreferences("user_settings", MODE_PRIVATE)
 
         initRepository()
         setupViewPager()
@@ -64,6 +78,12 @@ class MainActivity : BaseActivity() {
         performAutoSync()
     }
 
+    private fun startPatternLockActivity() {
+        val intent = PatternLockActivity.createVerifyIntent(this)
+        startActivity(intent)
+        finish()
+    }
+
     private fun initRepository() {
         val database = AppDatabase.getDatabase(applicationContext)
         repository = BillRepository(
@@ -72,7 +92,7 @@ class MainActivity : BaseActivity() {
             database.paymentRecordDao()
         )
     }
-    
+
     private fun setupStatusBar() {
         window.apply {
             val isDarkMode = (resources.configuration.uiMode and android.content.res.Configuration.UI_MODE_NIGHT_MASK) ==
@@ -110,13 +130,13 @@ class MainActivity : BaseActivity() {
     private fun setupViewPager() {
         pagerAdapter = MainFragmentAdapter(this)
         binding.viewPager.adapter = pagerAdapter
-        
+
         binding.viewPager.offscreenPageLimit = 2
-        
+
         binding.viewPager.registerOnPageChangeCallback(object : ViewPager2.OnPageChangeCallback() {
             override fun onPageSelected(position: Int) {
                 updateStatusBarForPosition(position)
-                
+
                 val menuId = pagerAdapter.getMenuIdForPosition(position)
                 if (binding.bottomNav.selectedItemId != menuId) {
                     binding.bottomNav.menu.findItem(menuId)?.isChecked = true
@@ -156,18 +176,18 @@ class MainActivity : BaseActivity() {
     fun reapplyThemeColor() {
         applyBottomNavThemeColor()
     }
-    
+
     override fun onFontScaleChanged(scale: Float) {
         super.onFontScaleChanged(scale)
     }
-    
+
     override fun onResume() {
         super.onResume()
         binding.bottomNav.post {
             applyBottomNavFontScale(ThemeManager.getFontScale())
         }
     }
-    
+
     private fun applyBottomNavFontScale(scale: Float) {
         try {
             val menuView = binding.bottomNav.getChildAt(0) as? ViewGroup
@@ -181,7 +201,7 @@ class MainActivity : BaseActivity() {
             e.printStackTrace()
         }
     }
-    
+
     private fun findAndUpdateTextViews(view: View, scale: Float) {
         when (view) {
             is android.widget.TextView -> {
@@ -195,7 +215,7 @@ class MainActivity : BaseActivity() {
             }
         }
     }
-    
+
     private fun setupBackPressHandler() {
         onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
             override fun handleOnBackPressed() {
@@ -203,7 +223,7 @@ class MainActivity : BaseActivity() {
             }
         })
     }
-    
+
     private fun playEntranceAnimation() {
         binding.bottomNav.translationY = 200f
         binding.bottomNav.alpha = 0f
@@ -217,6 +237,8 @@ class MainActivity : BaseActivity() {
     }
 
     private fun performAutoSync() {
+        if (!::prefs.isInitialized) return
+
         val syncStrategy = prefs.getString("sync_strategy", "manual")
         if (syncStrategy != "auto") {
             return
