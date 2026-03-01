@@ -12,8 +12,8 @@ DaXiJiZhang/
 │   ├── src/main/
 │   │   ├── java/com/example/daxijizhang/
 │   │   │   ├── DaxiApplication.kt
-│   │   │   ├── MainActivity.kt              # 带有 ViewPager2 导航的主 Activity
-│   │   │   ├── data/                        # 数据层
+│   │   │   ├── MainActivity.kt             # 带有 ViewPager2 导航的主 Activity
+│   │   │   ├── data/                       # 数据层
 │   │   │   │   ├── cache/                  # 内存缓存工具
 │   │   │   │   ├── dao/                    # Room 数据库访问对象
 │   │   │   │   ├── database/               # Room 数据库设置
@@ -32,11 +32,11 @@ DaXiJiZhang/
 │   │   │   │   └── view/                   # 自定义视图
 │   │   │   └── util/                       # 工具类
 │   │   └── res/                            # Android 资源
-│   └── build.gradle.kts                   # 应用级构建配置
+│   └── build.gradle.kts                    # 应用级构建配置
 ├── gradle/
-│   └── libs.versions.toml                 # 版本目录
-├── build.gradle.kts                       # 项目级构建配置
-└── settings.gradle.kts                    # 项目设置
+│   └── libs.versions.toml                  # 版本目录
+├── build.gradle.kts                        # 项目级构建配置
+└── settings.gradle.kts                     # 项目设置
 ```
 ### 参数
 |类别|技术|版本|用途|
@@ -45,7 +45,7 @@ DaXiJiZhang/
 |构建系统|	Gradle with Kotlin DSL|	8.7.3 |AGP	构建配置和依赖管理|
 |最低 SDK	|Android 7.0| (API 24)	|	最低支持的 Android 版本|
 |目标 SDK|	Android 15| (API 35)	|	目标 Android 版本|
-|架构|	MVVM + Jetpack	|	架构模式|
+|架构|	MVVM + Jetpack|-	|	架构模式|
 |数据库|	Room|	2.6.1	|本地数据持久化|
 |协程	|Kotlinx Coroutines	|1.9.0|	异步编程|
 |导航	|Navigation Component|	2.8.5	|应用内导航|
